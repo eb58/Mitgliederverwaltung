@@ -486,6 +486,15 @@
             const paymentRand = Math.random();
             const paymentStatus = paymentRand < 0.8 ? 'bezahlt' : paymentRand < 0.95 ? 'ausstehend' : 'überfällig';
 
+            const yearJoined = 2015 + Math.floor(Math.random() * 12);
+            const monthJoined = Math.floor(Math.random() * 12);
+            const dayJoined = Math.floor(Math.random() * 28) + 1;
+            const joinDate = new Date(yearJoined, monthJoined, dayJoined);
+
+            const age = 18 + Math.floor(Math.random() * 58);
+            const birthYear = new Date().getFullYear() - age;
+            const birthdate = new Date(birthYear, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1);
+
             members.push({
                 id: i,
                 memberNumber: String(i).padStart(4, '0'),
@@ -493,8 +502,8 @@
                 email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@email.de`,
                 phone: '0123 456789',
                 street: 'Teststraße 1', zip: '12345', city: cities[Math.floor(Math.random() * cities.length)],
-                birthdate: '1990-01-01',
-                joinDate: `20${15 + Math.floor(Math.random() * 10)}-01-01`,
+                birthdate: birthdate.toISOString().split('T')[0],
+                joinDate: joinDate.toISOString().split('T')[0],
                 category: selectedCategory.name,
                 annualFee: selectedCategory.fee,
                 status: Math.random() > 0.1 ? 'aktiv' : 'inaktiv',
@@ -638,12 +647,29 @@
         $(`#${id}`).html(html);
     };
 
+    const calculateAge = (birthDateString) => {
+        if (!birthDateString) return 0;
+        const today = new Date();
+        const birthDate = new Date(birthDateString);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+        return age;
+    };
+
     const renderReports = () => {
         const catCount = {};
         members.forEach(m => catCount[m.category] = (catCount[m.category] || 0) + 1);
         $('#categoryBreakdown').html(Object.keys(catCount).map(c => `<div><strong>${c}:</strong> ${catCount[c]}</div>`).join(''));
         $('#paymentRate').text(Math.round((members.filter(m => m.paymentStatus === 'bezahlt' && m.status === 'aktiv').length / members.filter(m => m.status === 'aktiv').length) * 100) + '%');
+
+        const membersWithAge = members.filter(m => m.birthdate);
+        const totalAge = membersWithAge.reduce((sum, m) => sum + calculateAge(m.birthdate), 0);
+        const avg = membersWithAge.length > 0 ? Math.round(totalAge / membersWithAge.length) : 0;
+        $('#avgAge').text(avg + ' Jahre');
+        $('#newMembers2025').text(members.filter(m => new Date(m.joinDate).getFullYear() === new Date().getFullYear()).length);
     };
+
 
     const formatDate = (ds) => new Date(ds).toLocaleDateString('de-DE');
     const filterMembers = () => {
