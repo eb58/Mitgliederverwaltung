@@ -6,13 +6,18 @@
     <title>Vereinsverwaltung</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css"
-          rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="./dummyMembers.js"></script>
 
     <style>
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
         }
 
         .main-container {
@@ -22,290 +27,126 @@
 
         .header-gradient {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px 12px 0 0;
+        }
+
+        .nav-tabs {
+            background: rgba(0, 0, 0, 0.2);
+            border: none;
+            padding: 0 10px;
+        }
+
+        .nav-tabs .nav-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+            border: none;
+            padding: 12px 20px;
+        }
+
+        .nav-tabs .nav-link.active {
+            background: white !important;
+            color: #764ba2 !important;
+            font-weight: bold;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .tab-content {
+            background: white;
+            border-radius: 0 0 12px 12px;
+            min-height: 600px;
+        }
+
+        #membersGrid, #paymentsGrid {
+            height: 500px;
+            width: 100%;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 250px;
         }
 
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-        }
-
-        .table th {
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .table th:hover {
-            background-color: #e9ecef;
-        }
-
-        .sort-indicator {
-            font-size: 0.8em;
-            margin-left: 5px;
+            border: none;
         }
     </style>
 </head>
 <body>
-<div class="main-container">
-    <div class="card shadow-lg">
+
+<div class="main-container shadow-lg">
+    <div class="card border-0">
         <div class="card-header header-gradient text-white text-center py-4">
-            <h1 class="mb-2"><i class="bi bi-building"></i> Vereinsverwaltung</h1>
-            <p class="mb-0">Komplette Mitgliederverwaltung für Ihren Verein</p>
+            <h1 class="mb-1"><i class="bi bi-person-gear"></i> Vereinsverwaltung</h1>
+            <p class="mb-0 opacity-75">Mitglieder, Beiträge & Analysen</p>
         </div>
 
-        <ul class="nav nav-tabs nav-fill" id="mainTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard"
-                        type="button">
-                    <i class="bi bi-graph-up"></i> Dashboard
-                </button>
+        <ul class="nav nav-tabs nav-fill" id="mainTabs">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dashboard">Dashboard</button>
             </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="members-tab" data-bs-toggle="tab" data-bs-target="#members" type="button">
-                    <i class="bi bi-people"></i> Mitglieder
-                </button>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#members">Mitglieder</button>
             </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments"
-                        type="button">
-                    <i class="bi bi-currency-euro"></i> Beiträge
-                </button>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#payments">Beiträge</button>
             </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button">
-                    <i class="bi bi-file-earmark-bar-graph"></i> Berichte
-                </button>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#reports">Berichte</button>
             </li>
         </ul>
 
-        <div class="tab-content p-4" id="mainTabsContent">
-
-            <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
-                <h2 class="mb-4">Übersicht</h2>
-
-                <div class="row g-4 mb-4">
-                    <div class="col-md-3">
-                        <div class="card stat-card text-white">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 opacity-75">GESAMTMITGLIEDER</h6>
-                                <h2 class="card-title display-4" id="totalMembers">0</h2>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card stat-card text-white">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 opacity-75">AKTIVE MITGLIEDER</h6>
-                                <h2 class="card-title display-4" id="activeMembers">0</h2>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card stat-card text-white">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 opacity-75">OFFENE BEITRÄGE</h6>
-                                <h2 class="card-title display-4" id="pendingPayments">0€</h2>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card stat-card text-white">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 opacity-75">JAHRESUMSATZ</h6>
-                                <h2 class="card-title display-4" id="yearlyRevenue">0€</h2>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title">Mitgliederentwicklung nach Jahr</h5>
-                        <div id="membershipChart"></div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Zahlungsstatus Übersicht</h5>
-                        <div id="paymentStatusChart"></div>
-                    </div>
-                </div>
+        <div class="tab-content p-4">
+            <div class="tab-pane fade show active" id="dashboard">
+                <div class="row g-4 mb-4" id="statsRow"></div>
             </div>
 
-            <div class="tab-pane fade" id="members" role="tabpanel">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Mitgliederverwaltung</h2>
-                    <button class="btn btn-success" id="btnAddMember">
-                        <i class="bi bi-plus-circle"></i> Neues Mitglied
-                    </button>
-                </div>
-
-                <div class="row g-3 mb-4">
-                    <div class="col-md-6">
-                        <input type="text" class="form-control" id="searchBox"
-                               placeholder="🔍 Suche nach Name, E-Mail, Ort...">
+            <div class="tab-pane fade" id="members">
+                <div class="d-flex justify-content-between mb-3">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-success px-4" onclick="openMemberModal()">
+                            <i class="bi bi-plus-lg"></i> Neu anlegen
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="resetGridState()">
+                            <i class="bi bi-arrow-clockwise"></i> Ansicht Reset
+                        </button>
                     </div>
-                    <div class="col-md-3">
-                        <select class="form-select" id="statusFilter">
-                            <option value="">Alle Status</option>
-                            <option value="aktiv">Aktiv</option>
-                            <option value="inaktiv">Inaktiv</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select" id="categoryFilter">
-                            <option value="">Alle Kategorien</option>
-                            <option value="Vollmitglied">Vollmitglied</option>
-                            <option value="Jugend">Jugend</option>
-                            <option value="Familie">Familie</option>
-                            <option value="Ehrenmitglied">Ehrenmitglied</option>
-                        </select>
-                    </div>
+                    <input type="text" class="form-control w-25 shadow-sm" id="memberSearch" placeholder="Suche...">
                 </div>
-
-                <div class="table-responsive">
-                    <table class="table table-hover" id="membersTable">
-                        <thead class="table-light">
-                        <tr>
-                            <th data-field="memberNumber">
-                                Mitgliedsnr. <span class="sort-indicator">↕</span>
-                            </th>
-                            <th data-field="lastName">
-                                Name <span class="sort-indicator">↕</span>
-                            </th>
-                            <th data-field="email">
-                                E-Mail <span class="sort-indicator">↕</span>
-                            </th>
-                            <th data-field="phone">
-                                Telefon <span class="sort-indicator">↕</span>
-                            </th>
-                            <th data-field="city">
-                                Ort <span class="sort-indicator">↕</span>
-                            </th>
-                            <th data-field="joinDate">
-                                Beitritt <span class="sort-indicator">↕</span>
-                            </th>
-                            <th data-field="category">
-                                Kategorie <span class="sort-indicator">↕</span>
-                            </th>
-                            <th data-field="status">
-                                Status <span class="sort-indicator">↕</span>
-                            </th>
-                            <th>Aktionen</th>
-                        </tr>
-                        </thead>
-                        <tbody id="membersTableBody"></tbody>
-                    </table>
-                </div>
-
-                <nav>
-                    <ul class="pagination justify-content-center" id="membersPagination"></ul>
-                </nav>
+                <div id="membersGrid" class="ag-theme-quartz"></div>
             </div>
 
-            <div class="tab-pane fade" id="payments" role="tabpanel">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Beitragsverwaltung</h2>
-                    <button class="btn btn-primary" id="btnExportPayments">
-                        <i class="bi bi-download"></i> Export CSV
+            <div class="tab-pane fade" id="payments">
+                <div class="d-flex justify-content-between mb-3 align-items-center">
+                    <h5 class="mb-0">Zahlungsübersicht</h5>
+                    <button class="btn btn-primary btn-sm" onclick="paymentApi.exportDataAsCsv()"><i class="bi bi-download"></i>
+                        CSV Export
                     </button>
                 </div>
+                <div id="paymentsGrid" class="ag-theme-quartz"></div>
+            </div>
 
-                <div class="row g-3 mb-4">
-                    <div class="col-md-8">
-                        <input type="text" class="form-control" id="paymentSearchBox"
-                               placeholder="🔍 Suche nach Name...">
+            <div class="tab-pane fade" id="reports">
+                <div class="row g-4 text-center">
+                    <div class="col-md-4">
+                        <div class="card p-3 shadow-sm"><h6>Sparten</h6>
+                            <div class="chart-wrapper">
+                                <canvas id="chartCats"></canvas>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-4">
-                        <select class="form-select" id="paymentStatusFilter">
-                            <option value="">Alle Zahlungsstatus</option>
-                            <option value="bezahlt">Bezahlt</option>
-                            <option value="ausstehend">Ausstehend</option>
-                            <option value="überfällig">Überfällig</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-hover" id="paymentsTable">
-                        <thead class="table-light">
-                        <tr>
-                            <th data-payment-field="memberNumber">Mitgliedsnr. <span class="sort-indicator">↕</span></th>
-                            <th data-payment-field="lastName">Name <span class="sort-indicator">↕</span></th>
-                            <th data-payment-field="category">Kategorie <span class="sort-indicator">↕</span></th>
-                            <th data-payment-field="annualFee">Jahresbeitrag <span class="sort-indicator">↕</span></th>
-                            <th data-payment-field="paymentStatus">Status 2025 <span class="sort-indicator">↕</span></th>
-                            <th data-payment-field="paymentDate">Zahlungsdatum <span class="sort-indicator">↕</span></th>
-                            <th>Aktionen</th>
-                        </tr>
-                        </thead>
-                        <tbody id="paymentsTableBody"></tbody>
-                    </table>
-                </div>
-
-                <nav>
-                    <ul class="pagination justify-content-center" id="paymentsPagination"></ul>
-                </nav>
-            </div>
-
-            <div class="tab-pane fade" id="reports" role="tabpanel">
-                <h2 class="mb-4">Berichte & Export</h2>
-
-                <div class="row g-4 mb-4">
-                    <div class="col-md-3">
-                        <div class="card stat-card text-white">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 opacity-75">MITGLIEDER NACH KATEGORIE</h6>
-                                <div id="categoryBreakdown" class="small"></div>
+                        <div class="card p-3 shadow-sm"><h6>Alter</h6>
+                            <div class="chart-wrapper">
+                                <canvas id="chartAges"></canvas>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card stat-card text-white">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 opacity-75">ALTERSDURCHSCHNITT</h6>
-                                <h2 class="card-title display-4" id="avgAge">0</h2>
+                    <div class="col-md-4">
+                        <div class="card p-3 shadow-sm"><h6>Zahlungsstatus</h6>
+                            <div class="chart-wrapper">
+                                <canvas id="chartFin"></canvas>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card stat-card text-white">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 opacity-75">ZAHLUNGSQUOTE 2025</h6>
-                                <h2 class="card-title display-4" id="paymentRate">0%</h2>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card stat-card text-white">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 opacity-75">NEUEINTRITTE 2025</h6>
-                                <h2 class="card-title display-4" id="newMembers2025">0</h2>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title mb-3">Export-Optionen</h5>
-                        <div class="d-flex flex-wrap gap-2">
-                            <button class="btn btn-primary" id="btnExportAll">
-                                <i class="bi bi-download"></i> Alle Mitglieder (CSV)
-                            </button>
-                            <button class="btn btn-primary" id="btnExportActive">
-                                <i class="bi bi-download"></i> Aktive Mitglieder (CSV)
-                            </button>
-                            <button class="btn btn-primary" id="btnExportPaymentList">
-                                <i class="bi bi-download"></i> Zahlungsliste (CSV)
-                            </button>
-                            <button class="btn btn-success" id="btnBackup">
-                                <i class="bi bi-save"></i> Datenbank-Backup
-                            </button>
-                            <button class="btn btn-success" id="btnRestore">
-                                <i class="bi bi-upload"></i> Datenbank wiederherstellen
-                            </button>
-                            <input type="file" id="restoreInput" style="display: none;" accept=".json">
                         </div>
                     </div>
                 </div>
@@ -315,476 +156,233 @@
 </div>
 
 <div class="modal fade" id="memberModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">Neues Mitglied</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header header-gradient text-white">
+                <h5 class="modal-title" id="modalTitle">Mitgliedsdaten</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="memberForm">
+                    <input type="hidden" id="editId">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">Vorname *</label>
-                            <input type="text" class="form-control" id="firstName" required>
+                            <label for="fName" class="form-label">Vorname</label>
+                            <input type="text" id="fName" class="form-control" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Nachname *</label>
-                            <input type="text" class="form-control" id="lastName" required>
+                            <label for="lName" class="form-label">Nachname</label>
+                            <input type="text" id="lName" class="form-control" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">E-Mail *</label>
-                            <input type="email" class="form-control" id="email" required>
+                            <label for="birthDate" class="form-label">Geburtsdatum</label>
+                            <input type="date" id="birthDate" class="form-control" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Telefon</label>
-                            <input type="tel" class="form-control" id="phone">
+                            <label for="joinDate" class="form-label">Beitrittsdatum</label>
+                            <input type="date" id="joinDate" class="form-control" required>
                         </div>
-                        <div class="col-md-12">
-                            <label class="form-label">Straße</label>
-                            <input type="text" class="form-control" id="street">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">PLZ</label>
-                            <input type="text" class="form-control" id="zip">
-                        </div>
-                        <div class="col-md-8">
-                            <label class="form-label">Ort</label>
-                            <input type="text" class="form-control" id="city">
+                        <div class="col-12">
+                            <label for="mEmail" class="form-label">E-Mail</label>
+                            <input type="email" id="mEmail" class="form-control" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Geburtsdatum</label>
-                            <input type="date" class="form-control" id="birthdate">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Beitrittsdatum *</label>
-                            <input type="date" class="form-control" id="joinDate" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Kategorie *</label>
-                            <select class="form-select" id="category" required>
-                                <option value="Vollmitglied">Vollmitglied (60€/Jahr)</option>
-                                <option value="Jugend">Jugend (30€/Jahr)</option>
-                                <option value="Familie">Familie (100€/Jahr)</option>
-                                <option value="Ehrenmitglied">Ehrenmitglied (0€/Jahr)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Status *</label>
-                            <select class="form-select" id="status" required>
+                            <label for="mStatus" class="form-label">Status</label>
+                            <select id="mStatus" class="form-select">
                                 <option value="aktiv">Aktiv</option>
-                                <option value="inaktiv">Inaktiv</option>
+                                <option value="passiv">Passiv</option>
                             </select>
                         </div>
-                        <div class="col-md-12">
-                            <label class="form-label">Notizen</label>
-                            <textarea class="form-control" id="notes" rows="3"></textarea>
+                        <div class="col-md-6">
+                            <label for="mCat" class="form-label">Kategorie</label>
+                            <select id="mCat" class="form-select">
+                                <option value="Vollmitglied">Vollmitglied</option>
+                                <option value="Jugend">Jugend</option>
+                                <option value="Ehrenmitglied">Ehrenmitglied</option>
+                            </select>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-success" id="btnSaveMember">Speichern</button>
+                <button type="button" class="btn btn-primary" onclick="saveMember()">Speichern</button>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Data structure
     let members = [];
-    let currentPage = 1;
-    let currentPaymentPage = 1;
-    const itemsPerPage = 20;
-    let currentEditId = null;
+    let memberApi, paymentApi;
+    let charts = {};
+    const modal = new bootstrap.Modal(document.getElementById('memberModal'));
+    const qs = (sel) => document.querySelector(sel);
 
-    // Member Tab Sort
-    let currentSortField = 'memberNumber';
-    let currentSortDirection = 'asc';
-
-    // Payment Tab Sort
-    let currentPaymentSortField = 'memberNumber';
-    let currentPaymentSortDirection = 'asc';
-
-    let memberModal;
-
-    const categoryFees = {
-        'Vollmitglied': 60,
-        'Jugend': 30,
-        'Familie': 100,
-        'Ehrenmitglied': 0
-    };
-
-    $(() => {
-        memberModal = new bootstrap.Modal($('#memberModal')[0]);
-
-        loadData();
-        if (members.length === 0) {
-            generateDummyData();
+    // Spaltendefinitionen
+    const mCols = [
+        {field: "memberNumber", headerName: "Nr.", width: 80, pinned: 'left'},
+        {headerName: "Name", valueGetter: p => `${p.data.lastName}, ${p.data.firstName}`, minWidth: 200, pinned: 'left'},
+        {field: "email", headerName: "E-Mail", minWidth: 200},
+        {
+            field: "status",
+            headerName: "Status",
+            width: 100,
+            cellRenderer: p => `<span class="badge ${p.value === 'aktiv' ? 'bg-success' : 'bg-secondary'}">${p.value}</span>`
+        },
+        {
+            headerName: "Aktion",
+            width: 120,
+            cellRenderer: p => `
+                <div class="d-flex gap-2 mt-1">
+                    <button class="btn btn-sm btn-outline-primary py-0" onclick="openMemberModal(${p.data.id})"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteM(${p.data.id})"><i class="bi bi-trash"></i></button>
+                </div>`
         }
+    ];
 
-        renderDashboard();
-        renderMembers();
-        renderPayments();
-        renderReports();
+    document.addEventListener('DOMContentLoaded', () => {
+        const stored = localStorage.getItem('vereinsDataNative');
+        members = stored ? JSON.parse(stored) : generateDummyData();
 
-        $('#searchBox').on('input', filterMembers);
-        $('#paymentSearchBox').on('input', filterPayments);
-        $('#statusFilter, #categoryFilter').on('change', filterMembers);
-        $('#paymentStatusFilter').on('change', filterPayments);
-
-        $('#btnAddMember').on('click', openAddMemberModal);
-        $('#btnSaveMember').on('click', saveMember);
-        $('#btnExportPayments').on('click', exportPaymentList);
-        $('#btnExportAll').on('click', exportAllMembers);
-        $('#btnExportActive').on('click', exportActiveMembers);
-        $('#btnExportPaymentList').on('click', exportPaymentList);
-        $('#btnBackup').on('click', backupData);
-        $('#btnRestore').on('click', () => $('#restoreInput').click());
-        $('#restoreInput').on('change', restoreData);
-
-        // Sorting Listeners
-        $('#membersTable thead th[data-field]').on('click', function () {
-            sortMembers($(this).data('field'));
+        memberApi = agGrid.createGrid(qs('#membersGrid'), {
+            columnDefs: mCols, rowData: members, pagination: true,
+            defaultColDef: {sortable: true, filter: true, resizable: true}
         });
 
-        $('#paymentsTable thead th[data-payment-field]').on('click', function () {
-            sortPayments($(this).data('payment-field'));
+        paymentApi = agGrid.createGrid(qs('#paymentsGrid'), {
+            columnDefs: [
+                {field: "memberNumber", headerName: "Nr.", width: 80},
+                {headerName: "Mitglied", valueGetter: p => `${p.data.lastName}, ${p.data.firstName}`, minWidth: 200},
+                {field: "annualFee", headerName: "Beitrag", valueFormatter: p => p.value + " €"},
+                {
+                    field: "paymentStatus", headerName: "Status", cellRenderer: p => {
+                        const map = {'bezahlt': 'bg-success', 'ausstehend': 'bg-warning text-dark', 'überfällig': 'bg-danger'};
+                        return `<span class="badge ${map[p.value] || 'bg-secondary'}">${p.value}</span>`;
+                    }
+                },
+                {
+                    headerName: "Aktion",
+                    cellRenderer: p => `<button class="btn btn-sm btn-primary py-0" onclick="togglePay(${p.data.id})">Switch</button>`
+                }
+            ],
+            rowData: members, pagination: true,
+            defaultColDef: {sortable: true, filter: true, resizable: true}
         });
+
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(btn => {
+            btn.addEventListener('shown.bs.tab', (e) => {
+                if (e.target.innerText === 'Berichte') renderReports();
+                if (memberApi) memberApi.sizeColumnsToFit();
+                if (paymentApi) paymentApi.sizeColumnsToFit();
+            });
+        });
+
+        qs('#memberSearch').addEventListener('input', (e) => memberApi.setGridOption('quickFilterText', e.target.value));
+        updateDashboard();
     });
 
-    const generateDummyData = () => {
-        const firstNames = ['Max', 'Anna', 'Peter', 'Maria', 'Thomas', 'Julia', 'Michael', 'Sarah', 'Daniel', 'Laura'];
-        const lastNames = ['Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann'];
-        const cities = ['Berlin', 'Hamburg', 'München', 'Köln', 'Frankfurt'];
-        const categories = [
-            {name: 'Vollmitglied', fee: 60, weight: 50},
-            {name: 'Jugend', fee: 30, weight: 25},
-            {name: 'Familie', fee: 100, weight: 20},
-            {name: 'Ehrenmitglied', fee: 0, weight: 5}
-        ];
-
-        for (let i = 1; i <= 200; i++) {
-            const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-            const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-
-            let selectedCategory = categories[0];
-            const rand = Math.random() * 100;
-            let cum = 0;
-            for (let c of categories) {
-                cum += c.weight;
-                if (rand < cum) {
-                    selectedCategory = c;
-                    break;
-                }
-            }
-
-            const paymentRand = Math.random();
-            const paymentStatus = paymentRand < 0.8 ? 'bezahlt' : paymentRand < 0.95 ? 'ausstehend' : 'überfällig';
-
-            const yearJoined = 2015 + Math.floor(Math.random() * 12);
-            const monthJoined = Math.floor(Math.random() * 12);
-            const dayJoined = Math.floor(Math.random() * 28) + 1;
-            const joinDate = new Date(yearJoined, monthJoined, dayJoined);
-
-            const age = 18 + Math.floor(Math.random() * 58);
-            const birthYear = new Date().getFullYear() - age;
-            const birthdate = new Date(birthYear, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1);
-
-            members.push({
-                id: i,
-                memberNumber: String(i).padStart(4, '0'),
-                firstName, lastName,
-                email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@email.de`,
-                phone: '0123 456789',
-                street: 'Teststraße 1', zip: '12345', city: cities[Math.floor(Math.random() * cities.length)],
-                birthdate: birthdate.toISOString().split('T')[0],
-                joinDate: joinDate.toISOString().split('T')[0],
-                category: selectedCategory.name,
-                annualFee: selectedCategory.fee,
-                status: Math.random() > 0.1 ? 'aktiv' : 'inaktiv',
-                paymentStatus,
-                paymentDate: paymentStatus === 'bezahlt' ? '2025-01-15' : '',
-                notes: ''
-            });
+    window.openMemberModal = (id = null) => {
+        const form = qs('#memberForm');
+        form.reset();
+        if (id !== null) {
+            const m = members.find(x => x.id === id);
+            qs('#editId').value = m.id;
+            qs('#fName').value = m.firstName;
+            qs('#lName').value = m.lastName;
+            qs('#birthDate').value = m.birthdate;
+            qs('#joinDate').value = m.joinDate;
+            qs('#mEmail').value = m.email;
+            qs('#mStatus').value = m.status;
+            qs('#mCat').value = m.category;
+            qs('#modalTitle').innerText = "Mitglied bearbeiten";
+        } else {
+            qs('#editId').value = "";
+            qs('#modalTitle').innerText = "Neues Mitglied anlegen";
         }
-        saveData();
+        modal.show();
     };
 
-    const sortMembers = (field) => {
-        if (currentSortField === field) currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-        else {
-            currentSortField = field;
-            currentSortDirection = 'asc';
-        }
-        currentPage = 1;
-        renderMembers();
-    };
-
-    const sortPayments = (field) => {
-        if (currentPaymentSortField === field) currentPaymentSortDirection = currentPaymentSortDirection === 'asc' ? 'desc' : 'asc';
-        else {
-            currentPaymentSortField = field;
-            currentPaymentSortDirection = 'asc';
-        }
-        currentPaymentPage = 1;
-        renderPayments();
-    };
-
-    const renderDashboard = () => {
-        const active = members.filter(m => m.status === 'aktiv');
-        const pending = members.filter(m => m.paymentStatus !== 'bezahlt' && m.status === 'aktiv').reduce((s, m) => s + m.annualFee, 0);
-        const revenue = members.filter(m => m.paymentStatus === 'bezahlt' && m.status === 'aktiv').reduce((s, m) => s + m.annualFee, 0);
-
-        $('#totalMembers').text(members.length);
-        $('#activeMembers').text(active.length);
-        $('#pendingPayments').text(pending.toLocaleString('de-DE') + '€');
-        $('#yearlyRevenue').text(revenue.toLocaleString('de-DE') + '€');
-
-        // Simple Chart Logic (Abbreviated for space)
-        $('#membershipChart').html('<div class="alert alert-info py-2">Daten geladen. Siehe Berichte für Details.</div>');
-    };
-
-    const renderMembers = () => {
-        const searchTerm = $('#searchBox').val().toLowerCase();
-        const statusFilter = $('#statusFilter').val();
-        const categoryFilter = $('#categoryFilter').val();
-
-        let filtered = members.filter(m => {
-            const matchesSearch = (m.firstName + ' ' + m.lastName).toLowerCase().includes(searchTerm) || m.city.toLowerCase().includes(searchTerm);
-            return matchesSearch && (!statusFilter || m.status === statusFilter) && (!categoryFilter || m.category === categoryFilter);
-        });
-
-        filtered.sort((a, b) => {
-            let aVal = a[currentSortField], bVal = b[currentSortField];
-            if (currentSortField === 'lastName') {
-                aVal = a.lastName + a.firstName;
-                bVal = b.lastName + b.firstName;
-            }
-            return (aVal < bVal ? -1 : 1) * (currentSortDirection === 'asc' ? 1 : -1);
-        });
-
-        // Update UI Indicators
-        $('#membersTable thead th[data-field]').each(function () {
-            const f = $(this).data('field');
-            $(this).find('.sort-indicator').text(f === currentSortField ? (currentSortDirection === 'asc' ? '↑' : '↓') : '↕');
-        });
-
-        const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-        $('#membersTableBody').html(paginated.map(m => `
-            <tr>
-                <td>${m.memberNumber}</td>
-                <td><strong>${m.firstName} ${m.lastName}</strong></td>
-                <td>${m.email}</td><td>${m.phone}</td><td>${m.city}</td>
-                <td>${formatDate(m.joinDate)}</td><td>${m.category}</td>
-                <td><span class="badge ${m.status === 'aktiv' ? 'bg-success' : 'bg-secondary'}">${m.status}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="editMember(${m.id})"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteMember(${m.id})"><i class="bi bi-trash"></i></button>
-                </td>
-            </tr>
-        `).join(''));
-
-        renderPagination('membersPagination', filtered.length, currentPage, (p) => {
-            currentPage = p;
-            renderMembers();
-        });
-    };
-
-    const renderPayments = () => {
-        const searchTerm = $('#paymentSearchBox').val().toLowerCase();
-        const statusFilter = $('#paymentStatusFilter').val();
-
-        let filtered = members.filter(m => {
-            return (m.firstName + ' ' + m.lastName).toLowerCase().includes(searchTerm) && (!statusFilter || m.paymentStatus === statusFilter);
-        });
-
-        filtered.sort((a, b) => {
-            let aVal = a[currentPaymentSortField], bVal = b[currentPaymentSortField];
-            if (currentPaymentSortField === 'lastName') {
-                aVal = a.lastName + a.firstName;
-                bVal = b.lastName + b.firstName;
-            }
-            return (aVal < bVal ? -1 : 1) * (currentPaymentSortDirection === 'asc' ? 1 : -1);
-        });
-
-        $('#paymentsTable thead th[data-payment-field]').each(function () {
-            const f = $(this).data('payment-field');
-            $(this).find('.sort-indicator').text(f === currentPaymentSortField ? (currentPaymentSortDirection === 'asc' ? '↑' : '↓') : '↕');
-        });
-
-        const paginated = filtered.slice((currentPaymentPage - 1) * itemsPerPage, currentPaymentPage * itemsPerPage);
-        $('#paymentsTableBody').html(paginated.map(m => `
-            <tr>
-                <td>${m.memberNumber}</td>
-                <td><strong>${m.firstName} ${m.lastName}</strong></td>
-                <td>${m.category}</td><td><strong>${m.annualFee}€</strong></td>
-                <td><span class="badge ${m.paymentStatus === 'bezahlt' ? 'bg-success' : m.paymentStatus === 'ausstehend' ? 'bg-warning text-dark' : 'bg-danger'}">${m.paymentStatus}</span></td>
-                <td>${m.paymentDate ? formatDate(m.paymentDate) : '-'}</td>
-                <td><button class="btn btn-sm btn-primary" onclick="togglePaymentStatus(${m.id})"><i class="bi bi-arrow-repeat"></i> Status</button></td>
-            </tr>
-        `).join(''));
-
-        renderPagination('paymentsPagination', filtered.length, currentPaymentPage, (p) => {
-            currentPaymentPage = p;
-            renderPayments();
-        });
-    };
-
-    const renderPagination = (id, total, current, callback) => {
-        const pages = Math.ceil(total / itemsPerPage);
-        let html = `<li class="page-item ${current === 1 ? 'disabled' : ''}"><a class="page-link" href="#" onclick="event.preventDefault(); ${current > 1 ? `(${callback})(${current - 1})` : ''}">Zurück</a></li>`;
-        for (let i = 1; i <= pages; i++) {
-            if (i === 1 || i === pages || (i >= current - 2 && i <= current + 2)) {
-                html += `<li class="page-item ${i === current ? 'active' : ''}"><a class="page-link" href="#" onclick="event.preventDefault(); (${callback})(${i})">${i}</a></li>`;
-            } else if (i === current - 3 || i === current + 3) html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-        }
-        html += `<li class="page-item ${current === pages ? 'disabled' : ''}"><a class="page-link" href="#" onclick="event.preventDefault(); ${current < pages ? `(${callback})(${current + 1})` : ''}">Weiter</a></li>`;
-        $(`#${id}`).html(html);
-    };
-
-    const calculateAge = (birthDateString) => {
-        if (!birthDateString) return 0;
-        const today = new Date();
-        const birthDate = new Date(birthDateString);
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-        return age;
-    };
-
-    const renderReports = () => {
-        const catCount = {};
-        members.forEach(m => catCount[m.category] = (catCount[m.category] || 0) + 1);
-        $('#categoryBreakdown').html(Object.keys(catCount).map(c => `<div><strong>${c}:</strong> ${catCount[c]}</div>`).join(''));
-        $('#paymentRate').text(Math.round((members.filter(m => m.paymentStatus === 'bezahlt' && m.status === 'aktiv').length / members.filter(m => m.status === 'aktiv').length) * 100) + '%');
-
-        const membersWithAge = members.filter(m => m.birthdate);
-        const totalAge = membersWithAge.reduce((sum, m) => sum + calculateAge(m.birthdate), 0);
-        const avg = membersWithAge.length > 0 ? Math.round(totalAge / membersWithAge.length) : 0;
-        $('#avgAge').text(avg + ' Jahre');
-        $('#newMembers2025').text(members.filter(m => new Date(m.joinDate).getFullYear() === new Date().getFullYear()).length);
-    };
-
-
-    const formatDate = (ds) => new Date(ds).toLocaleDateString('de-DE');
-    const filterMembers = () => {
-        currentPage = 1;
-        renderMembers();
-    };
-    const filterPayments = () => {
-        currentPaymentPage = 1;
-        renderPayments();
-    };
-
-    const openAddMemberModal = () => {
-        currentEditId = null;
-        $('#modalTitle').text('Neues Mitglied');
-        $('#memberForm')[0].reset();
-        $('#joinDate').val(new Date().toISOString().split('T')[0]);
-        memberModal.show();
-    };
-
-    window.editMember = (id) => {
-        const m = members.find(x => x.id === id);
-        currentEditId = id;
-        $('#firstName').val(m.firstName);
-        $('#lastName').val(m.lastName);
-        $('#email').val(m.email);
-        $('#category').val(m.category);
-        $('#status').val(m.status);
-        $('#joinDate').val(m.joinDate);
-        memberModal.show();
-    };
-
-    const saveMember = () => {
+    window.saveMember = () => {
+        const id = qs('#editId').value;
         const data = {
-            firstName: $('#firstName').val(), lastName: $('#lastName').val(), email: $('#email').val(),
-            category: $('#category').val(), status: $('#status').val(), joinDate: $('#joinDate').val(),
-            annualFee: categoryFees[$('#category').val()]
+            firstName: qs('#fName').value,
+            lastName: qs('#lName').value,
+            email: qs('#mEmail').value,
+            status: qs('#mStatus').value,
+            category: qs('#mCat').value
         };
-        if (currentEditId) {
-            const idx = members.findIndex(x => x.id === currentEditId);
+
+        if (id) {
+            const idx = members.findIndex(m => m.id == id);
             members[idx] = {...members[idx], ...data};
         } else {
-            const nid = Math.max(...members.map(x => x.id), 0) + 1;
+            const newId = members.length > 0 ? Math.max(...members.map(m => m.id)) + 1 : 1;
             members.push({
-                id: nid,
-                memberNumber: String(nid).padStart(4, '0'), ...data,
-                paymentStatus: 'ausstehend',
-                paymentDate: ''
+                id: newId, memberNumber: String(newId).padStart(4, '0'), ...data,
+                birthdate: '1995-01-01', paymentStatus: 'ausstehend', annualFee: 60
             });
         }
-        saveData();
-        memberModal.hide();
-        renderMembers();
-        renderDashboard();
-        renderPayments();
-        renderReports();
+        saveAndRefresh();
+        modal.hide();
     };
 
-    window.deleteMember = (id) => {
-        if (confirm('Löschen?')) {
-            members = members.filter(x => x.id !== id);
-            saveData();
-            renderMembers();
-            renderDashboard();
-            renderReports();
+    function deleteM(id) {
+        if (confirm('Mitglied wirklich löschen?')) {
+            members = members.filter(m => m.id !== id);
+            saveAndRefresh();
         }
-    };
+    }
 
-    window.togglePaymentStatus = (id) => {
+    function togglePay(id) {
         const m = members.find(x => x.id === id);
-        const s = ['bezahlt', 'ausstehend', 'überfällig'];
-        m.paymentStatus = s[(s.indexOf(m.paymentStatus) + 1) % 3];
-        m.paymentDate = m.paymentStatus === 'bezahlt' ? new Date().toISOString().split('T')[0] : '';
-        saveData();
-        renderPayments();
-        renderDashboard();
-    };
+        m.paymentStatus = m.paymentStatus === 'bezahlt' ? 'ausstehend' : 'bezahlt';
+        saveAndRefresh();
+    }
 
-    const exportToCSV = (data, name) => {
-        const csv = [Object.keys(data[0]).join(';'), ...data.map(r => Object.values(r).map(v => `"${v}"`).join(';'))].join('\n');
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob(['\ufeff' + csv], {type: 'text/csv'}));
-        link.download = name;
-        link.click();
-    };
+    function saveAndRefresh() {
+        localStorage.setItem('vereinsDataNative', JSON.stringify(members));
+        memberApi.setGridOption('rowData', members);
+        paymentApi.setGridOption('rowData', members);
+        updateDashboard();
+    }
 
-    const exportAllMembers = () => exportToCSV(members, 'mitglieder.csv');
-    const exportActiveMembers = () => exportToCSV(members.filter(m => m.status === 'aktiv'), 'aktive.csv');
-    const exportPaymentList = () => exportToCSV(members.map(m => ({
-        Nr: m.memberNumber,
-        Name: m.lastName,
-        Status: m.paymentStatus,
-        Fee: m.annualFee
-    })), 'zahlungen.csv');
+    function updateDashboard() {
+        const active = members.filter(m => m.status === 'aktiv').length;
+        qs('#statsRow').innerHTML = `
+            <div class="col-md-4"><div class="card stat-card p-4 rounded-3"><h6>MITGLIEDER</h6><h2>${members.length}</h2></div></div>
+            <div class="col-md-4"><div class="card stat-card p-4 rounded-3"><h6>AKTIV</h6><h2>${active}</h2></div></div>
+            <div class="col-md-4"><div class="card stat-card p-4 rounded-3"><h6>OFFENE POSTEN</h6><h2>${members.filter(m => m.paymentStatus !== 'bezahlt').length}</h2></div></div>
+        `;
+    }
 
-    const backupData = () => {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob([JSON.stringify(members, null, 2)], {type: 'application/json'}));
-        link.download = 'backup.json';
-        link.click();
-    };
+    function renderReports() {
+        const cats = {};
+        const ages = {'55-60': 0, '60-69': 0, '70-79': 0, '80+': 0};
+        const fin = {'bezahlt': 0, 'offen': 0};
+        members.forEach(m => {
+            cats[m.category] = (cats[m.category] || 0) + 1;
+            fin[m.paymentStatus === 'bezahlt' ? 'bezahlt' : 'offen']++;
+            const age = new Date().getFullYear() - new Date(m.birthdate).getFullYear();
+            if (age <= 60) ages['55-60']++; else if (age < 70) ages['60-69']++; else if (age < 80) ages['70-79']++; else ages['80+']++;
+        });
 
-    const restoreData = (e) => {
-        const reader = new FileReader();
-        reader.onload = (re) => {
-            members = JSON.parse(re.target.result);
-            saveData();
-            location.reload();
+        const init = (id, type, labels, data, colors) => {
+            if (charts[id]) charts[id].destroy();
+            charts[id] = new Chart(document.getElementById(id), {
+                type, data: {labels, datasets: [{data, backgroundColor: colors}]},
+                options: {responsive: true, maintainAspectRatio: false}
+            });
         };
-        reader.readAsText(e.target.files[0]);
-    };
+        init('chartCats', 'doughnut', Object.keys(cats), Object.values(cats), ['#667eea', '#764ba2', '#43e97b']);
+        init('chartAges', 'doughnut', Object.keys(ages), Object.values(ages), ['#667eea', '#764ba2', '#43e97b', '#f6c23e']);
+        init('chartFin', 'pie', ['Bezahlt', 'Offen'], [fin.bezahlt, fin.offen], ['#28a745', '#dc3545']);
+    }
 
-    const saveData = () => localStorage.setItem('vereinsVerwaltungMembers', JSON.stringify(members));
-    const loadData = () => {
-        const s = localStorage.getItem('vereinsVerwaltungMembers');
-        if (s) members = JSON.parse(s);
+    window.resetGridState = () => {
+        localStorage.clear();
+        location.reload();
     };
 </script>
 </body>
