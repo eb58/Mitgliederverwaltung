@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Vereinsverwaltung</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -111,6 +112,7 @@
                             <i class="bi bi-arrow-clockwise"></i> Ansicht Reset
                         </button>
                     </div>
+                    <label for="memberSearch">Suche</label>
                     <input type="text" class="form-control w-25 shadow-sm" id="memberSearch" placeholder="Suche...">
                 </div>
                 <div id="membersGrid" class="ag-theme-quartz"></div>
@@ -220,48 +222,49 @@
     const modal = new bootstrap.Modal(document.getElementById('memberModal'));
     const qs = (sel) => document.querySelector(sel);
 
-    // Spaltendefinitionen
-    const mCols = [
-        {field: "memberNumber", headerName: "Nr.", width: 80, pinned: 'left'},
-        {headerName: "Name", valueGetter: p => `${p.data.lastName}, ${p.data.firstName}`, minWidth: 200, pinned: 'left'},
-        {field: "email", headerName: "E-Mail", minWidth: 200},
-        {
-            field: "status",
-            headerName: "Status",
-            width: 100,
-            cellRenderer: p => `<span class="badge ${p.value === 'aktiv' ? 'bg-success' : 'bg-secondary'}">${p.value}</span>`
-        },
-        {
-            headerName: "Aktion",
-            width: 120,
-            cellRenderer: p => `
-                <div class="d-flex gap-2 mt-1">
-                    <button class="btn btn-sm btn-outline-primary py-0" onclick="openMemberModal(${p.data.id})"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteM(${p.data.id})"><i class="bi bi-trash"></i></button>
-                </div>`
-        }
-    ];
-
     document.addEventListener('DOMContentLoaded', () => {
         const stored = localStorage.getItem('vereinsDataNative');
         members = stored ? JSON.parse(stored) : generateDummyData();
 
         memberApi = agGrid.createGrid(qs('#membersGrid'), {
-            columnDefs: mCols, rowData: members, pagination: true,
+            columnDefs: [
+                {field: "memberNumber", headerName: "Nr.", width: 80, pinned: 'left'},
+                {
+                    headerName: "Name",
+                    valueGetter: p => `${p.data.lastName}, ${p.data.firstName}`,
+                    minWidth: 200,
+                    pinned: 'left'
+                },
+                {field: "email", headerName: "E-Mail", minWidth: 200},
+                {
+                    field: "status",
+                    headerName: "Status",
+                    width: 100,
+                    cellRenderer: p => `<span class="badge ${p.value === 'aktiv' ? 'bg-success' : 'bg-secondary'}">${p.value}</span>`
+                },
+                {
+                    headerName: "Aktion",
+                    width: 120,
+                    cellRenderer: p => `
+                <div class="d-flex gap-2 mt-1">
+                    <button class="btn btn-sm btn-outline-primary py-0" onclick="openMemberModal(${p.data.id})"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteM(${p.data.id})"><i class="bi bi-trash"></i></button>
+                </div>`
+                }
+            ], rowData: members, pagination: true,
             defaultColDef: {sortable: true, filter: true, resizable: true}
         });
 
+        const cellRendererPaymentStatus = p => {
+            const map = {'bezahlt': 'bg-success', 'ausstehend': 'bg-warning text-dark', '\u00FCberf\u00E4llig': 'bg-danger'};
+            return `<span class="badge ${map[p.value] || 'bg-secondary'}">${p.value}</span>`;
+        }
         paymentApi = agGrid.createGrid(qs('#paymentsGrid'), {
             columnDefs: [
                 {field: "memberNumber", headerName: "Nr.", width: 80},
                 {headerName: "Mitglied", valueGetter: p => `${p.data.lastName}, ${p.data.firstName}`, minWidth: 200},
                 {field: "annualFee", headerName: "Beitrag", valueFormatter: p => p.value + " €"},
-                {
-                    field: "paymentStatus", headerName: "Status", cellRenderer: p => {
-                        const map = {'bezahlt': 'bg-success', 'ausstehend': 'bg-warning text-dark', 'überfällig': 'bg-danger'};
-                        return `<span class="badge ${map[p.value] || 'bg-secondary'}">${p.value}</span>`;
-                    }
-                },
+                {field: "paymentStatus", headerName: "Status", cellRenderer: cellRendererPaymentStatus},
                 {
                     headerName: "Aktion",
                     cellRenderer: p => `<button class="btn btn-sm btn-primary py-0" onclick="togglePay(${p.data.id})">Switch</button>`
@@ -286,7 +289,10 @@
     window.openMemberModal = (id = null) => {
         const form = qs('#memberForm');
         form.reset();
-        if (id !== null) {
+        if (id === null) {
+            qs('#editId').value = "";
+            qs('#modalTitle').innerText = "Neues Mitglied anlegen";
+        } else {
             const m = members.find(x => x.id === id);
             qs('#editId').value = m.id;
             qs('#fName').value = m.firstName;
@@ -297,12 +303,9 @@
             qs('#mStatus').value = m.status;
             qs('#mCat').value = m.category;
             qs('#modalTitle').innerText = "Mitglied bearbeiten";
-        } else {
-            qs('#editId').value = "";
-            qs('#modalTitle').innerText = "Neues Mitglied anlegen";
         }
         modal.show();
-    };
+    }
 
     window.saveMember = () => {
         const id = qs('#editId').value;
@@ -315,13 +318,16 @@
         };
 
         if (id) {
-            const idx = members.findIndex(m => m.id == id);
+            const idx = members.findIndex(m => m.id === id);
             members[idx] = {...members[idx], ...data};
         } else {
             const newId = members.length > 0 ? Math.max(...members.map(m => m.id)) + 1 : 1;
             members.push({
-                id: newId, memberNumber: String(newId).padStart(4, '0'), ...data,
-                birthdate: '1995-01-01', paymentStatus: 'ausstehend', annualFee: 60
+                id: newId,
+                memberNumber: String(newId).padStart(4, '0'),
+                paymentStatus: 'ausstehend',
+                annualFee: 60,
+                ...data,
             });
         }
         saveAndRefresh();
