@@ -183,8 +183,6 @@ const gridLocaleText = {
 
 let memberModal = null;
 
-document.addEventListener("DOMContentLoaded", initApp);
-
 const initApp = () => {
   state.members = loadStoredMembers() || createInitialMembers(200);
   state.nextId = getNextId(state.members);
@@ -195,6 +193,8 @@ const initApp = () => {
   wireUi();
   refreshAllViews();
 };
+
+document.addEventListener("DOMContentLoaded", initApp);
 
 const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
@@ -245,97 +245,87 @@ const createGrid = (containerId, columnDefs) => {
   return agGrid.createGrid(gridDiv, options);
 };
 
-function getOverviewColumns() {
-  return [
-    getEditColumn(),
-    { headerName: "Name", field: "name", minWidth: 130 },
-    { headerName: "Vorname", field: "vorname", minWidth: 130 },
-    { headerName: "Email", field: "email", minWidth: 220 },
-    { headerName: "Handy", field: "handy", minWidth: 150 },
-    { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, minWidth: 140 },
-    { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, minWidth: 220, flex: 1 },
-    { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
-  ];
-}
+const getOverviewColumns = () => [
+  getEditColumn(),
+  { headerName: "Name", field: "name", minWidth: 130 },
+  { headerName: "Vorname", field: "vorname", minWidth: 130 },
+  { headerName: "Email", field: "email", minWidth: 220 },
+  { headerName: "Handy", field: "handy", minWidth: 150 },
+  { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, minWidth: 140 },
+  { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, minWidth: 220, flex: 1 },
+  { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
+];
 
-function getPaymentColumns() {
-  return [
-    getEditColumn(),
-    { headerName: "Name", field: "name", minWidth: 130 },
-    { headerName: "Vorname", field: "vorname", minWidth: 130 },
-    { headerName: "Beitrag Club bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: toggleCellRenderer("beitragClubBezahlt") },
-    { headerName: "Betrag Club bar", field: "betragClubBar", valueFormatter: currencyFormatter, minWidth: 150 },
-    { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: toggleCellRenderer("beitragComputerBezahlt") },
-    { headerName: "Beitrag Computer bar", field: "betragComputerBar", valueFormatter: currencyFormatter, minWidth: 170 },
-    { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
-  ];
-}
+const getPaymentColumns = () => [
+  getEditColumn(),
+  { headerName: "Name", field: "name", minWidth: 130 },
+  { headerName: "Vorname", field: "vorname", minWidth: 130 },
+  { headerName: "Beitrag Club bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: toggleCellRenderer("beitragClubBezahlt") },
+  { headerName: "Betrag Club bar", field: "betragClubBar", valueFormatter: currencyFormatter, minWidth: 150 },
+  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: toggleCellRenderer("beitragComputerBezahlt") },
+  { headerName: "Beitrag Computer bar", field: "betragComputerBar", valueFormatter: currencyFormatter, minWidth: 170 },
+  { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
+];
 
-function getChristmasColumns() {
-  return [
-    getEditColumn(),
-    { headerName: "Name", field: "name", minWidth: 130 },
-    { headerName: "Vorname", field: "vorname", minWidth: 130 },
-    { headerName: "Weihnachtsessen", field: "weihnachtsessen", valueFormatter: christmasFormatter, minWidth: 150 },
-    { headerName: "WNessenbezahlt", field: "wnEssenBezahlt", minWidth: 145, filter: false, cellRenderer: toggleCellRenderer("wnEssenBezahlt") },
-    { headerName: "Preis Weihnachten", field: "preisWeihnachten", valueFormatter: currencyFormatter, minWidth: 150 },
-    { headerName: "gezahlter Betrag Weihnachten", field: "gezahlterBetragWeihnachten", valueFormatter: currencyFormatter, minWidth: 210 },
-    { headerName: "Tischnummer", field: "tischnummer", minWidth: 120 },
-    { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
-  ];
-}
+const getChristmasColumns = () => [
+  getEditColumn(),
+  { headerName: "Name", field: "name", minWidth: 130 },
+  { headerName: "Vorname", field: "vorname", minWidth: 130 },
+  { headerName: "Weihnachtsessen", field: "weihnachtsessen", valueFormatter: christmasFormatter, minWidth: 150 },
+  { headerName: "WNessenbezahlt", field: "wnEssenBezahlt", minWidth: 145, filter: false, cellRenderer: toggleCellRenderer("wnEssenBezahlt") },
+  { headerName: "Preis Weihnachten", field: "preisWeihnachten", valueFormatter: currencyFormatter, minWidth: 150 },
+  { headerName: "gezahlter Betrag Weihnachten", field: "gezahlterBetragWeihnachten", valueFormatter: currencyFormatter, minWidth: 210 },
+  { headerName: "Tischnummer", field: "tischnummer", minWidth: 120 },
+  { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
+];
 
-function getEditColumn() {
-  return {
-    headerName: "",
-    field: "id",
-    pinned: "left",
-    width: 68,
-    minWidth: 68,
-    maxWidth: 68,
-    cellClass: "edit-cell",
-    headerClass: "edit-header",
-    sortable: false,
-    filter: false,
-    suppressMovable: true,
-    cellRenderer: params => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "edit-icon-btn";
-      button.title = "Mitglied bearbeiten";
-      button.setAttribute("aria-label", "Mitglied bearbeiten");
-      button.innerHTML = `
-        <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-          <path d="M4 20h4.8L19.1 9.7l-4.8-4.8L4 15.2V20z"></path>
-          <path d="M15.7 3.5l4.8 4.8"></path>
-        </svg>
-      `;
-      button.addEventListener("click", () => openMemberModal(params.data.id));
-      return button;
-    }
-  };
-}
+const getEditColumn = () => ({
+  headerName: "",
+  field: "id",
+  pinned: "left",
+  width: 68,
+  minWidth: 68,
+  maxWidth: 68,
+  cellClass: "edit-cell",
+  headerClass: "edit-header",
+  sortable: false,
+  filter: false,
+  suppressMovable: true,
+  cellRenderer: params => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "edit-icon-btn";
+    button.title = "Mitglied bearbeiten";
+    button.setAttribute("aria-label", "Mitglied bearbeiten");
+    button.innerHTML = `
+      <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+        <path d="M4 20h4.8L19.1 9.7l-4.8-4.8L4 15.2V20z"></path>
+        <path d="M15.7 3.5l4.8 4.8"></path>
+      </svg>
+    `;
+    button.addEventListener("click", () => openMemberModal(params.data.id));
+    return button;
+  }
+});
 
-function toggleCellRenderer(fieldName) {
-  return params => {
-    const toggle = document.createElement("input");
-    toggle.type = "checkbox";
-    toggle.className = "form-check-input table-toggle";
-    toggle.checked = asBoolean(params.value);
-    toggle.title = "Status umschalten";
+const toggleCellRenderer = fieldName => params => {
+  const toggle = document.createElement("input");
+  toggle.type = "checkbox";
+  toggle.className = "form-check-input table-toggle";
+  toggle.checked = asBoolean(params.value);
+  toggle.title = "Status umschalten";
 
-    toggle.addEventListener("change", () => {
-      params.data[fieldName] = toggle.checked;
-      params.node.setDataValue(fieldName, toggle.checked);
-      persistMembers();
-      refreshDashboard();
-      refreshAllGridCells();
-    });
-    return toggle;
-  };
-}
+  toggle.addEventListener("change", () => {
+    params.data[fieldName] = toggle.checked;
+    params.node.setDataValue(fieldName, toggle.checked);
+    persistMembers();
+    refreshDashboard();
+    refreshAllGridCells();
+  });
+  return toggle;
+};
 
-function buildMemberForm() {
+const buildMemberForm = () => {
   const container = document.getElementById("formFields");
   container.innerHTML = "";
 
@@ -398,9 +388,9 @@ function buildMemberForm() {
   });
 
   container.append(hiddenIdInput, tabs, tabContent);
-}
+};
 
-function createMemberFormField(field) {
+const createMemberFormField = field => {
   const col = document.createElement("div");
   if (field.type === "textarea") {
     col.className = "col-12 member-form-field";
@@ -484,9 +474,9 @@ function createMemberFormField(field) {
 
   col.append(label, input);
   return col;
-}
+};
 
-function openMemberModal(memberId) {
+const openMemberModal = memberId => {
   const isNew = memberId === null || memberId === undefined;
   const modalTitle = document.getElementById("memberModalLabel");
   modalTitle.textContent = isNew ? "Neues Mitglied anlegen" : "Mitglied bearbeiten";
@@ -500,16 +490,16 @@ function openMemberModal(memberId) {
   fillMemberForm(member, isNew);
   resetMemberFormTabs();
   memberModal.show();
-}
+};
 
-function resetMemberFormTabs() {
+const resetMemberFormTabs = () => {
   const firstTab = document.querySelector("#memberFormTabs .nav-link");
   if (firstTab && window.bootstrap) {
     bootstrap.Tab.getOrCreateInstance(firstTab).show();
   }
-}
+};
 
-function fillMemberForm(member, isNew) {
+const fillMemberForm = (member, isNew) => {
   fieldDefinitions.forEach(field => {
     const input = document.getElementById(`field-${field.key}`);
     if (!input) {
@@ -556,9 +546,9 @@ function fillMemberForm(member, isNew) {
     }
     idInput.readOnly = !isNew;
   }
-}
+};
 
-function handleMemberSubmit(event) {
+const handleMemberSubmit = event => {
   event.preventDefault();
 
   const formData = readMemberFromForm();
@@ -595,9 +585,9 @@ function handleMemberSubmit(event) {
   persistMembers();
   memberModal.hide();
   refreshAllViews();
-}
+};
 
-function readMemberFromForm() {
+const readMemberFromForm = () => {
   const member = {};
 
   fieldDefinitions.forEach(field => {
@@ -646,9 +636,9 @@ function readMemberFromForm() {
   });
 
   return normalizeMember(member);
-}
+};
 
-function refreshAllViews() {
+const refreshAllViews = () => {
   const sorted = [...state.members].sort((a, b) => a.id - b.id);
 
   setGridData(gridApis.overview, sorted);
@@ -666,7 +656,7 @@ function refreshAllViews() {
       api.sizeColumnsToFit();
     }
   });
-}
+};
 
 const setGridData = (api, rowData) => {
   if (!api) return;
@@ -683,7 +673,7 @@ const applyQuickFilter = text => {
 
 const refreshAllGridCells = () => Object.values(gridApis).forEach(api => api?.refreshCells?.({ force: true }));
 
-function refreshDashboard() {
+const refreshDashboard = () => {
   const total = state.members.length;
   const active = state.members.filter(member => !member.austrittsdatum).length;
   const clubPaid = state.members.filter(member => asBoolean(member.beitragClubBezahlt)).length;
@@ -775,7 +765,7 @@ function refreshDashboard() {
     { label: "Weihnachtsessen Teilnehmer", value: christmasParticipants },
     { label: "Weihnachtsessen bezahlt", value: christmasPaid }
   ]);
-}
+};
 
 const renderStatRows = (containerId, rows) => {
   const container = document.getElementById(containerId);
@@ -863,7 +853,7 @@ const setText = (id, value) => {
 
 const findMemberById = id => state.members.find(member => member.id === id);
 
-function createEmptyMember() {
+const createEmptyMember = () => {
   const member = {};
   fieldDefinitions.forEach(field => {
     if (field.type === "checkbox") {
@@ -879,7 +869,7 @@ function createEmptyMember() {
     }
   });
   return member;
-}
+};
 
 const dateFormatter = params => formatDateDE(params.value);
 const currencyFormatter = params => formatCurrency(params.value);
@@ -989,7 +979,7 @@ const maybeDateFromYear = year => {
   return randomDateBetween(start, end);
 };
 
-function loadStoredMembers() {
+const loadStoredMembers = () => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -1006,17 +996,17 @@ function loadStoredMembers() {
     console.warn("Gespeicherte Mitgliederdaten konnten nicht gelesen werden.", error);
     return null;
   }
-}
+};
 
-function persistMembers() {
+const persistMembers = () => {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.members));
   } catch (error) {
     console.warn("Mitgliederdaten konnten nicht gespeichert werden.", error);
   }
-}
+};
 
-function createInitialMembers(targetCount) {
+const createInitialMembers = targetCount => {
   const members = seedMembers().map(normalizeMember);
   const usedIds = new Set(members.map(member => member.id));
 
@@ -1026,10 +1016,9 @@ function createInitialMembers(targetCount) {
     usedIds.add(generated.id);
   }
   return members;
-}
+};
 
-function seedMembers() {
-  return [
+const seedMembers = () => [
     {
       id: 191,
       name: "Mogelmann",
@@ -1187,9 +1176,8 @@ function seedMembers() {
       tischnummer: 0
     }
   ];
-}
 
-function generateRandomMember(usedIds) {
+const generateRandomMember = usedIds => {
   const firstNamesM = ["Hans", "Peter", "Thomas", "Michael", "Stefan", "Uwe", "Juergen", "Ralf", "Dirk", "Markus", "Andreas", "Frank"];
   const firstNamesW = ["Sabine", "Petra", "Monika", "Claudia", "Birgit", "Anja", "Heike", "Kerstin", "Renate", "Silke", "Ute", "Gabriele"];
   const lastNames = ["Schmidt", "Mueller", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Hoffmann", "Schulz", "Krause", "Neumann", "Hartmann", "Lange"];
@@ -1296,7 +1284,7 @@ function generateRandomMember(usedIds) {
   });
 }
 
-function normalizeMember(raw) {
+const normalizeMember = raw => {
   const clone = { ...raw };
 
   clone.id = Number(clone.id);
@@ -1348,13 +1336,11 @@ function normalizeMember(raw) {
   return clone;
 }
 
-function cloneMember(member) {
+const cloneMember = member => {
   if (!member) {
     return null;
   }
   return JSON.parse(JSON.stringify(member));
-}
+};
 
-function getNextId(members) {
-  return members.reduce((max, member) => Math.max(max, member.id), 0) + 1;
-}
+const getNextId = members => members.reduce((max, member) => Math.max(max, member.id), 0) + 1;
