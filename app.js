@@ -185,7 +185,7 @@ let memberModal = null;
 
 document.addEventListener("DOMContentLoaded", initApp);
 
-function initApp() {
+const initApp = () => {
   state.members = loadStoredMembers() || createInitialMembers(200);
   state.nextId = getNextId(state.members);
 
@@ -194,9 +194,9 @@ function initApp() {
   initGrids();
   wireUi();
   refreshAllViews();
-}
+};
 
-function wireUi() {
+const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
@@ -212,15 +212,15 @@ function wireUi() {
       }, 10);
     });
   });
-}
+};
 
-function initGrids() {
+const initGrids = () => {
   gridApis.overview = createGrid("overviewGrid", getOverviewColumns());
   gridApis.payments = createGrid("paymentsGrid", getPaymentColumns());
   gridApis.christmas = createGrid("christmasGrid", getChristmasColumns());
-}
+};
 
-function createGrid(containerId, columnDefs) {
+const createGrid = (containerId, columnDefs) => {
   const gridDiv = document.getElementById(containerId);
   const options = {
     columnDefs,
@@ -243,7 +243,7 @@ function createGrid(containerId, columnDefs) {
   };
 
   return agGrid.createGrid(gridDiv, options);
-}
+};
 
 function getOverviewColumns() {
   return [
