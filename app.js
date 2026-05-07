@@ -668,39 +668,20 @@ function refreshAllViews() {
   });
 }
 
-function setGridData(api, rowData) {
-  if (!api) {
-    return;
-  }
-  if (api.setGridOption) {
-    api.setGridOption("rowData", rowData);
-    return;
-  }
-  if (api.setRowData) {
-    api.setRowData(rowData);
-  }
-}
+const setGridData = (api, rowData) => {
+  if (!api) return;
+  if (api.setGridOption) return api.setGridOption("rowData", rowData);
+  api.setRowData?.(rowData);
+};
 
-function applyQuickFilter(text) {
+const applyQuickFilter = text => {
   Object.values(gridApis).forEach(api => {
-    if (!api) {
-      return;
-    }
-    if (api.setGridOption) {
-      api.setGridOption("quickFilterText", text);
-    } else if (api.setQuickFilter) {
-      api.setQuickFilter(text);
-    }
+    if (!api) return;
+    api.setGridOption ? api.setGridOption("quickFilterText", text) : api.setQuickFilter?.(text);
   });
-}
+};
 
-function refreshAllGridCells() {
-  Object.values(gridApis).forEach(api => {
-    if (api && api.refreshCells) {
-      api.refreshCells({ force: true });
-    }
-  });
-}
+const refreshAllGridCells = () => Object.values(gridApis).forEach(api => api?.refreshCells?.({ force: true }));
 
 function refreshDashboard() {
   const total = state.members.length;
@@ -796,225 +777,91 @@ function refreshDashboard() {
   ]);
 }
 
-function renderStatRows(containerId, rows) {
+const renderStatRows = (containerId, rows) => {
   const container = document.getElementById(containerId);
+  if (!container) return;
   container.innerHTML = "";
-
   rows.forEach(row => {
     const line = document.createElement("div");
     line.className = "stat-row";
-
     const label = document.createElement("span");
     label.textContent = row.label;
-
     const value = document.createElement("strong");
     value.textContent = String(row.value);
-
     line.append(label, value);
     container.appendChild(line);
   });
-}
+};
 
-function renderAgeChart(buckets, total) {
+const renderAgeChart = (buckets, total) => {
   const canvas = document.getElementById("ageChart");
-  if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
-    return;
-  }
-
-  if (ageHistogramChart) {
-    ageHistogramChart.destroy();
-    ageHistogramChart = null;
-  }
-
+  if (!canvas || !(canvas instanceof HTMLCanvasElement)) return;
+  ageHistogramChart?.destroy();
+  ageHistogramChart = null;
   const labels = buckets.map(bucket => bucket.label);
   const data = buckets.map(bucket => bucket.count);
-  const colors = buckets.map((bucket, index) => {
-    const opacity = 0.85;
-    return index % 2 === 0 ? `rgba(15, 118, 110, ${opacity})` : `rgba(44, 160, 151, ${opacity})`;
-  });
-
+  const colors = buckets.map((_, index) => index % 2 === 0 ? "rgba(15, 118, 110, 0.85)" : "rgba(44, 160, 151, 0.85)");
   ageHistogramChart = new Chart(canvas, {
     type: "bar",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "Mitglieder",
-          data,
-          backgroundColor: colors,
-          borderColor: colors.map(color => color.replace(/0\.85\)$/, "1)")),
-          borderWidth: 1,
-          borderRadius: 12,
-          borderSkipped: false,
-          maxBarThickness: 36
-        }
-      ]
-    },
+    data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor: colors, borderColor: colors.map(color => color.replace(/0\.85\)$/, "1)")), borderWidth: 1, borderRadius: 12, borderSkipped: false, maxBarThickness: 36 }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: {
-        duration: 600,
-        easing: "easeOutQuart"
-      },
-      layout: {
-        padding: {
-          top: 10,
-          right: 6,
-          bottom: 4,
-          left: 4
-        }
-      },
+      animation: { duration: 600, easing: "easeOutQuart" },
+      layout: { padding: { top: 10, right: 6, bottom: 4, left: 4 } },
       plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          callbacks: {
-            label(context) {
-              const value = context.parsed.y;
-              const pct = percent(value, total);
-              return `${value} Mitglieder (${pct}%)`;
-            }
-          }
-        }
+        legend: { display: false },
+        tooltip: { callbacks: { label: context => {
+          const value = context.parsed.y;
+          return `${value} Mitglieder (${percent(value, total)}%)`;
+        } } }
       },
       scales: {
-        x: {
-          grid: {
-            display: false
-          },
-          ticks: {
-            color: "#46535c",
-            font: {
-              size: 12,
-              family: "Segoe UI, Noto Sans, sans-serif"
-            }
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: "rgba(15, 118, 110, 0.08)",
-            borderDash: [3, 3]
-          },
-          ticks: {
-            color: "#46535c",
-            precision: 0,
-            font: {
-              size: 12,
-              family: "Segoe UI, Noto Sans, sans-serif"
-            }
-          }
-        }
+        x: { grid: { display: false }, ticks: { color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
+        y: { beginAtZero: true, grid: { color: "rgba(15, 118, 110, 0.08)", borderDash: [3, 3] }, ticks: { color: "#46535c", precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
       }
     }
   });
-}
+};
 
-function renderInterestGroupChart(groups, total) {
+const renderInterestGroupChart = (groups, total) => {
   const canvas = document.getElementById("groupChart");
-  if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
-    return;
-  }
-
-  if (interestGroupChart) {
-    interestGroupChart.destroy();
-    interestGroupChart = null;
-  }
-
+  if (!canvas || !(canvas instanceof HTMLCanvasElement)) return;
+  interestGroupChart?.destroy();
+  interestGroupChart = null;
   const labels = groups.map(item => item.label);
   const data = groups.map(item => item.count);
-  const colors = labels.map((label, index) => index % 2 === 0 ? "rgba(22, 101, 84, 0.85)" : "rgba(43, 154, 124, 0.8)");
-
+  const colors = labels.map((_, index) => index % 2 === 0 ? "rgba(22, 101, 84, 0.85)" : "rgba(43, 154, 124, 0.8)");
   interestGroupChart = new Chart(canvas, {
     type: "bar",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "Mitglieder",
-          data,
-          backgroundColor: colors,
-          borderColor: colors.map(color => color.replace(/0\.8?5\)$/, "1)")),
-          borderWidth: 1,
-          borderRadius: 12,
-          borderSkipped: false,
-          maxBarThickness: 26
-        }
-      ]
-    },
+    data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor: colors, borderColor: colors.map(color => color.replace(/0\.8?5\)$/, "1)")), borderWidth: 1, borderRadius: 12, borderSkipped: false, maxBarThickness: 26 }] },
     options: {
       indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false,
-      animation: {
-        duration: 600,
-        easing: "easeOutQuart"
-      },
-      layout: {
-        padding: {
-          top: 10,
-          right: 6,
-          bottom: 4,
-          left: 4
-        }
-      },
+      animation: { duration: 600, easing: "easeOutQuart" },
+      layout: { padding: { top: 10, right: 6, bottom: 4, left: 4 } },
       plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          callbacks: {
-            label(context) {
-              const value = context.parsed.x;
-              const pct = percent(value, total);
-              return `${value} Mitglieder (${pct}%)`;
-            }
-          }
-        }
+        legend: { display: false },
+        tooltip: { callbacks: { label: context => {
+          const value = context.parsed.x;
+          return `${value} Mitglieder (${percent(value, total)}%)`;
+        } } }
       },
       scales: {
-        x: {
-          beginAtZero: true,
-          grid: {
-            color: "rgba(15, 118, 110, 0.08)",
-            borderDash: [3, 3]
-          },
-          ticks: {
-            color: "#46535c",
-            precision: 0,
-            font: {
-              size: 12,
-              family: "Segoe UI, Noto Sans, sans-serif"
-            }
-          }
-        },
-        y: {
-          grid: {
-            display: false
-          },
-          ticks: {
-            color: "#46535c",
-            font: {
-              size: 12,
-              family: "Segoe UI, Noto Sans, sans-serif"
-            }
-          }
-        }
+        x: { beginAtZero: true, grid: { color: "rgba(15, 118, 110, 0.08)", borderDash: [3, 3] }, ticks: { color: "#46535c", precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
+        y: { grid: { display: false }, ticks: { color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
       }
     }
   });
-}
+};
 
-function setText(id, value) {
+const setText = (id, value) => {
   const element = document.getElementById(id);
-  element.textContent = value;
-}
+  if (element) element.textContent = value;
+};
 
-function findMemberById(id) {
-  return state.members.find(member => member.id === id);
-}
+const findMemberById = id => state.members.find(member => member.id === id);
 
 function createEmptyMember() {
   const member = {};
