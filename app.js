@@ -881,230 +881,113 @@ function createEmptyMember() {
   return member;
 }
 
-function dateFormatter(params) {
-  return formatDateDE(params.value);
-}
+const dateFormatter = params => formatDateDE(params.value);
+const currencyFormatter = params => formatCurrency(params.value);
+const interestGroupFormatter = params => formatInterestGroups(params.value);
+const christmasFormatter = params => christmasChoiceMap[Number(params.value)] || christmasChoiceMap[0];
 
-function currencyFormatter(params) {
-  return formatCurrency(params.value);
-}
+const formatInterestGroups = groupIds => !groupIds || groupIds.length === 0 ? "" : groupIds.map(id => interestGroupMap[id] || `ID ${id}`).join(", ");
 
-function interestGroupFormatter(params) {
-  return formatInterestGroups(params.value);
-}
-
-function christmasFormatter(params) {
-  return christmasChoiceMap[Number(params.value)] || christmasChoiceMap[0];
-}
-
-function formatInterestGroups(groupIds) {
-  if (!groupIds || groupIds.length === 0) {
-    return "";
-  }
-  return groupIds.map(id => interestGroupMap[id] || `ID ${id}`).join(", ");
-}
-
-function formatDateDE(isoDate) {
-  if (!isoDate || typeof isoDate !== "string") {
-    return "";
-  }
+const formatDateDE = isoDate => {
+  if (!isoDate || typeof isoDate !== "string") return "";
   const parts = isoDate.split("-");
-  if (parts.length !== 3) {
-    return isoDate;
-  }
-  return `${parts[2]}.${parts[1]}.${parts[0]}`;
-}
+  return parts.length !== 3 ? isoDate : `${parts[2]}.${parts[1]}.${parts[0]}`;
+};
 
-function formatCurrency(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return "";
-  }
-  return Number(value).toLocaleString("de-DE", {
-    style: "currency",
-    currency: "EUR"
-  });
-}
+const formatCurrency = value => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "";
+  return Number(value).toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+};
 
-function parseLegacyDate(value) {
-  if (!value) {
-    return "";
-  }
+const parseLegacyDate = value => {
+  if (!value) return "";
   const trimmed = String(value).trim();
-  if (!trimmed) {
-    return "";
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  const dateParts = trimmed.split(/[./]/).map(part => part.trim()).filter(Boolean);
-  if (dateParts.length !== 3) {
-    return "";
-  }
-
-  let day = Number(dateParts[0]);
-  let month = Number(dateParts[1]);
-  let year = Number(dateParts[2]);
-
-  if (year < 100) {
-    year += 1900;
-  }
-  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) {
-    return "";
-  }
-
-  if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) {
-    return "";
-  }
-
+  if (!trimmed) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parts = trimmed.split(/[./]/).map(part => part.trim()).filter(Boolean);
+  if (parts.length !== 3) return "";
+  let [day, month, year] = parts.map(Number);
+  if (year < 100) year += 1900;
+  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return "";
+  if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) return "";
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
+};
 
-function parseLegacyCurrency(value) {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
-  if (typeof value === "number") {
-    return roundCurrency(value);
-  }
-
-  const normalized = String(value)
-    .replace(/\s/g, "")
-    .replace("€", "")
-    .replace(/\./g, "")
-    .replace(",", ".");
+const parseLegacyCurrency = value => {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return roundCurrency(value);
+  const normalized = String(value).replace(/\s/g, "").replace("€", "").replace(/\./g, "").replace(",", ".");
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? roundCurrency(parsed) : 0;
-}
+};
 
-function asBoolean(value) {
-  if (value === true || value === 1 || value === -1) {
-    return true;
-  }
+const asBoolean = value => {
+  if (value === true || value === 1 || value === -1) return true;
   if (typeof value === "string") {
     const lower = value.trim().toLowerCase();
-    return lower === "true" || lower === "1" || lower === "-1" || lower === "yes";
+    return ["true", "1", "-1", "yes"].includes(lower);
   }
   return false;
-}
+};
 
-function calculateAge(isoDate, today = new Date()) {
-  if (!isoDate || typeof isoDate !== "string") {
-    return null;
-  }
-
+const calculateAge = (isoDate, today = new Date()) => {
+  if (!isoDate || typeof isoDate !== "string") return null;
   const parts = isoDate.split("-");
-  if (parts.length !== 3) {
-    return null;
-  }
-
-  const year = Number(parts[0]);
-  const month = Number(parts[1]) - 1;
-  const day = Number(parts[2]);
-
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-    return null;
-  }
-
-  const birthDate = new Date(year, month, day);
-  if (Number.isNaN(birthDate.getTime())) {
-    return null;
-  }
-
+  if (parts.length !== 3) return null;
+  const [year, month, day] = parts.map(Number);
+  if (![year, month, day].every(Number.isFinite)) return null;
+  const birthDate = new Date(year, month - 1, day);
+  if (Number.isNaN(birthDate.getTime())) return null;
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age -= 1;
-  }
-
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age -= 1;
   return age >= 0 ? age : null;
-}
+};
 
-function ensureMinimumAge(isoDate, minAge = 55, today = new Date()) {
+const ensureMinimumAge = (isoDate, minAge = 55, today = new Date()) => {
   const normalized = parseLegacyDate(isoDate);
-  if (!normalized) {
-    return isoDate;
-  }
-
+  if (!normalized) return isoDate;
   const parts = normalized.split("-");
-  if (parts.length !== 3) {
-    return normalized;
-  }
-
-  const year = Number(parts[0]);
-  const month = Number(parts[1]) - 1;
-  const day = Number(parts[2]);
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-    return normalized;
-  }
-
-  const birthDate = new Date(year, month, day);
+  if (parts.length !== 3) return normalized;
+  const [year, month, day] = parts.map(Number);
+  if (![year, month, day].every(Number.isFinite)) return normalized;
+  const birthDate = new Date(year, month - 1, day);
   const minBirthday = new Date(today.getFullYear() - minAge, today.getMonth(), today.getDate());
-  if (birthDate <= minBirthday) {
-    return normalized;
-  }
+  return birthDate <= minBirthday ? normalized : `${minBirthday.getFullYear()}-${String(minBirthday.getMonth() + 1).padStart(2, "0")}-${String(minBirthday.getDate()).padStart(2, "0")}`;
+};
 
-  return `${minBirthday.getFullYear()}-${String(minBirthday.getMonth() + 1).padStart(2, "0")}-${String(minBirthday.getDate()).padStart(2, "0")}`;
-}
+const percent = (value, total) => total ? Math.round((value / total) * 100) : 0;
+const roundCurrency = value => Math.round(Number(value) * 100) / 100;
+const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const pick = arr => arr[randomInt(0, arr.length - 1)];
 
-function percent(value, total) {
-  if (!total) {
-    return 0;
-  }
-  return Math.round((value / total) * 100);
-}
-
-function roundCurrency(value) {
-  return Math.round(Number(value) * 100) / 100;
-}
-
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function pick(arr) {
-  return arr[randomInt(0, arr.length - 1)];
-}
-
-function randomDateBetween(start, end) {
-  const startMs = start.getTime();
-  const endMs = end.getTime();
-  const time = randomInt(startMs, endMs);
+const randomDateBetween = (start, end) => {
+  const time = randomInt(start.getTime(), end.getTime());
   const d = new Date(time);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
-function sanitizeForEmail(value) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toLowerCase();
-}
+const sanitizeForEmail = value => String(value)
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-zA-Z0-9]/g, "")
+  .toLowerCase();
 
-function randomGroupIds() {
+const randomGroupIds = () => {
   const ids = Object.keys(interestGroupMap).map(Number);
-  const target = randomInt(0, 3);
   const selected = [];
-
-  while (selected.length < target) {
+  while (selected.length < randomInt(0, 3)) {
     const candidate = pick(ids);
-    if (!selected.includes(candidate)) {
-      selected.push(candidate);
-    }
+    if (!selected.includes(candidate)) selected.push(candidate);
   }
   return selected.sort((a, b) => a - b);
-}
+};
 
-function maybeDateFromYear(year) {
+const maybeDateFromYear = year => {
   const start = new Date(`${year}-01-01`);
   const end = new Date(`${year}-12-31`);
   return randomDateBetween(start, end);
-}
+};
 
 function loadStoredMembers() {
   try {
@@ -1339,7 +1222,7 @@ function generateRandomMember(usedIds) {
   const plz = pick(plzList);
   const ort = pick(ortList);
   const today = new Date();
-  const maxBirthday = new Date(today.getFullYear() - 55, today.getMonth(), today.getDate());
+  const maxBirthday = new Date(today.getFullYear() - 60, today.getMonth(), today.getDate());
   const birthday = randomDateBetween(new Date("1940-01-01"), maxBirthday);
   const entryYear = randomInt(2009, 2025);
   const eintrittsdatum = maybeDateFromYear(entryYear);
