@@ -137,6 +137,23 @@ main.container-fluid {
   gap: 0.6rem;
 }
 
+.age-panel,
+.group-panel {
+  min-height: 320px;
+}
+
+.age-chart,
+.group-chart {
+  position: relative;
+  min-height: 280px;
+}
+
+.age-chart canvas,
+.group-chart canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .stat-row {
   display: grid;
   grid-template-columns: 1fr auto;

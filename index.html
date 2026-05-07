@@ -115,14 +115,33 @@
           </div>
         </div>
 
-        <div class="row g-3">
+        <div class="row g-3 mb-3">
           <div class="col-lg-6">
-            <div class="stat-panel">
-              <h2 class="h6 mb-3">Interessengruppen</h2>
-              <div id="groupStats" class="stats-list"></div>
+            <div class="stat-panel age-panel">
+              <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                <h2 class="h6 mb-0">Altersverteilung</h2>
+                <span class="text-muted small">in Dekaden</span>
+              </div>
+              <div class="age-chart">
+                <canvas id="ageChart"></canvas>
+              </div>
             </div>
           </div>
           <div class="col-lg-6">
+            <div class="stat-panel group-panel">
+              <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                <h2 class="h6 mb-0">Interessengruppen</h2>
+                <span class="text-muted small">Top 10</span>
+              </div>
+              <div class="group-chart">
+                <canvas id="groupChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12">
             <div class="stat-panel">
               <h2 class="h6 mb-3">Status</h2>
               <div id="paymentStats" class="stats-list"></div>
@@ -167,6 +186,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@35.2.1/dist/ag-grid-community.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

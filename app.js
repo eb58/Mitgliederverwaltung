@@ -151,6 +151,9 @@ const gridApis = {
   christmas: null
 };
 
+let ageHistogramChart = null;
+let interestGroupChart = null;
+
 const STORAGE_KEY = "vereinsverwaltung.members.v1";
 
 const gridLocaleText = {
@@ -733,11 +736,19 @@ function refreshDashboard() {
     unknown: 0
   };
   const ages = [];
+  const ageBuckets = [
+    { label: "unter 50", min: 0, max: 49, count: 0 },
+    { label: "50-59", min: 50, max: 59, count: 0 },
+    { label: "60-69", min: 60, max: 69, count: 0 },
+    { label: "70-79", min: 70, max: 79, count: 0 },
+    { label: "80-89", min: 80, max: 89, count: 0 },
+    { label: "90+", min: 90, max: Infinity, count: 0 }
+  ];
   const today = new Date();
 
   state.members.forEach(member => {
     const genderKey = String(member.geschlecht || "").toLowerCase();
-    if (genderKey === "m" || genderKey === "w" || genderKey === "d") {
+    if (genderKey === "m" || genderKey === "w") {
       genderCounts[genderKey] += 1;
     } else {
       genderCounts.unknown += 1;
@@ -746,6 +757,10 @@ function refreshDashboard() {
     const age = calculateAge(member.geburtstag, today);
     if (age !== null) {
       ages.push(age);
+      const bucket = ageBuckets.find(bucket => age >= bucket.min && age <= bucket.max);
+      if (bucket) {
+        bucket.count += 1;
+      }
     }
   });
 
@@ -754,6 +769,7 @@ function refreshDashboard() {
   setText("metricAverageAge", averageAge === null ? "-" : `${averageAge} Jahre`);
   setText("metricMaleCount", `${genderCounts.m} (${percent(genderCounts.m, total)}%)`);
   setText("metricFemaleCount", `${genderCounts.w} (${percent(genderCounts.w, total)}%)`);
+  renderAgeChart(ageBuckets, total);
 
   const groupCounts = {};
   Object.keys(interestGroupMap).forEach(id => {
@@ -773,7 +789,7 @@ function refreshDashboard() {
     .filter(item => item.count > 0)
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
-  renderStatRows("groupStats", groupRows.map(item => ({ label: item.label, value: item.count })));
+  renderInterestGroupChart(groupRows, total);
 
   const inactive = total - active;
 
@@ -802,6 +818,198 @@ function renderStatRows(containerId, rows) {
 
     line.append(label, value);
     container.appendChild(line);
+  });
+}
+
+function renderAgeChart(buckets, total) {
+  const canvas = document.getElementById("ageChart");
+  if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+
+  if (ageHistogramChart) {
+    ageHistogramChart.destroy();
+    ageHistogramChart = null;
+  }
+
+  const labels = buckets.map(bucket => bucket.label);
+  const data = buckets.map(bucket => bucket.count);
+  const colors = buckets.map((bucket, index) => {
+    const opacity = 0.85;
+    return index % 2 === 0 ? `rgba(15, 118, 110, ${opacity})` : `rgba(44, 160, 151, ${opacity})`;
+  });
+
+  ageHistogramChart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Mitglieder",
+          data,
+          backgroundColor: colors,
+          borderColor: colors.map(color => color.replace(/0\.85\)$/, "1)")),
+          borderWidth: 1,
+          borderRadius: 12,
+          borderSkipped: false,
+          maxBarThickness: 36
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 600,
+        easing: "easeOutQuart"
+      },
+      layout: {
+        padding: {
+          top: 10,
+          right: 6,
+          bottom: 4,
+          left: 4
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const value = context.parsed.y;
+              const pct = percent(value, total);
+              return `${value} Mitglieder (${pct}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: "#46535c",
+            font: {
+              size: 12,
+              family: "Segoe UI, Noto Sans, sans-serif"
+            }
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: "rgba(15, 118, 110, 0.08)",
+            borderDash: [3, 3]
+          },
+          ticks: {
+            color: "#46535c",
+            precision: 0,
+            font: {
+              size: 12,
+              family: "Segoe UI, Noto Sans, sans-serif"
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderInterestGroupChart(groups, total) {
+  const canvas = document.getElementById("groupChart");
+  if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+
+  if (interestGroupChart) {
+    interestGroupChart.destroy();
+    interestGroupChart = null;
+  }
+
+  const labels = groups.map(item => item.label);
+  const data = groups.map(item => item.count);
+  const colors = labels.map((label, index) => index % 2 === 0 ? "rgba(22, 101, 84, 0.85)" : "rgba(43, 154, 124, 0.8)");
+
+  interestGroupChart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Mitglieder",
+          data,
+          backgroundColor: colors,
+          borderColor: colors.map(color => color.replace(/0\.8?5\)$/, "1)")),
+          borderWidth: 1,
+          borderRadius: 12,
+          borderSkipped: false,
+          maxBarThickness: 26
+        }
+      ]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 600,
+        easing: "easeOutQuart"
+      },
+      layout: {
+        padding: {
+          top: 10,
+          right: 6,
+          bottom: 4,
+          left: 4
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const value = context.parsed.x;
+              const pct = percent(value, total);
+              return `${value} Mitglieder (${pct}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: {
+            color: "rgba(15, 118, 110, 0.08)",
+            borderDash: [3, 3]
+          },
+          ticks: {
+            color: "#46535c",
+            precision: 0,
+            font: {
+              size: 12,
+              family: "Segoe UI, Noto Sans, sans-serif"
+            }
+          }
+        },
+        y: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: "#46535c",
+            font: {
+              size: 12,
+              family: "Segoe UI, Noto Sans, sans-serif"
+            }
+          }
+        }
+      }
+    }
   });
 }
 
@@ -1262,7 +1470,8 @@ function generateRandomMember(usedIds) {
   const street = `${pick(streets)} ${randomInt(1, 220)}`;
   const plz = pick(plzList);
   const ort = pick(ortList);
-  const birthday = randomDateBetween(new Date("1940-01-01"), new Date("2004-12-31"));
+  const maxBirthday = new Date(`${new Date().getFullYear() - 55}-12-31`);
+  const birthday = randomDateBetween(new Date("1940-01-01"), maxBirthday);
   const entryYear = randomInt(2009, 2025);
   const eintrittsdatum = maybeDateFromYear(entryYear);
   const leaving = Math.random() < 0.14;
