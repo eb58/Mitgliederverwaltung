@@ -43,10 +43,7 @@ const fieldDefinitions = [
   { key: "id", label: "ID", type: "number", required: true },
   { key: "name", label: "Name", type: "text", required: true },
   { key: "vorname", label: "Vorname", type: "text", required: true },
-  { key: "geschlecht", label: "Geschlecht", type: "select", options: [
-    { value: "m", label: "m" },
-    { value: "w", label: "w" }
-  ] },
+  { key: "geschlecht", label: "Geschlecht", type: "select", options: [{ value: "m", label: "m" }, { value: "w", label: "w" }] },
   { key: "passbild", label: "Passbild", type: "text" },
   { key: "strasse", label: "Straße", type: "text" },
   { key: "plz", label: "PLZ", type: "text" },
@@ -64,11 +61,7 @@ const fieldDefinitions = [
   { key: "auswahl", label: "Auswahl", type: "checkbox" },
   { key: "ausweisErteilt", label: "Ausweis erteilt", type: "checkbox" },
   { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", type: "number" },
-  { key: "weihnachtsessen", label: "Weihnachtsessen", type: "select", options: [
-    { value: 0, label: "Nein" },
-    { value: 1, label: "Ja" },
-    { value: 2, label: "Ja + Gast" }
-  ] },
+  { key: "weihnachtsessen", label: "Weihnachtsessen", type: "select", options: [{ value: 0, label: "Nein" }, { value: 1, label: "Ja" }, { value: 2, label: "Ja + Gast" }] },
   { key: "wnEssenBezahlt", label: "WNessenbezahlt", type: "checkbox" },
   { key: "beitragClubBezahlt", label: "Beitrag Club bezahlt", type: "checkbox" },
   { key: "betragClubBar", label: "Betrag Club bar", type: "currency" },
@@ -244,7 +237,7 @@ function createGrid(containerId, columnDefs) {
       minWidth: 120
     },
     pagination: true,
-    paginationPageSize: 25,
+    paginationPageSize: 20,
     rowHeight: 48,
     headerHeight: 44,
     animateRows: true,
