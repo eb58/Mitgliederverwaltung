@@ -45,8 +45,7 @@ const fieldDefinitions = [
   { key: "vorname", label: "Vorname", type: "text", required: true },
   { key: "geschlecht", label: "Geschlecht", type: "select", options: [
     { value: "m", label: "m" },
-    { value: "w", label: "w" },
-    { value: "d", label: "d" }
+    { value: "w", label: "w" }
   ] },
   { key: "passbild", label: "Passbild", type: "text" },
   { key: "strasse", label: "Straße", type: "text" },
@@ -725,6 +724,44 @@ function refreshDashboard() {
   setText("metricClubPaid", `${clubPaid} (${percent(clubPaid, total)}%)`);
   setText("metricComputerPaid", `${computerPaid} (${percent(computerPaid, total)}%)`);
 
+  const christmasParticipants = state.members.filter(member => Number(member.weihnachtsessen) > 0).length;
+  const christmasPaid = state.members.filter(member => asBoolean(member.wnEssenBezahlt)).length;
+  const clubOpen = total - clubPaid;
+  const computerOpen = total - computerPaid;
+
+  setText("metricChristmasParticipants", `${christmasParticipants} (${percent(christmasParticipants, total)}%)`);
+  setText("metricChristmasPaid", `${christmasPaid} (${percent(christmasPaid, total)}%)`);
+  setText("metricClubOpen", `${clubOpen} (${percent(clubOpen, total)}%)`);
+  setText("metricComputerOpen", `${computerOpen} (${percent(computerOpen, total)}%)`);
+
+  const genderCounts = {
+    m: 0,
+    w: 0,
+    unknown: 0
+  };
+  const ages = [];
+  const today = new Date();
+
+  state.members.forEach(member => {
+    const genderKey = String(member.geschlecht || "").toLowerCase();
+    if (genderKey === "m" || genderKey === "w" || genderKey === "d") {
+      genderCounts[genderKey] += 1;
+    } else {
+      genderCounts.unknown += 1;
+    }
+
+    const age = calculateAge(member.geburtstag, today);
+    if (age !== null) {
+      ages.push(age);
+    }
+  });
+
+  const averageAge = ages.length ? Math.round((ages.reduce((sum, value) => sum + value, 0) / ages.length) * 10) / 10 : null;
+
+  setText("metricAverageAge", averageAge === null ? "-" : `${averageAge} Jahre`);
+  setText("metricMaleCount", `${genderCounts.m} (${percent(genderCounts.m, total)}%)`);
+  setText("metricFemaleCount", `${genderCounts.w} (${percent(genderCounts.w, total)}%)`);
+
   const groupCounts = {};
   Object.keys(interestGroupMap).forEach(id => {
     groupCounts[id] = 0;
@@ -745,8 +782,6 @@ function refreshDashboard() {
     .slice(0, 10);
   renderStatRows("groupStats", groupRows.map(item => ({ label: item.label, value: item.count })));
 
-  const christmasParticipants = state.members.filter(member => Number(member.weihnachtsessen) > 0).length;
-  const christmasPaid = state.members.filter(member => asBoolean(member.wnEssenBezahlt)).length;
   const inactive = total - active;
 
   renderStatRows("paymentStats", [
@@ -910,6 +945,38 @@ function asBoolean(value) {
     return lower === "true" || lower === "1" || lower === "-1" || lower === "yes";
   }
   return false;
+}
+
+function calculateAge(isoDate, today = new Date()) {
+  if (!isoDate || typeof isoDate !== "string") {
+    return null;
+  }
+
+  const parts = isoDate.split("-");
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const year = Number(parts[0]);
+  const month = Number(parts[1]) - 1;
+  const day = Number(parts[2]);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  const birthDate = new Date(year, month, day);
+  if (Number.isNaN(birthDate.getTime())) {
+    return null;
+  }
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
 }
 
 function percent(value, total) {
