@@ -1,26 +1,19 @@
 "use strict";
 
 const interestGroupMap = {
-  1: "Schach",
-  2: "English",
-  3: "Publisher",
-  4: "Excel",
-  5: "Kartenspiel",
-  6: "Tischtennis",
-  7: "Gymnastik",
-  8: "Computer",
-  9: "Chor",
-  10: "Wandern",
-  11: "Skat",
-  12: "Lesekreis",
-  13: "PC-Hilfe",
-  14: "Digitale Fotos",
-  15: "Tischtennis 2",
-  16: "Smartphone",
-  17: "Internet",
-  18: "Handarbeit",
-  19: "Theater",
-  20: "Seniorenrunde"
+  1: "Kreativ",
+  2: "Kartenspiel",
+  3: "Gymnastik",
+  4: "Tischtennis",
+  5: "Englisch",
+  6: "Schach",
+  7: "PC im Alltag",
+  8: "PC Anfänger/Fortgeschrittene",
+  9: "Excel",
+  10: "Smartphone",
+  11: "Videogruppe",
+  12: "Wandern",
+  13: "Fahrradtouren"
 };
 
 const austrittsgrundMap = {
@@ -737,12 +730,11 @@ function refreshDashboard() {
   };
   const ages = [];
   const ageBuckets = [
-    { label: "unter 50", min: 0, max: 49, count: 0 },
-    { label: "50-59", min: 50, max: 59, count: 0 },
-    { label: "60-69", min: 60, max: 69, count: 0 },
-    { label: "70-79", min: 70, max: 79, count: 0 },
-    { label: "80-89", min: 80, max: 89, count: 0 },
-    { label: "90+", min: 90, max: Infinity, count: 0 }
+    { label: "55-64", min: 55, max: 64, count: 0 },
+    { label: "65-74", min: 65, max: 74, count: 0 },
+    { label: "75-84", min: 75, max: 84, count: 0 },
+    { label: "85-94", min: 85, max: 94, count: 0 },
+    { label: "95+", min: 95, max: Infinity, count: 0 }
   ];
   const today = new Date();
 
@@ -757,9 +749,11 @@ function refreshDashboard() {
     const age = calculateAge(member.geburtstag, today);
     if (age !== null) {
       ages.push(age);
-      const bucket = ageBuckets.find(bucket => age >= bucket.min && age <= bucket.max);
-      if (bucket) {
-        bucket.count += 1;
+      if (age >= 55) {
+        const bucket = ageBuckets.find(bucket => age >= bucket.min && age <= bucket.max);
+        if (bucket) {
+          bucket.count += 1;
+        }
       }
     }
   });
@@ -1180,6 +1174,33 @@ function calculateAge(isoDate, today = new Date()) {
   return age >= 0 ? age : null;
 }
 
+function ensureMinimumAge(isoDate, minAge = 55, today = new Date()) {
+  const normalized = parseLegacyDate(isoDate);
+  if (!normalized) {
+    return isoDate;
+  }
+
+  const parts = normalized.split("-");
+  if (parts.length !== 3) {
+    return normalized;
+  }
+
+  const year = Number(parts[0]);
+  const month = Number(parts[1]) - 1;
+  const day = Number(parts[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return normalized;
+  }
+
+  const birthDate = new Date(year, month, day);
+  const minBirthday = new Date(today.getFullYear() - minAge, today.getMonth(), today.getDate());
+  if (birthDate <= minBirthday) {
+    return normalized;
+  }
+
+  return `${minBirthday.getFullYear()}-${String(minBirthday.getMonth() + 1).padStart(2, "0")}-${String(minBirthday.getDate()).padStart(2, "0")}`;
+}
+
 function percent(value, total) {
   if (!total) {
     return 0;
@@ -1470,7 +1491,8 @@ function generateRandomMember(usedIds) {
   const street = `${pick(streets)} ${randomInt(1, 220)}`;
   const plz = pick(plzList);
   const ort = pick(ortList);
-  const maxBirthday = new Date(`${new Date().getFullYear() - 55}-12-31`);
+  const today = new Date();
+  const maxBirthday = new Date(today.getFullYear() - 55, today.getMonth(), today.getDate());
   const birthday = randomDateBetween(new Date("1940-01-01"), maxBirthday);
   const entryYear = randomInt(2009, 2025);
   const eintrittsdatum = maybeDateFromYear(entryYear);
@@ -1560,6 +1582,7 @@ function normalizeMember(raw) {
   clone.email = clone.email || "";
 
   clone.geburtstag = parseLegacyDate(clone.geburtstag);
+  clone.geburtstag = ensureMinimumAge(clone.geburtstag);
   clone.eintrittsdatum = parseLegacyDate(clone.eintrittsdatum);
   clone.austrittsdatum = parseLegacyDate(clone.austrittsdatum);
 
