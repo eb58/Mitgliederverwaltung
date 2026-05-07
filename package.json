@@ -1,0 +1,17 @@
+{
+  "name": "mitgliederverwaltung",
+  "version": "1.0.0",
+  "description": "Electron desktop wrapper für die Mitgliederverwaltung Senioren Lübars",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^29.0.0"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.3",
+    "ag-grid-community": "^35.2.1",
+    "chart.js": "^4.4.2"
+  }
+}
