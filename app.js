@@ -143,7 +143,8 @@ const state = {
 const gridApis = {
   overview: null,
   payments: null,
-  christmas: null
+  christmas: null,
+  historical: null
 };
 
 let ageHistogramChart = null;
@@ -220,6 +221,7 @@ const initGrids = () => {
   gridApis.overview = createGrid("overviewGrid", getOverviewColumns());
   gridApis.payments = createGrid("paymentsGrid", getPaymentColumns());
   gridApis.christmas = createGrid("christmasGrid", getChristmasColumns());
+  gridApis.historical = createGrid("historicalGrid", getHistoricalColumns());
 };
 
 const createGrid = (containerId, columnDefs) => {
@@ -258,6 +260,17 @@ const getOverviewColumns = () => [
   { headerName: "Handy", field: "handy", minWidth: 150 },
   { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, minWidth: 140 },
   { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, minWidth: 220, flex: 1 },
+  { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
+];
+
+const getHistoricalColumns = () => [
+  getEditColumn(),
+  { headerName: "Name", field: "name", minWidth: 130 },
+  { headerName: "Vorname", field: "vorname", minWidth: 130 },
+  { headerName: "Austrittsdatum", field: "austrittsdatum", valueFormatter: dateFormatter, minWidth: 150 },
+  { headerName: "Austrittsgrund", field: "austrittsgrund", valueFormatter: params => austrittsgrundMap[Number(params.value)] || "", minWidth: 170 },
+  { headerName: "Email", field: "email", minWidth: 220 },
+  { headerName: "Handy", field: "handy", minWidth: 150 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
 
@@ -643,16 +656,30 @@ const readMemberFromForm = () => {
   return normalizeMember(member);
 };
 
-const refreshAllViews = () => {
-  const sorted = [...state.members].sort((a, b) => {
-    const nameA = String(a.name || "").localeCompare(String(b.name || ""), "de", { sensitivity: "base" });
-    if (nameA !== 0) return nameA;
-    return String(a.vorname || "").localeCompare(String(b.vorname || ""), "de", { sensitivity: "base" });
-  });
+const isActiveMember = member => !member.austrittsdatum && !member.austrittsgrund;
 
-  setGridData(gridApis.overview, sorted);
-  setGridData(gridApis.payments, sorted);
-  setGridData(gridApis.christmas, sorted);
+const refreshAllViews = () => {
+  const activeMembers = [...state.members]
+    .filter(isActiveMember)
+    .sort((a, b) => {
+      const nameA = String(a.name || "").localeCompare(String(b.name || ""), "de", { sensitivity: "base" });
+      if (nameA !== 0) return nameA;
+      return String(a.vorname || "").localeCompare(String(b.vorname || ""), "de", { sensitivity: "base" });
+    });
+
+  setGridData(gridApis.overview, activeMembers);
+  setGridData(gridApis.payments, activeMembers);
+  setGridData(gridApis.christmas, activeMembers);
+
+  const historicalMembers = [...state.members]
+    .filter(member => !isActiveMember(member))
+    .sort((a, b) => {
+      const nameA = String(a.name || "").localeCompare(String(b.name || ""), "de", { sensitivity: "base" });
+      if (nameA !== 0) return nameA;
+      return String(a.vorname || "").localeCompare(String(b.vorname || ""), "de", { sensitivity: "base" });
+    });
+  setGridData(gridApis.historical, historicalMembers);
+
   refreshDashboard();
 
   const quickFilter = document.getElementById("globalSearchInput").value.trim();
@@ -683,10 +710,11 @@ const applyQuickFilter = text => {
 const refreshAllGridCells = () => Object.values(gridApis).forEach(api => api?.refreshCells?.({ force: true }));
 
 const refreshDashboard = () => {
+  const activeMembers = state.members.filter(isActiveMember);
   const total = state.members.length;
-  const active = state.members.filter(member => !member.austrittsdatum).length;
-  const clubPaid = state.members.filter(member => asBoolean(member.beitragClubBezahlt)).length;
-  const computerPaid = state.members.filter(member => asBoolean(member.beitragComputerBezahlt)).length;
+  const active = activeMembers.length;
+  const clubPaid = activeMembers.filter(member => asBoolean(member.beitragClubBezahlt)).length;
+  const computerPaid = activeMembers.filter(member => asBoolean(member.beitragComputerBezahlt)).length;
 
   setText("metricTotal", String(total));
   setText("metricActive", String(active));
@@ -714,7 +742,7 @@ const refreshDashboard = () => {
   ];
   const today = new Date();
 
-  state.members.forEach(member => {
+  activeMembers.forEach(member => {
     const genderKey = String(member.geschlecht || "").toLowerCase();
     if (genderKey === "m" || genderKey === "w") {
       genderCounts[genderKey] += 1;
@@ -745,7 +773,7 @@ const refreshDashboard = () => {
   Object.keys(interestGroupMap).forEach(id => {
     groupCounts[id] = 0;
   });
-  state.members.forEach(member => {
+  activeMembers.forEach(member => {
     (member.interessengruppen || []).forEach(groupId => {
       if (!(groupId in groupCounts)) {
         groupCounts[groupId] = 0;
