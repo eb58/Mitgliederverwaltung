@@ -234,6 +234,9 @@ const createGrid = (containerId, columnDefs) => {
       resizable: true,
       minWidth: 120
     },
+    sortModel: [
+      { colId: "name", sort: "asc" }
+    ],
     pagination: true,
     paginationPageSize: 20,
     rowHeight: 48,
