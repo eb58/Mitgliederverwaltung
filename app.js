@@ -38,7 +38,7 @@ const fieldDefinitions = [
   { key: "id", label: "ID", type: "number", required: true },
   { key: "name", label: "Name", type: "text", required: true },
   { key: "vorname", label: "Vorname", type: "text", required: true },
-  { key: "geschlecht", label: "Geschlecht", type: "select", options: [{ value: "m", label: "m" }, { value: "w", label: "w" }] },
+  { key: "geschlecht", label: "Geschlecht", type: "radio", options: [{ value: "m", label: "männlich" }, { value: "w", label: "weiblich" }] },
   { key: "passbild", label: "Passbild", type: "text" },
   { key: "strasse", label: "Straße", type: "text" },
   { key: "plz", label: "PLZ", type: "text" },
@@ -414,6 +414,8 @@ const createMemberFormField = field => {
     col.className = "col-12 member-form-field";
   } else if (field.type === "checkbox") {
     col.className = "col-sm-6 col-lg-4 member-form-field";
+  } else if (field.type === "radio") {
+    col.className = "col-sm-6 member-form-field";
   } else {
     col.className = "col-md-6 member-form-field";
   }
@@ -448,6 +450,29 @@ const createMemberFormField = field => {
     input = document.createElement("textarea");
     input.rows = 4;
     input.className = "form-control";
+  } else if (field.type === "radio") {
+    input = document.createElement("div");
+    input.className = "radio-group";
+    field.options.forEach(option => {
+      const wrap = document.createElement("div");
+      wrap.className = "form-check form-check-inline";
+
+      const radioInput = document.createElement("input");
+      radioInput.type = "radio";
+      radioInput.className = "form-check-input";
+      radioInput.name = `field-${field.key}`;
+      radioInput.value = String(option.value);
+      radioInput.id = `field-${field.key}-${option.value}`;
+      radioInput.dataset.fieldKey = field.key;
+
+      const radioLabel = document.createElement("label");
+      radioLabel.className = "form-check-label";
+      radioLabel.setAttribute("for", radioInput.id);
+      radioLabel.textContent = option.label;
+
+      wrap.append(radioInput, radioLabel);
+      input.appendChild(wrap);
+    });
   } else if (field.type === "select") {
     input = document.createElement("select");
     input.className = "form-select";
@@ -554,6 +579,15 @@ const fillMemberForm = (member, isNew) => {
       return;
     }
 
+    if (field.type === "radio") {
+      const radioValue = raw === null || raw === undefined ? "" : String(raw);
+      const radioInput = document.querySelector(`input[name="field-${field.key}"][value="${radioValue}"]`);
+      if (radioInput) {
+        radioInput.checked = true;
+      }
+      return;
+    }
+
     input.value = raw === null || raw === undefined ? "" : String(raw);
   });
 
@@ -647,6 +681,12 @@ const readMemberFromForm = () => {
       } else {
         member[field.key] = input.value;
       }
+      return;
+    }
+
+    if (field.type === "radio") {
+      const checkedRadio = document.querySelector(`input[name="field-${field.key}"]:checked`);
+      member[field.key] = checkedRadio ? checkedRadio.value : "";
       return;
     }
 
