@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="de">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,39 +10,47 @@
   <link rel="stylesheet" href="./node_modules/ag-grid-community/styles/ag-theme-quartz.css">
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <main class="container-fluid py-3">
     <header class="app-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
       <div>
-        <h1 class="h3 mb-1">Senioren Lübars</h1>
-        <p class="text-secondary mb-0">Mitglieder, Zahlungen und Weihnachtsessen in einer Oberfläche</p>
+        <h1 class="h3 mb-1">Seniorenfreizeitstätte Lübars</h1>
+        <p class="text-secondary mb-0">Mitglieder, Zahlungen und Weihnachtsessen</p>
       </div>
       <div class="d-flex flex-wrap align-items-center gap-2">
-        <input id="globalSearchInput" type="search" class="form-control search-input" placeholder="Suchen (Name, E-Mail, Handy, Ort ...)">
+        <input id="globalSearchInput" type="search" class="form-control search-input"
+          placeholder="Suchen (Name, E-Mail, Handy, Ort ...)">
         <button id="addMemberBtn" class="btn btn-primary">Neues Mitglied</button>
       </div>
     </header>
 
     <ul class="nav nav-tabs" id="mainTabs" role="tablist">
       <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard-pane" type="button" role="tab" aria-controls="dashboard-pane" aria-selected="true">Dashboard</button>
+        <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard-pane"
+          type="button" role="tab" aria-controls="dashboard-pane" aria-selected="true">Dashboard</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane" type="button" role="tab" aria-controls="overview-pane" aria-selected="false">Übersicht</button>
+        <button class="nav-link" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane" type="button"
+          role="tab" aria-controls="overview-pane" aria-selected="false">Übersicht</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-pane" type="button" role="tab" aria-controls="payments-pane" aria-selected="false">Bezahlungsdaten</button>
+        <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-pane" type="button"
+          role="tab" aria-controls="payments-pane" aria-selected="false">Bezahlungsdaten</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="christmas-tab" data-bs-toggle="tab" data-bs-target="#christmas-pane" type="button" role="tab" aria-controls="christmas-pane" aria-selected="false">Weihnachtsessen</button>
+        <button class="nav-link" id="christmas-tab" data-bs-toggle="tab" data-bs-target="#christmas-pane" type="button"
+          role="tab" aria-controls="christmas-pane" aria-selected="false">Weihnachtsessen</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="historical-tab" data-bs-toggle="tab" data-bs-target="#historical-pane" type="button" role="tab" aria-controls="historical-pane" aria-selected="false">Historisch</button>
+        <button class="nav-link" id="historical-tab" data-bs-toggle="tab" data-bs-target="#historical-pane"
+          type="button" role="tab" aria-controls="historical-pane" aria-selected="false">Historisch</button>
       </li>
     </ul>
 
     <section class="tab-content pt-3">
-      <div class="tab-pane fade show active" id="dashboard-pane" role="tabpanel" aria-labelledby="dashboard-tab" tabindex="0">
+      <div class="tab-pane fade show active" id="dashboard-pane" role="tabpanel" aria-labelledby="dashboard-tab"
+        tabindex="0">
         <div class="row g-3 mb-3">
           <div class="col-sm-6 col-xl-3">
             <article class="metric-box">
@@ -121,7 +130,6 @@
             <div class="stat-panel group-panel">
               <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
                 <h2 class="h6 mb-0">Interessengruppen</h2>
-                <span class="text-muted small">Top 10</span>
               </div>
               <div class="group-chart">
                 <canvas id="groupChart"></canvas>
@@ -174,4 +182,5 @@
   <script src="./node_modules/chart.js/dist/chart.umd.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
+
 </html>

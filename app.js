@@ -785,8 +785,7 @@ const refreshDashboard = () => {
   const groupRows = Object.keys(groupCounts)
     .map(id => ({ id: Number(id), label: interestGroupMap[id] || `Gruppe ${id}`, count: groupCounts[id] }))
     .filter(item => item.count > 0)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
+    .slice(0, Object.keys(interestGroupMap).length);
   renderInterestGroupChart(groupRows, total);
 
   const inactive = total - active;
@@ -810,10 +809,14 @@ const renderAgeChart = (buckets, total) => {
       layout: { padding: { top: 10, right: 6, bottom: 4, left: 4 } },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: context => {
-          const value = context.parsed.y;
-          return `${value} Mitglieder (${percent(value, total)}%)`;
-        } } }
+        tooltip: {
+          callbacks: {
+            label: context => {
+              const value = context.parsed.y;
+              return `${value} Mitglieder (${percent(value, total)}%)`;
+            }
+          }
+        }
       },
       scales: {
         x: { grid: { display: false }, ticks: { color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
@@ -830,10 +833,11 @@ const renderInterestGroupChart = (groups, total) => {
   interestGroupChart = null;
   const labels = groups.map(item => item.label);
   const data = groups.map(item => item.count);
-  const colors = labels.map((_, index) => index % 2 === 0 ? "rgba(22, 101, 84, 0.85)" : "rgba(43, 154, 124, 0.8)");
+  const backgroundColor = labels.map((_, index) => index % 2 === 0 ? "rgba(22, 101, 84, 0.85)" : "rgba(43, 154, 124, 0.8)");
+  const borderColor = backgroundColor.map(color => color.replace(/0\.8?5\)$/, "1)"))
   interestGroupChart = new Chart(canvas, {
     type: "bar",
-    data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor: colors, borderColor: colors.map(color => color.replace(/0\.8?5\)$/, "1)")), borderWidth: 1, borderRadius: 12, borderSkipped: false, maxBarThickness: 26 }] },
+    data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor, borderColor, borderWidth: 1, borderRadius: 12, borderSkipped: false, maxBarThickness: 26 }] },
     options: {
       indexAxis: "y",
       responsive: true,
@@ -842,10 +846,14 @@ const renderInterestGroupChart = (groups, total) => {
       layout: { padding: { top: 10, right: 6, bottom: 4, left: 4 } },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: context => {
-          const value = context.parsed.x;
-          return `${value} Mitglieder (${percent(value, total)}%)`;
-        } } }
+        tooltip: {
+          callbacks: {
+            label: context => {
+              const value = context.parsed.x;
+              return `${value} Mitglieder (${percent(value, total)}%)`;
+            }
+          }
+        }
       },
       scales: {
         x: { beginAtZero: true, grid: { color: "rgba(15, 118, 110, 0.08)", borderDash: [3, 3] }, ticks: { color: "#46535c", precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
@@ -1037,5 +1045,5 @@ const normalizeMember = raw => {
   return clone;
 }
 
-const cloneMember = member =>  !member? null: JSON.parse(JSON.stringify(member));
+const cloneMember = member => !member ? null : JSON.parse(JSON.stringify(member));
 const getNextId = members => members.reduce((max, member) => Math.max(max, member.id), 0) + 1;
