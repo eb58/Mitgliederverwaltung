@@ -8,10 +8,10 @@ const interestGroupMap = {
   3: "Gymnastik",
   4: "Tischtennis",
   5: "Englisch",
-  6: "Schach",
+  6: "Excel",
   7: "PC im Alltag",
   8: "PC Anfänger/Fortgeschrittene",
-  9: "Excel",
+  9: "Schach",
   10: "Smartphone",
   11: "Videogruppe",
   12: "Wandern",
@@ -19,8 +19,8 @@ const interestGroupMap = {
 };
 
 const austrittsgrundMap = {
-  1: "Tod",
-  2: "Kein Interesse mehr",
+  1: "Kein Interesse mehr",
+  2: "Tod",
   3: "Wegzug",
   4: "Sonstiges"
 };
@@ -57,7 +57,7 @@ const fieldDefinitions = [
   { key: "ausweisErteilt", label: "Ausweis erteilt", type: "checkbox" },
   { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", type: "number" },
   { key: "weihnachtsessen", label: "Weihnachtsessen", type: "select", options: [{ value: 0, label: "Nein" }, { value: 1, label: "Ja" }, { value: 2, label: "Ja + Gast" }] },
-  { key: "wnEssenBezahlt", label: "WNessenbezahlt", type: "checkbox" },
+  { key: "wnEssenBezahlt", label: "bezahlt", type: "checkbox" },
   { key: "beitragClubBezahlt", label: "Beitrag Club bezahlt", type: "checkbox" },
   { key: "betragClubBar", label: "Betrag Club bar", type: "currency" },
   { key: "beitragComputerBezahlt", label: "Beitrag Computer bezahlt", type: "checkbox" },
@@ -150,7 +150,9 @@ const gridApis = {
 let ageHistogramChart = null;
 let interestGroupChart = null;
 
+const CONFIG_FILE_NAME = "config.json";
 const STORAGE_FILE_NAME = "members.json";
+const CSV_STORAGE_FILE_NAME = "members.csv";
 const SAVE_DEBOUNCE_MS = 450;
 const searchableTabTargets = new Set([
   "#overview-pane",
@@ -158,6 +160,12 @@ const searchableTabTargets = new Set([
   "#christmas-pane",
   "#historical-pane"
 ]);
+const gridApiByTabTarget = {
+  "#overview-pane": "overview",
+  "#payments-pane": "payments",
+  "#christmas-pane": "christmas",
+  "#historical-pane": "historical"
+};
 
 const gridLocaleText = {
   page: "Seite",
@@ -190,6 +198,15 @@ const gridLocaleText = {
   clearFilter: "Leeren",
   cancelFilter: "Abbrechen"
 };
+
+const csvHeaderAliases = new Map([
+  ["wnessenbezahlt", "wnEssenBezahlt"],
+  ["bezahlt", "wnEssenBezahlt"],
+  ["email", "email"],
+  ["e-mail", "email"],
+  ["strasse", "strasse"],
+  ["straße", "strasse"]
+]);
 
 let memberModal = null;
 let storageFilePathPromise = null;
@@ -257,8 +274,11 @@ const updateGlobalSearchVisibility = activeTarget => {
   const isSearchable = searchableTabTargets.has(target);
 
   searchInput.hidden = !isSearchable;
-  if (!isSearchable) {
+  if (isSearchable) {
+    applyQuickFilter(searchInput.value.trim());
+  } else {
     searchInput.blur();
+    Object.values(gridApis).forEach(api => setGridQuickFilter(api, ""));
   }
 };
 
@@ -335,7 +355,7 @@ const getChristmasColumns = () => [
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
   { headerName: "Weihnachtsessen", field: "weihnachtsessen", valueFormatter: christmasFormatter, minWidth: 150 },
-  { headerName: "WNessenbezahlt", field: "wnEssenBezahlt", minWidth: 145, filter: false, cellRenderer: toggleCellRenderer("wnEssenBezahlt") },
+  { headerName: "bezahlt", field: "wnEssenBezahlt", minWidth: 145, filter: false, cellRenderer: toggleCellRenderer("wnEssenBezahlt") },
   { headerName: "Preis Weihnachten", field: "preisWeihnachten", valueFormatter: currencyFormatter, minWidth: 150 },
   { headerName: "gezahlter Betrag Weihnachten", field: "gezahlterBetragWeihnachten", valueFormatter: currencyFormatter, minWidth: 210 },
   { headerName: "Tischnummer", field: "tischnummer", minWidth: 120 },
@@ -740,7 +760,8 @@ const readMemberFromForm = () => {
   return normalizeMember(member);
 };
 
-const isActiveMember = member => !member.austrittsdatum && !member.austrittsgrund;
+const hasExitReason = member => Number(member.austrittsgrund) > 0;
+const isActiveMember = member => !member.austrittsdatum && !hasExitReason(member);
 
 const refreshAllViews = () => {
   const activeMembers = [...state.members]
@@ -766,10 +787,7 @@ const refreshAllViews = () => {
 
   refreshDashboard();
 
-  const quickFilter = document.getElementById("globalSearchInput").value.trim();
-  if (quickFilter) {
-    applyQuickFilter(quickFilter);
-  }
+  applyQuickFilter(document.getElementById("globalSearchInput").value.trim());
 
   Object.values(gridApis).forEach(api => {
     if (api && api.sizeColumnsToFit) {
@@ -785,9 +803,28 @@ const setGridData = (api, rowData) => {
 };
 
 const applyQuickFilter = text => {
+  clearInactiveQuickFilters();
+  setGridQuickFilter(getActiveGridApi(), text);
+};
+
+const getActiveTabTarget = () => document.querySelector("#mainTabs .nav-link.active")?.dataset.bsTarget;
+
+const getActiveGridApi = () => {
+  const gridKey = gridApiByTabTarget[getActiveTabTarget()];
+  return gridKey ? gridApis[gridKey] : null;
+};
+
+const setGridQuickFilter = (api, text) => {
+  if (!api) return;
+  api.setGridOption ? api.setGridOption("quickFilterText", text) : api.setQuickFilter?.(text);
+};
+
+const clearInactiveQuickFilters = () => {
+  const activeApi = getActiveGridApi();
   Object.values(gridApis).forEach(api => {
-    if (!api) return;
-    api.setGridOption ? api.setGridOption("quickFilterText", text) : api.setQuickFilter?.(text);
+    if (api && api !== activeApi) {
+      setGridQuickFilter(api, "");
+    }
   });
 };
 
@@ -1008,7 +1045,7 @@ const parseLegacyCurrency = value => {
   if (value === null || value === undefined || value === "") return 0;
   if (typeof value === "number") return roundCurrency(value);
   const normalized = String(value).replace(/\s/g, "").replace("€", "").replace(/\./g, "").replace(",", ".");
-  const parsed = Number(normalized);
+  const parsed = Number(normalized.replace(/[^0-9.-]/g, ""));
   return Number.isFinite(parsed) ? roundCurrency(parsed) : 0;
 };
 
@@ -1069,11 +1106,51 @@ const getStorageFilePath = async () => {
   }
 
   storageFilePathPromise = (async () => {
-    const userDataPath = await bridge.getUserDataPath();
-    return bridge.path.join(userDataPath, STORAGE_FILE_NAME);
+    const config = await readStorageConfig(bridge);
+    return config.membersFilePath;
   })();
 
   return storageFilePathPromise;
+};
+
+const getDefaultStorageConfig = async bridge => {
+  const userDataPath = await bridge.getUserDataPath();
+  const membersFilePath = await bridge.path.join(userDataPath, STORAGE_FILE_NAME);
+  return { membersFilePath };
+};
+
+const getStorageConfigPath = async bridge => {
+  const userDataPath = await bridge.getUserDataPath();
+  return bridge.path.join(userDataPath, CONFIG_FILE_NAME);
+};
+
+const writeStorageConfig = async (bridge, configPath, config) => {
+  await bridge.fs.writeFile(configPath, JSON.stringify(config, null, 2));
+};
+
+const readStorageConfig = async bridge => {
+  const configPath = await getStorageConfigPath(bridge);
+  const defaultConfig = await getDefaultStorageConfig(bridge);
+  const exists = await bridge.fs.existsSync(configPath);
+
+  if (!exists) {
+    await writeStorageConfig(bridge, configPath, defaultConfig);
+    return defaultConfig;
+  }
+
+  try {
+    const raw = await bridge.fs.readFile(configPath);
+    const parsed = raw && raw.trim() ? JSON.parse(raw) : {};
+    const membersFilePath = typeof parsed.membersFilePath === "string" && parsed.membersFilePath.trim()
+      ? parsed.membersFilePath.trim()
+      : defaultConfig.membersFilePath;
+
+    return { ...defaultConfig, ...parsed, membersFilePath };
+  } catch (error) {
+    console.warn("Konfiguration konnte nicht gelesen werden. Standardpfad wird verwendet.", error);
+    await writeStorageConfig(bridge, configPath, defaultConfig);
+    return defaultConfig;
+  }
 };
 
 const ensureStorageFile = async () => {
@@ -1085,10 +1162,158 @@ const ensureStorageFile = async () => {
   const storageFilePath = await getStorageFilePath();
   const exists = await bridge.fs.existsSync(storageFilePath);
   if (!exists) {
+    const imported = await importMembersFromCsv(bridge, storageFilePath);
+    if (imported) {
+      return storageFilePath;
+    }
+
     await bridge.fs.writeFile(storageFilePath, JSON.stringify({ members: [] }, null, 2));
   }
 
   return storageFilePath;
+};
+
+const importMembersFromCsv = async (bridge, storageFilePath) => {
+  const csvFilePath = await bridge.path.join(await bridge.path.dirname(storageFilePath), CSV_STORAGE_FILE_NAME);
+  const exists = await bridge.fs.existsSync(csvFilePath);
+  if (!exists) {
+    return false;
+  }
+
+  const raw = await bridge.fs.readFile(csvFilePath);
+  const members = parseMembersCsv(raw);
+  if (members.length === 0) {
+    return false;
+  }
+
+  await bridge.fs.writeFile(storageFilePath, JSON.stringify({
+    importedAt: new Date().toISOString(),
+    sourceFile: csvFilePath,
+    members
+  }, null, 2));
+  return true;
+};
+
+const parseMembersCsv = raw => {
+  const text = String(raw || "").replace(/^\uFEFF/, "");
+  const delimiter = detectCsvDelimiter(text);
+  const rows = parseCsvRows(text, delimiter).filter(row => row.some(value => String(value).trim()));
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const firstRowHeaders = rows[0].map(resolveCsvHeaderKey);
+  const hasHeaderRow = firstRowHeaders.filter(Boolean).length >= Math.min(3, firstRowHeaders.length);
+  const headers = hasHeaderRow ? firstRowHeaders : fieldDefinitions.map(field => field.key);
+  const dataRows = hasHeaderRow ? rows.slice(1) : rows;
+
+  return dataRows
+    .map((row, index) => createMemberFromCsvRow(headers, row, index + 1))
+    .map(normalizeMember);
+};
+
+const detectCsvDelimiter = text => {
+  const sample = text.split(/\r?\n/).find(line => line.trim()) || "";
+  const candidates = [";", ",", "\t"];
+  return candidates
+    .map(delimiter => ({ delimiter, count: countUnquotedDelimiter(sample, delimiter) }))
+    .sort((a, b) => b.count - a.count)[0].delimiter;
+};
+
+const countUnquotedDelimiter = (line, delimiter) => {
+  let count = 0;
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const nextChar = line[index + 1];
+    if (char === '"' && inQuotes && nextChar === '"') {
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (!inQuotes && char === delimiter) {
+      count += 1;
+    }
+  }
+
+  return count;
+};
+
+const parseCsvRows = (text, delimiter) => {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const nextChar = text[index + 1];
+
+    if (char === '"' && inQuotes && nextChar === '"') {
+      value += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (!inQuotes && char === delimiter) {
+      row.push(value);
+      value = "";
+    } else if (!inQuotes && (char === "\n" || char === "\r")) {
+      row.push(value);
+      rows.push(row);
+      row = [];
+      value = "";
+      if (char === "\r" && nextChar === "\n") {
+        index += 1;
+      }
+    } else {
+      value += char;
+    }
+  }
+
+  row.push(value);
+  rows.push(row);
+  return rows;
+};
+
+const normalizeCsvHeader = value => String(value || "")
+  .trim()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-zA-Z0-9-]/g, "")
+  .toLowerCase();
+
+const resolveCsvHeaderKey = header => {
+  const normalized = normalizeCsvHeader(header);
+  const directField = fieldDefinitions.find(field => normalizeCsvHeader(field.key) === normalized);
+  if (directField) {
+    return directField.key;
+  }
+
+  const labelField = fieldDefinitions.find(field => normalizeCsvHeader(field.label) === normalized);
+  return labelField?.key || csvHeaderAliases.get(normalized) || null;
+};
+
+const createMemberFromCsvRow = (headers, row, fallbackId) => {
+  const member = {};
+  headers.forEach((key, index) => {
+    if (key) {
+      member[key] = row[index] === undefined ? "" : String(row[index]).trim();
+    }
+  });
+
+  if (!Number.isFinite(Number(member.id)) || Number(member.id) <= 0) {
+    member.id = fallbackId;
+  }
+
+  if (typeof member.interessengruppen === "string") {
+    member.interessengruppen = member.interessengruppen
+      .split(/[|,;]/)
+      .map(value => value.trim())
+      .filter(Boolean);
+  }
+
+  return member;
 };
 
 const readStorageDocument = async () => {
@@ -1105,9 +1330,31 @@ const readStorageDocument = async () => {
     return { members: parsed };
   }
   if (parsed && Array.isArray(parsed.members)) {
+    if (await shouldRepairCsvImport(bridge, parsed, storageFilePath)) {
+      await importMembersFromCsv(bridge, storageFilePath);
+      const repairedRaw = await bridge.fs.readFile(storageFilePath);
+      return JSON.parse(repairedRaw);
+    }
+
     return parsed;
   }
   return { members: [] };
+};
+
+const shouldRepairCsvImport = async (bridge, data, storageFilePath) => {
+  if (!Array.isArray(data.members) || data.members.length === 0) {
+    return false;
+  }
+
+  const fallbackCsvFilePath = await bridge.path.join(await bridge.path.dirname(storageFilePath), CSV_STORAGE_FILE_NAME);
+  const csvFilePath = data.sourceFile || fallbackCsvFilePath;
+  const hasCsv = await bridge.fs.existsSync(csvFilePath);
+  if (!hasCsv) {
+    return false;
+  }
+
+  const namedMembers = data.members.filter(member => String(member.name || "").trim() || String(member.vorname || "").trim());
+  return namedMembers.length === 0;
 };
 
 const loadStoredMembers = async () => {
@@ -1168,7 +1415,8 @@ const persistMembersImmediate = async (silent = false) => {
 const normalizeMember = raw => {
   const clone = { ...raw };
 
-  clone.id = Number(clone.id);
+  const numericId = Number(clone.id);
+  clone.id = Number.isFinite(numericId) && numericId > 0 ? numericId : 0;
   clone.name = (clone.name || "").trim();
   clone.vorname = (clone.vorname || "").trim();
   clone.geschlecht = clone.geschlecht || "w";

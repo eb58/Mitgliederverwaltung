@@ -1,6 +1,6 @@
 const { app, BrowserWindow, Menu, ipcMain } = require("electron");
-const path = require("path");
-const fs = require("fs");
+const path = require("node:path");
+const fs = require("node:fs");
 
 const createApplicationMenu = () => Menu.buildFromTemplate([
   {
