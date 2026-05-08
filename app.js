@@ -152,6 +152,12 @@ let interestGroupChart = null;
 
 const STORAGE_FILE_NAME = "members.json";
 const SAVE_DEBOUNCE_MS = 450;
+const searchableTabTargets = new Set([
+  "#overview-pane",
+  "#payments-pane",
+  "#christmas-pane",
+  "#historical-pane"
+]);
 
 const gridLocaleText = {
   page: "Seite",
@@ -223,9 +229,11 @@ const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
+  updateGlobalSearchVisibility();
 
   document.querySelectorAll('#mainTabs button[data-bs-toggle="tab"]').forEach(tabButton => {
-    tabButton.addEventListener("shown.bs.tab", () => {
+    tabButton.addEventListener("shown.bs.tab", event => {
+      updateGlobalSearchVisibility(event.target.dataset.bsTarget);
       setTimeout(() => {
         Object.values(gridApis).forEach(api => {
           if (api && api.sizeColumnsToFit) {
@@ -241,6 +249,17 @@ const wireUi = () => {
       // no-op
     });
   });
+};
+
+const updateGlobalSearchVisibility = activeTarget => {
+  const searchInput = document.getElementById("globalSearchInput");
+  const target = activeTarget || document.querySelector("#mainTabs .nav-link.active")?.dataset.bsTarget;
+  const isSearchable = searchableTabTargets.has(target);
+
+  searchInput.hidden = !isSearchable;
+  if (!isSearchable) {
+    searchInput.blur();
+  }
 };
 
 const initGrids = () => {
