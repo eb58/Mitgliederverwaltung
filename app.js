@@ -455,7 +455,7 @@ const createMemberFormField = field => {
     input.className = "radio-group";
     field.options.forEach(option => {
       const wrap = document.createElement("div");
-      wrap.className = "form-check form-check-inline";
+      wrap.className = "form-check d-inline-block me-3";
 
       const radioInput = document.createElement("input");
       radioInput.type = "radio";
