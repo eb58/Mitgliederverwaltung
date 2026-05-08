@@ -1,5 +1,6 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
+const fs = require("fs");
 
 function createMainWindow() {
   const mainWindow = new BrowserWindow({
@@ -17,6 +18,43 @@ function createMainWindow() {
 
   mainWindow.loadFile(path.join(__dirname, "index.html"));
 }
+
+// IPC Handlers für Dateioperationen
+ipcMain.handle("fs:readFile", async (event, filePath) => {
+  try {
+    return await fs.promises.readFile(filePath, "utf8");
+  } catch (error) {
+    throw error;
+  }
+});
+
+ipcMain.handle("fs:writeFile", async (event, filePath, data) => {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    await fs.promises.writeFile(filePath, data, "utf8");
+  } catch (error) {
+    throw error;
+  }
+});
+
+ipcMain.handle("fs:existsSync", (event, filePath) => {
+  return fs.existsSync(filePath);
+});
+
+ipcMain.handle("path:join", (event, ...args) => {
+  return path.join(...args);
+});
+
+ipcMain.handle("path:dirname", (event, filePath) => {
+  return path.dirname(filePath);
+});
+
+ipcMain.handle("app:getUserDataPath", (event) => {
+  return app.getPath("userData");
+});
 
 app.whenReady().then(() => {
   createMainWindow();

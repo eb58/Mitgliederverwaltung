@@ -150,7 +150,8 @@ const gridApis = {
 let ageHistogramChart = null;
 let interestGroupChart = null;
 
-const STORAGE_KEY = "vereinsverwaltung.members.v1";
+const STORAGE_FILE_NAME = "members.json";
+const SAVE_DEBOUNCE_MS = 450;
 
 const gridLocaleText = {
   page: "Seite",
@@ -185,10 +186,18 @@ const gridLocaleText = {
 };
 
 let memberModal = null;
+let storageFilePathPromise = null;
+let persistTimerId = null;
+let persistQueue = Promise.resolve();
 
-const initApp = () => {
-  state.members = loadStoredMembers() || createInitialMembers(200);
+const initApp = async () => {
+  const loadedMembers = await loadStoredMembers();
+  state.members = loadedMembers || createInitialMembers(200);
   state.nextId = getNextId(state.members);
+
+  if (!loadedMembers) {
+    await persistMembersImmediate(true);
+  }
 
   buildMemberForm();
   memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
@@ -197,7 +206,18 @@ const initApp = () => {
   refreshAllViews();
 };
 
-document.addEventListener("DOMContentLoaded", initApp);
+document.addEventListener("DOMContentLoaded", () => {
+  initApp().catch(error => {
+    console.error("Initialisierung fehlgeschlagen.", error);
+    state.members = createInitialMembers(200);
+    state.nextId = getNextId(state.members);
+    buildMemberForm();
+    memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
+    initGrids();
+    wireUi();
+    refreshAllViews();
+  });
+});
 
 const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
@@ -213,6 +233,12 @@ const wireUi = () => {
           }
         });
       }, 10);
+    });
+  });
+
+  window.addEventListener("beforeunload", () => {
+    persistMembersImmediate(true).catch(() => {
+      // no-op
     });
   });
 };
@@ -600,7 +626,7 @@ const fillMemberForm = (member, isNew) => {
   }
 };
 
-const handleMemberSubmit = event => {
+const handleMemberSubmit = async event => {
   event.preventDefault();
 
   const formData = readMemberFromForm();
@@ -633,8 +659,7 @@ const handleMemberSubmit = event => {
     }
     return a.vorname.localeCompare(b.vorname, "de");
   });
-
-  persistMembers();
+  await persistMembersImmediate(false);
   memberModal.hide();
   refreshAllViews();
 };
@@ -1006,19 +1031,73 @@ const ensureMinimumAge = (isoDate, minAge = 55, today = new Date()) => {
 const percent = (value, total) => total ? Math.round((value / total) * 100) : 0;
 const roundCurrency = value => Math.round(Number(value) * 100) / 100;
 
-const loadStoredMembers = () => {
+const getElectronBridge = () => {
+  const bridge = window.electron;
+  if (!bridge || !bridge.fs || !bridge.path || typeof bridge.getUserDataPath !== "function") {
+    return null;
+  }
+  return bridge;
+};
+
+const getStorageFilePath = async () => {
+  if (storageFilePathPromise) {
+    return storageFilePathPromise;
+  }
+
+  const bridge = getElectronBridge();
+  if (!bridge) {
+    throw new Error("Electron bridge nicht verfuegbar.");
+  }
+
+  storageFilePathPromise = (async () => {
+    const userDataPath = await bridge.getUserDataPath();
+    return bridge.path.join(userDataPath, STORAGE_FILE_NAME);
+  })();
+
+  return storageFilePathPromise;
+};
+
+const ensureStorageFile = async () => {
+  const bridge = getElectronBridge();
+  if (!bridge) {
+    throw new Error("Electron bridge nicht verfuegbar.");
+  }
+
+  const storageFilePath = await getStorageFilePath();
+  const exists = await bridge.fs.existsSync(storageFilePath);
+  if (!exists) {
+    await bridge.fs.writeFile(storageFilePath, JSON.stringify({ members: [] }, null, 2));
+  }
+
+  return storageFilePath;
+};
+
+const readStorageDocument = async () => {
+  const bridge = getElectronBridge();
+  const storageFilePath = await ensureStorageFile();
+  const raw = await bridge.fs.readFile(storageFilePath);
+
+  if (!raw || !raw.trim()) {
+    return { members: [] };
+  }
+
+  const parsed = JSON.parse(raw);
+  if (Array.isArray(parsed)) {
+    return { members: parsed };
+  }
+  if (parsed && Array.isArray(parsed.members)) {
+    return parsed;
+  }
+  return { members: [] };
+};
+
+const loadStoredMembers = async () => {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
+    const data = await readStorageDocument();
+    if (!Array.isArray(data.members) || data.members.length === 0) {
       return null;
     }
-
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return null;
-    }
-
-    return parsed.map(normalizeMember);
+    return data.members.map(normalizeMember);
   } catch (error) {
     console.warn("Gespeicherte Mitgliederdaten konnten nicht gelesen werden.", error);
     return null;
@@ -1026,10 +1105,44 @@ const loadStoredMembers = () => {
 };
 
 const persistMembers = () => {
+  if (persistTimerId) {
+    clearTimeout(persistTimerId);
+  }
+
+  persistTimerId = setTimeout(() => {
+    persistTimerId = null;
+    persistQueue = persistQueue
+      .then(() => persistMembersImmediate(true))
+      .catch(error => {
+        console.warn("Mitgliederdaten konnten nicht gespeichert werden.", error);
+      });
+  }, SAVE_DEBOUNCE_MS);
+};
+
+const persistMembersImmediate = async (silent = false) => {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.members));
+    const bridge = getElectronBridge();
+    if (!bridge) {
+      throw new Error("Electron bridge nicht verfuegbar.");
+    }
+
+    if (persistTimerId) {
+      clearTimeout(persistTimerId);
+      persistTimerId = null;
+    }
+
+    const storageFilePath = await ensureStorageFile();
+    const payload = {
+      updatedAt: new Date().toISOString(),
+      members: state.members
+    };
+    await bridge.fs.writeFile(storageFilePath, JSON.stringify(payload, null, 2));
+    return true;
   } catch (error) {
-    console.warn("Mitgliederdaten konnten nicht gespeichert werden.", error);
+    if (!silent) {
+      window.alert("Speichern auf Dateisystem fehlgeschlagen.");
+    }
+    throw error;
   }
 };
 

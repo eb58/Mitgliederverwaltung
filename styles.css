@@ -319,7 +319,18 @@ main.container-fluid {
 }
 
 .form-check-input {
+  accent-color: var(--accent);
   margin-right: 0.5rem;
+}
+
+.form-check-input:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.form-check-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15);
 }
 
 .form-check-label {
