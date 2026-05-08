@@ -755,28 +755,6 @@ const refreshDashboard = () => {
   renderInterestGroupChart(groupRows, total);
 
   const inactive = total - active;
-
-  renderStatRows("paymentStats", [
-    { label: "Inaktive Mitglieder", value: inactive },
-    { label: "Club offen", value: total - clubPaid },
-    { label: "Computer offen", value: total - computerPaid }
-  ]);
-};
-
-const renderStatRows = (containerId, rows) => {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.innerHTML = "";
-  rows.forEach(row => {
-    const line = document.createElement("div");
-    line.className = "stat-row";
-    const label = document.createElement("span");
-    label.textContent = row.label;
-    const value = document.createElement("strong");
-    value.textContent = String(row.value);
-    line.append(label, value);
-    container.appendChild(line);
-  });
 };
 
 const renderAgeChart = (buckets, total) => {
