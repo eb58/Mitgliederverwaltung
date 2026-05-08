@@ -686,13 +686,9 @@ const refreshDashboard = () => {
   setText("metricClubPaid", `${clubPaid} (${percent(clubPaid, total)}%)`);
   setText("metricComputerPaid", `${computerPaid} (${percent(computerPaid, total)}%)`);
 
-  const christmasParticipants = state.members.filter(member => Number(member.weihnachtsessen) > 0).length;
-  const christmasPaid = state.members.filter(member => asBoolean(member.wnEssenBezahlt)).length;
   const clubOpen = total - clubPaid;
   const computerOpen = total - computerPaid;
 
-  setText("metricChristmasParticipants", `${christmasParticipants} (${percent(christmasParticipants, total)}%)`);
-  setText("metricChristmasPaid", `${christmasPaid} (${percent(christmasPaid, total)}%)`);
   setText("metricClubOpen", `${clubOpen} (${percent(clubOpen, total)}%)`);
   setText("metricComputerOpen", `${computerOpen} (${percent(computerOpen, total)}%)`);
 
@@ -763,9 +759,7 @@ const refreshDashboard = () => {
   renderStatRows("paymentStats", [
     { label: "Inaktive Mitglieder", value: inactive },
     { label: "Club offen", value: total - clubPaid },
-    { label: "Computer offen", value: total - computerPaid },
-    { label: "Weihnachtsessen Teilnehmer", value: christmasParticipants },
-    { label: "Weihnachtsessen bezahlt", value: christmasPaid }
+    { label: "Computer offen", value: total - computerPaid }
   ]);
 };
 
