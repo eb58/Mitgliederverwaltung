@@ -1,13 +1,53 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
-function createMainWindow() {
+const createApplicationMenu = () => Menu.buildFromTemplate([
+  {
+    label: "Ansicht",
+    submenu: [
+      {
+        label: "Entwicklertools",
+        accelerator: "CommandOrControl+Shift+I",
+        role: "toggleDevTools"
+      },
+      {
+        label: "Neu laden",
+        accelerator: "CommandOrControl+R",
+        role: "reload"
+      },
+      {
+        label: "Neu laden erzwingen",
+        accelerator: "CommandOrControl+Shift+R",
+        role: "forceReload"
+      },
+      { type: "separator" },
+      {
+        label: "Zoom In",
+        accelerator: "CommandOrControl+Plus",
+        role: "zoomIn"
+      },
+      {
+        label: "Zoom Out",
+        accelerator: "CommandOrControl+-",
+        role: "zoomOut"
+      },
+      {
+        label: "Zoom zuruecksetzen",
+        accelerator: "CommandOrControl+0",
+        role: "resetZoom"
+      }
+    ]
+  }
+]);
+
+const createMainWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1024,
     minHeight: 768,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -17,7 +57,7 @@ function createMainWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, "index.html"));
-}
+};
 
 // IPC Handlers für Dateioperationen
 ipcMain.handle("fs:readFile", async (event, filePath) => {
@@ -57,6 +97,7 @@ ipcMain.handle("app:getUserDataPath", (event) => {
 });
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(createApplicationMenu());
   createMainWindow();
 
   app.on("activate", () => {
