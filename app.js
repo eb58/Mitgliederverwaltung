@@ -644,7 +644,11 @@ const readMemberFromForm = () => {
 };
 
 const refreshAllViews = () => {
-  const sorted = [...state.members].sort((a, b) => a.id - b.id);
+  const sorted = [...state.members].sort((a, b) => {
+    const nameA = String(a.name || "").localeCompare(String(b.name || ""), "de", { sensitivity: "base" });
+    if (nameA !== 0) return nameA;
+    return String(a.vorname || "").localeCompare(String(b.vorname || ""), "de", { sensitivity: "base" });
+  });
 
   setGridData(gridApis.overview, sorted);
   setGridData(gridApis.payments, sorted);
