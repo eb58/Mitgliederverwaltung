@@ -243,7 +243,8 @@ main.container-fluid {
 
 .grid-host {
   width: 100%;
-  height: max(500px, calc(100dvh - 210px));
+  height: calc(100dvh - 230px);
+  min-height: 420px;
   border: 1px solid rgba(15, 118, 110, 0.12);
   border-radius: 16px;
   overflow: hidden;
@@ -470,7 +471,8 @@ main.container-fluid {
 
 @media (max-width: 991px) {
   .grid-host {
-    height: max(430px, calc(100dvh - 225px));
+    height: calc(100dvh - 245px);
+    min-height: 360px;
   }
 }
 
@@ -484,7 +486,7 @@ main.container-fluid {
   }
 
   .grid-host {
-    height: calc(100dvh - 245px);
-    min-height: 380px;
+    height: calc(100dvh - 285px);
+    min-height: 320px;
   }
 }
