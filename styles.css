@@ -274,12 +274,16 @@ main.container-fluid {
   border-color: #edf1ef;
 }
 
+.ag-theme-quartz .ag-row.ag-row-hover:not(.guest-row) {
+  background-color: #eaf7f5;
+}
+
 .ag-theme-quartz .ag-row.guest-row {
-  background-color: #fbf8f2;
+  background-color: #fdfbf8;
 }
 
 .ag-theme-quartz .ag-row.guest-row.ag-row-hover {
-  background-color: #f6efe2;
+  background-color: #f8f3eb;
 }
 
 .ag-theme-quartz .ag-row.guest-row .ag-cell {
