@@ -328,7 +328,7 @@ const createGrid = (containerId, columnDefs) => {
       { colId: "name", sort: "asc" }
     ],
     pagination: true,
-    paginationPageSize: 20,
+    paginationPageSize: 50,
     rowHeight: 48,
     headerHeight: 44,
     animateRows: true,
