@@ -71,6 +71,50 @@ ipcMain.handle("fs:readFile", async (event, filePath) => {
   }
 });
 
+ipcMain.handle("fs:readFileBase64", async (event, filePath) => {
+  try {
+    return await fs.promises.readFile(filePath, "base64");
+  } catch (error) {
+    throw error;
+  }
+});
+
+ipcMain.handle("fs:readDir", async (event, dirPath) => {
+  try {
+    return await fs.promises.readdir(dirPath);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+});
+
+ipcMain.handle("photos:findDataUrl", async (event, membersFilePath, fileNames) => {
+  const passbilderDirectoryPath = path.join(path.dirname(membersFilePath), "Passbilder");
+  const names = Array.isArray(fileNames) ? fileNames.filter(Boolean) : [];
+  if (names.length === 0 || !fs.existsSync(passbilderDirectoryPath)) {
+    return null;
+  }
+
+  const availableFileNames = await fs.promises.readdir(passbilderDirectoryPath);
+  const fileNameByLowerName = new Map(availableFileNames.map(fileName => [fileName.toLowerCase(), fileName]));
+  const matchedFileName = names.map(fileName => fileNameByLowerName.get(String(fileName).toLowerCase())).find(Boolean);
+  if (!matchedFileName) {
+    return null;
+  }
+
+  const photoPath = path.join(passbilderDirectoryPath, matchedFileName);
+  const extension = path.extname(photoPath).toLowerCase();
+  const mimeTypes = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png"
+  };
+  const base64 = await fs.promises.readFile(photoPath, "base64");
+  return `data:${mimeTypes[extension] || "image/jpeg"};base64,${base64}`;
+});
+
 ipcMain.handle("fs:writeFile", async (event, filePath, data) => {
   try {
     const dir = path.dirname(filePath);

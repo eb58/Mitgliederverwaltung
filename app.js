@@ -90,7 +90,7 @@ const formSections = [
   {
     id: "basis",
     label: "Basis",
-    fieldKeys: ["name", "vorname", "geschlecht", "geburtstag", "passbild"]
+    fieldKeys: ["name", "vorname", "geschlecht", "geburtstag"]
   },
   {
     id: "kontakt",
@@ -235,6 +235,10 @@ let memberModal = null;
 let storageFilePathPromise = null;
 let persistTimerId = null;
 let persistQueue = Promise.resolve();
+const photoPathCache = {
+  passbilderDirectoryPathPromise: null,
+  photoFileNamesPromise: null
+};
 
 const initApp = async () => {
   const loadedMembers = await loadStoredMembers();
@@ -344,6 +348,7 @@ const createGrid = (containerId, columnDefs) => {
 };
 
 const getOverviewColumns = () => [
+  getPhotoColumn(),
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
@@ -354,7 +359,65 @@ const getOverviewColumns = () => [
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
 
+const getPhotoColumn = () => ({
+  headerName: "",
+  field: "passbild",
+  pinned: "left",
+  width: 64,
+  minWidth: 64,
+  maxWidth: 64,
+  cellClass: "photo-cell",
+  headerClass: "photo-header",
+  sortable: false,
+  filter: false,
+  suppressMovable: true,
+  cellRenderer: params => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "member-photo member-photo--fallback";
+    wrapper.title = "Kein Passfoto vorhanden";
+    wrapper.setAttribute("aria-label", "Kein Passfoto vorhanden");
+    wrapper.innerHTML = `
+      <svg class="member-photo__fallback-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+        <path d="M20 21a8 8 0 0 0-16 0"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+    `;
+
+    resolveMemberPhotoDataUrl(params.data).then(photoDataUrl => {
+      if (!photoDataUrl) return;
+
+      const image = document.createElement("img");
+      image.className = "member-photo__image";
+      image.alt = `Passfoto von ${formatMemberName(params.data)}`;
+      image.loading = "lazy";
+      image.addEventListener("error", () => setFallbackPhoto(wrapper), { once: true });
+      wrapper.className = "member-photo";
+      wrapper.title = image.alt;
+      wrapper.setAttribute("aria-label", image.alt);
+      wrapper.replaceChildren(image);
+      image.src = photoDataUrl;
+    }).catch(() => {
+      // Fallback remains visible.
+    });
+
+    return wrapper;
+  }
+});
+
+const setFallbackPhoto = wrapper => {
+  wrapper.className = "member-photo member-photo--fallback";
+  wrapper.title = "Kein Passfoto vorhanden";
+  wrapper.setAttribute("aria-label", "Kein Passfoto vorhanden");
+  wrapper.innerHTML = `
+    <svg class="member-photo__fallback-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+      <path d="M20 21a8 8 0 0 0-16 0"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+  `;
+};
+
 const getHistoricalColumns = () => [
+  getPhotoColumn(),
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
@@ -366,6 +429,7 @@ const getHistoricalColumns = () => [
 ];
 
 const getPaymentColumns = () => [
+  getPhotoColumn(),
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
@@ -377,6 +441,7 @@ const getPaymentColumns = () => [
 ];
 
 const getChristmasColumns = () => [
+  getPhotoColumn(),
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
@@ -482,6 +547,10 @@ const buildMemberForm = () => {
 
     const row = document.createElement("div");
     row.className = "row g-3";
+
+    if (section.id === "basis") {
+      pane.appendChild(createMemberPhotoPreview());
+    }
 
     section.fieldKeys.forEach(fieldKey => {
       const field = fieldByKey.get(fieldKey);
@@ -606,8 +675,40 @@ const createMemberFormField = field => {
     input.required = true;
   }
 
+  if (["name", "vorname"].includes(field.key)) {
+    input.addEventListener("input", () => updateMemberPhotoPreview(readMemberPreviewFromForm()));
+  }
+
   col.append(label, input);
   return col;
+};
+
+const createMemberPhotoPreview = () => {
+  const preview = document.createElement("div");
+  preview.className = "member-photo-preview";
+  preview.id = "memberPhotoPreview";
+
+  const photo = document.createElement("div");
+  photo.className = "member-photo-preview__image member-photo member-photo--fallback";
+  photo.id = "memberPhotoPreviewImage";
+  setFallbackPhoto(photo);
+  photo.classList.add("member-photo-preview__image");
+
+  const text = document.createElement("div");
+  text.className = "member-photo-preview__text";
+
+  const title = document.createElement("div");
+  title.className = "member-photo-preview__title";
+  title.textContent = "Passbild";
+
+  const fileName = document.createElement("div");
+  fileName.className = "member-photo-preview__file";
+  fileName.id = "memberPhotoPreviewFile";
+  fileName.textContent = "Kein Passfoto vorhanden";
+
+  text.append(title, fileName);
+  preview.append(photo, text);
+  return preview;
 };
 
 const openMemberModal = memberId => {
@@ -682,6 +783,8 @@ const fillMemberForm = (member, isNew) => {
     input.value = raw === null || raw === undefined ? "" : String(raw);
   });
 
+  updateMemberPhotoPreview(member);
+
   const idInput = document.getElementById("field-id");
   if (idInput) {
     if (isNew) {
@@ -690,6 +793,44 @@ const fillMemberForm = (member, isNew) => {
     idInput.readOnly = !isNew;
   }
 };
+
+const updateMemberPhotoPreview = member => {
+  const previewImage = document.getElementById("memberPhotoPreviewImage");
+  const previewFile = document.getElementById("memberPhotoPreviewFile");
+  if (!previewImage || !previewFile) return;
+
+  setFallbackPhoto(previewImage);
+  previewImage.className = "member-photo-preview__image member-photo member-photo--fallback";
+  previewFile.textContent = "Kein Passfoto vorhanden";
+
+  resolveMemberPhotoDataUrl(member).then(photoDataUrl => {
+    if (!photoDataUrl) return;
+
+    const image = document.createElement("img");
+    image.className = "member-photo__image";
+    image.alt = `Passfoto von ${formatMemberName(member)}`;
+    image.addEventListener("error", () => {
+      setFallbackPhoto(previewImage);
+      previewImage.classList.add("member-photo-preview__image");
+      previewFile.textContent = "Kein Passfoto vorhanden";
+    }, { once: true });
+
+    previewImage.className = "member-photo-preview__image member-photo";
+    previewImage.title = image.alt;
+    previewImage.setAttribute("aria-label", image.alt);
+    previewImage.replaceChildren(image);
+    previewFile.textContent = normalizePhotoFileName(member.passbild) || "Automatisch gefunden";
+    image.src = photoDataUrl;
+  }).catch(() => {
+    // Fallback remains visible.
+  });
+};
+
+const readMemberPreviewFromForm = () => ({
+  name: document.getElementById("field-name")?.value || "",
+  vorname: document.getElementById("field-vorname")?.value || "",
+  passbild: ""
+});
 
 const handleMemberSubmit = async event => {
   event.preventDefault();
@@ -714,6 +855,7 @@ const handleMemberSubmit = async event => {
       return;
     }
     formData.id = state.editingId;
+    formData.passbild = state.members[index].passbild || "";
     state.members[index] = formData;
   }
 
@@ -1183,6 +1325,136 @@ const ensureMinimumAge = (isoDate, minAge = 55, today = new Date()) => {
 const percent = (value, total) => total ? Math.round((value / total) * 100) : 0;
 const roundCurrency = value => Math.round(Number(value) * 100) / 100;
 
+const formatMemberName = member => `${member?.vorname || ""} ${member?.name || ""}`.trim() || "Mitglied";
+
+const resolveMemberPhotoDataUrl = async member => {
+  const bridge = getElectronBridge();
+  if (!bridge) return null;
+
+  if (bridge.photos && typeof bridge.photos.findDataUrl === "function") {
+    return bridge.photos.findDataUrl(await getStorageFilePath(), getMemberPhotoFileNames(member));
+  }
+
+  const photoPath = await resolveMemberPhotoPath(member);
+  if (!photoPath) return null;
+  if (typeof bridge.fs.readFileBase64 !== "function") {
+    return filePathToFileUrl(photoPath);
+  }
+
+  const base64 = await bridge.fs.readFileBase64(photoPath);
+  return `data:${getImageMimeType(photoPath)};base64,${base64}`;
+};
+
+const resolveMemberPhotoPath = async member => {
+  const bridge = getElectronBridge();
+  if (!bridge) return null;
+
+  const fileNames = getMemberPhotoFileNames(member);
+  if (fileNames.length === 0) return null;
+
+  const passbilderDirectoryPath = await getPassbilderDirectoryPath();
+  const matchedFileName = await findExistingPhotoFileName(fileNames);
+  if (matchedFileName) {
+    return bridge.path.join(passbilderDirectoryPath, matchedFileName);
+  }
+
+  for (const fileName of fileNames) {
+    const photoPath = isAbsoluteFilePath(fileName)
+      ? fileName
+      : await bridge.path.join(passbilderDirectoryPath, fileName);
+    if (await bridge.fs.existsSync(photoPath)) return photoPath;
+  }
+
+  return null;
+};
+
+const getMemberPhotoFileNames = member => {
+  const configuredFile = normalizePhotoFileName(member?.passbild);
+  const name = String(member?.name || "").trim();
+  const vorname = String(member?.vorname || "").trim();
+  const fallbackBaseNames = [
+    `${name} ${vorname}`.trim(),
+    `${vorname} ${name}`.trim()
+  ].filter(Boolean);
+  const fallbackFiles = fallbackBaseNames.flatMap(baseName => [".jpg", ".jpeg", ".png"].map(extension => `${baseName}${extension}`));
+
+  return [...new Set([configuredFile, ...fallbackFiles].filter(Boolean))];
+};
+
+const findExistingPhotoFileName = async fileNames => {
+  const availableFileNames = await getAvailablePhotoFileNames();
+  if (availableFileNames.length === 0) return null;
+
+  const fileNameByLowerName = new Map(availableFileNames.map(fileName => [fileName.toLowerCase(), fileName]));
+  return fileNames.map(fileName => fileNameByLowerName.get(fileName.toLowerCase())).find(Boolean) || null;
+};
+
+const getAvailablePhotoFileNames = async () => {
+  if (photoPathCache.photoFileNamesPromise) {
+    return photoPathCache.photoFileNamesPromise;
+  }
+
+  const bridge = getElectronBridge();
+  if (!bridge || typeof bridge.fs.readDir !== "function") return [];
+
+  photoPathCache.photoFileNamesPromise = (async () => {
+    const passbilderDirectoryPath = await getPassbilderDirectoryPath();
+    const fileNames = await bridge.fs.readDir(passbilderDirectoryPath);
+    return fileNames.filter(fileName => /\.(jpe?g|png)$/i.test(fileName));
+  })();
+
+  return photoPathCache.photoFileNamesPromise;
+};
+
+const getPassbilderDirectoryPath = async () => {
+  if (photoPathCache.passbilderDirectoryPathPromise) {
+    return photoPathCache.passbilderDirectoryPathPromise;
+  }
+
+  const bridge = getElectronBridge();
+  if (!bridge) {
+    throw new Error("Electron bridge nicht verfuegbar.");
+  }
+
+  photoPathCache.passbilderDirectoryPathPromise = (async () => {
+    const storageFilePath = await getStorageFilePath();
+    const storageDirectory = await bridge.path.dirname(storageFilePath);
+    return bridge.path.join(storageDirectory, "Passbilder");
+  })();
+
+  return photoPathCache.passbilderDirectoryPathPromise;
+};
+
+const isAbsoluteFilePath = filePath => /^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith("\\\\");
+
+const normalizePhotoFileName = value => {
+  const fileName = String(value || "").trim().split(/[\\/]/).filter(Boolean).pop() || "";
+  return /\.(jpe?g|png)$/i.test(fileName) ? fileName : "";
+};
+
+const filePathToFileUrl = filePath => {
+  const normalized = String(filePath || "").replace(/\\/g, "/");
+  if (normalized.startsWith("//")) {
+    return `file:${normalized.split("/").map(encodeURIComponent).join("/")}`;
+  }
+
+  const parts = normalized.split("/");
+  const encoded = parts
+    .map((part, index) => index === 0 && /^[a-zA-Z]:$/.test(part) ? part : encodeURIComponent(part))
+    .join("/");
+  return `file:///${encoded}`;
+};
+
+const getImageMimeType = filePath => {
+  const extension = String(filePath || "").split(".").pop().toLowerCase();
+  const mimeTypes = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png"
+  };
+  return mimeTypes[extension] || "image/jpeg";
+};
+
 const getElectronBridge = () => {
   const bridge = window.electron;
   if (!bridge || !bridge.fs || !bridge.path || typeof bridge.getUserDataPath !== "function") {
@@ -1516,7 +1788,7 @@ const normalizeMember = raw => {
   clone.name = (clone.name || "").trim();
   clone.vorname = (clone.vorname || "").trim();
   clone.geschlecht = clone.geschlecht || "w";
-  clone.passbild = clone.passbild || "";
+  clone.passbild = normalizePhotoFileName(clone.passbild);
   clone.strasse = clone.strasse || "";
   clone.plz = clone.plz || "";
   clone.ort = clone.ort || "Berlin";
