@@ -51,6 +51,7 @@
     <section class="tab-content pt-3">
       <div class="tab-pane fade show active" id="dashboard-pane" role="tabpanel" aria-labelledby="dashboard-tab"
         tabindex="0">
+
         <div class="row g-3 mb-3">
           <div class="col-sm-6 col-xl-3">
             <article class="metric-box">
@@ -117,6 +118,18 @@
               <div class="metric-label">Durchschnittsalter</div>
               <div class="metric-value" id="metricAverageAge">0</div>
             </article>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-12">
+            <div class="stat-panel birthday-panel">
+              <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                <h2 class="h6 mb-0">Geburtstagskinder der Woche</h2>
+                <span class="text-muted small">nächste 7 Tage</span>
+              </div>
+              <div id="birthdayList" class="birthday-list"></div>
+            </div>
           </div>
         </div>
 

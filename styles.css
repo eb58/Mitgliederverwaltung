@@ -164,6 +164,10 @@ main.container-fluid {
   min-height: 320px;
 }
 
+.birthday-panel {
+  min-height: 0;
+}
+
 .age-chart,
 .group-chart {
   position: relative;
@@ -197,6 +201,44 @@ main.container-fluid {
 .stat-row strong {
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+}
+
+.birthday-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.7rem;
+}
+
+.birthday-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
+  background: var(--surface);
+}
+
+.birthday-person {
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.birthday-details,
+.birthday-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.birthday-badge {
+  border-radius: 999px;
+  padding: 0.3rem 0.55rem;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .grid-host {
