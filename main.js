@@ -2,6 +2,8 @@ const { app, BrowserWindow, Menu, ipcMain } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 
+const appIconPath = path.join(__dirname, "assets", "app-icon.png");
+
 const createApplicationMenu = () => Menu.buildFromTemplate([
   {
     label: "Ansicht",
@@ -48,6 +50,7 @@ const createMainWindow = () => {
     minWidth: 1024,
     minHeight: 768,
     autoHideMenuBar: true,
+    icon: appIconPath,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
