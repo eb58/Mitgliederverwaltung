@@ -941,6 +941,71 @@ const refreshDashboard = () => {
     .filter(item => item.count > 0)
     .slice(0, Object.keys(interestGroupMap).length);
   renderInterestGroupChart(groupRows, total);
+  renderBirthdayList(clubMembers, today);
+};
+
+const renderBirthdayList = (members, today = new Date()) => {
+  const container = document.getElementById("birthdayList");
+  if (!container) return;
+
+  const birthdays = members
+    .map(member => getUpcomingBirthday(member, today))
+    .filter(Boolean)
+    .sort((a, b) => a.daysUntil - b.daysUntil || String(a.member.name || "").localeCompare(String(b.member.name || ""), "de", { sensitivity: "base" }))
+    .slice(0, 12);
+
+  container.innerHTML = "";
+  if (birthdays.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "birthday-empty";
+    empty.textContent = "Keine Geburtstage in den nächsten 7 Tagen";
+    container.appendChild(empty);
+    return;
+  }
+
+  birthdays.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "birthday-row";
+
+    const person = document.createElement("div");
+    person.className = "birthday-person";
+    person.textContent = `${item.member.vorname || ""} ${item.member.name || ""}`.trim();
+
+    const details = document.createElement("div");
+    details.className = "birthday-details";
+    details.textContent = `${formatDateDE(item.isoDate)} · wird ${item.age}`;
+
+    const badge = document.createElement("div");
+    badge.className = "birthday-badge";
+    badge.textContent = item.daysUntil === 0 ? "Heute" : `in ${item.daysUntil} T.`;
+
+    const text = document.createElement("div");
+    text.append(person, details);
+    row.append(text, badge);
+    container.appendChild(row);
+  });
+};
+
+const getUpcomingBirthday = (member, today = new Date()) => {
+  if (!member.geburtstag || typeof member.geburtstag !== "string") return null;
+  const parts = member.geburtstag.split("-");
+  if (parts.length !== 3) return null;
+
+  const [birthYear, month, day] = parts.map(Number);
+  if (![birthYear, month, day].every(Number.isFinite)) return null;
+
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const birthdayThisYear = new Date(start.getFullYear(), month - 1, day);
+  const birthday = birthdayThisYear < start ? new Date(start.getFullYear() + 1, month - 1, day) : birthdayThisYear;
+  const daysUntil = Math.round((birthday - start) / 86400000);
+  if (daysUntil < 0 || daysUntil > 7) return null;
+
+  return {
+    member,
+    daysUntil,
+    age: birthday.getFullYear() - birthYear,
+    isoDate: `${birthday.getFullYear()}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+  };
 };
 
 const renderAgeChart = (buckets, total) => {
