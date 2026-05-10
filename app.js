@@ -311,6 +311,9 @@ const createGrid = (containerId, columnDefs) => {
     animateRows: true,
     localeText: gridLocaleText,
     getRowId: params => String(params.data.id),
+    rowClassRules: {
+      "guest-row": params => isGuestMember(params.data)
+    },
     onRowDoubleClicked: event => openMemberModal(event.data.id)
   };
 
@@ -762,6 +765,7 @@ const readMemberFromForm = () => {
 
 const hasExitReason = member => Number(member.austrittsgrund) > 0;
 const isActiveMember = member => !member.austrittsdatum && !hasExitReason(member);
+const isGuestMember = member => Number(member?.clubzugehoerigkeit) !== 9;
 
 const refreshAllViews = () => {
   const activeMembers = [...state.members]
@@ -832,13 +836,14 @@ const refreshAllGridCells = () => Object.values(gridApis).forEach(api => api?.re
 
 const refreshDashboard = () => {
   const activeMembers = state.members.filter(isActiveMember);
-  const total = state.members.length;
-  const active = activeMembers.length;
-  const clubPaid = activeMembers.filter(member => asBoolean(member.beitragClubBezahlt)).length;
-  const computerPaid = activeMembers.filter(member => asBoolean(member.beitragComputerBezahlt)).length;
+  const clubMembers = activeMembers.filter(member => !isGuestMember(member));
+  const total = clubMembers.length;
+  const guests = activeMembers.filter(isGuestMember).length;
+  const clubPaid = clubMembers.filter(member => asBoolean(member.beitragClubBezahlt)).length;
+  const computerPaid = clubMembers.filter(member => asBoolean(member.beitragComputerBezahlt)).length;
 
   setText("metricTotal", String(total));
-  setText("metricActive", String(active));
+  setText("metricGuestCount", String(guests));
   setText("metricClubPaid", `${clubPaid} (${percent(clubPaid, total)}%)`);
   setText("metricComputerPaid", `${computerPaid} (${percent(computerPaid, total)}%)`);
 
@@ -863,7 +868,7 @@ const refreshDashboard = () => {
   ];
   const today = new Date();
 
-  activeMembers.forEach(member => {
+  clubMembers.forEach(member => {
     const genderKey = String(member.geschlecht || "").toLowerCase();
     if (genderKey === "m" || genderKey === "w") {
       genderCounts[genderKey] += 1;
@@ -894,7 +899,7 @@ const refreshDashboard = () => {
   Object.keys(interestGroupMap).forEach(id => {
     groupCounts[id] = 0;
   });
-  activeMembers.forEach(member => {
+  clubMembers.forEach(member => {
     (member.interessengruppen || []).forEach(groupId => {
       if (!(groupId in groupCounts)) {
         groupCounts[groupId] = 0;
@@ -908,8 +913,6 @@ const refreshDashboard = () => {
     .filter(item => item.count > 0)
     .slice(0, Object.keys(interestGroupMap).length);
   renderInterestGroupChart(groupRows, total);
-
-  const inactive = total - active;
 };
 
 const renderAgeChart = (buckets, total) => {

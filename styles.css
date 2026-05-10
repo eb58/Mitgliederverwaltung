@@ -232,6 +232,18 @@ main.container-fluid {
   border-color: #edf1ef;
 }
 
+.ag-theme-quartz .ag-row.guest-row {
+  background-color: #fbf8f2;
+}
+
+.ag-theme-quartz .ag-row.guest-row.ag-row-hover {
+  background-color: #f6efe2;
+}
+
+.ag-theme-quartz .ag-row.guest-row .ag-cell {
+  color: #4f5f67;
+}
+
 .ag-theme-quartz .ag-cell {
   display: flex;
   align-items: center;
