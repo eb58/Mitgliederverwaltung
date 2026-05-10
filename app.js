@@ -18,6 +18,18 @@ const interestGroupMap = {
   13: "Fahrradtouren"
 };
 
+const seniorenclubsMap = [
+  { id: null, name: "Adelheidallee", adresse: "Adelheidallee 5-7, 13507 Berlin" },
+  { id: null, name: "Club der Lebensfrohen", adresse: "Wilhelmsruher Damm 142 C, 13439 Berlin" },
+  { id: 3, name: "Hermsdorfer Seniorenfüchse", adresse: "Berliner Str. 105-107, 13467 Berlin" },
+  { id: null, name: "Heiligensee", adresse: "Alt-Heiligensee 39, 13503 Berlin" },
+  { id: null, name: "Alt-Tegel", adresse: "Alt-Tegel 43, 13507 Berlin" },
+  { id: 9, name: "Lübars", adresse: "Am Vierrutenberg 2, 13469 Berlin" },
+  { id: null, name: "Märkischer Seniorentreff", adresse: "Senftenberger Ring 34 A, 13435 Berlin" },
+  { id: null, name: "Am Schäfersee", adresse: "Stargardtstr. 3, 13407 Berlin" }
+];
+
+
 const austrittsgrundMap = {
   1: "Kein Interesse mehr",
   2: "Tod",
@@ -207,6 +219,17 @@ const csvHeaderAliases = new Map([
   ["strasse", "strasse"],
   ["straße", "strasse"]
 ]);
+
+const computerGroupPatterns = [
+  "computer",
+  "excel",
+  "grundlagen",
+  "pc",
+  "publisher",
+  "smartphone",
+  "video",
+  "winsoft"
+];
 
 let memberModal = null;
 let storageFilePathPromise = null;
@@ -766,6 +789,8 @@ const readMemberFromForm = () => {
 const hasExitReason = member => Number(member.austrittsgrund) > 0;
 const isActiveMember = member => !member.austrittsdatum && !hasExitReason(member);
 const isGuestMember = member => Number(member?.clubzugehoerigkeit) !== 9;
+const normalizeGroupText = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const isComputerGroupMember = member => computerGroupPatterns.some(pattern => normalizeGroupText(member?.gruppenwahl).includes(pattern));
 
 const refreshAllViews = () => {
   const activeMembers = [...state.members]
@@ -840,18 +865,21 @@ const refreshDashboard = () => {
   const total = clubMembers.length;
   const guests = activeMembers.filter(isGuestMember).length;
   const clubPaid = clubMembers.filter(member => asBoolean(member.beitragClubBezahlt)).length;
-  const computerPaid = clubMembers.filter(member => asBoolean(member.beitragComputerBezahlt)).length;
+  const computerMembers = clubMembers.filter(isComputerGroupMember);
+  const computerTotal = computerMembers.length;
+  const computerPaid = computerMembers.filter(member => asBoolean(member.beitragComputerBezahlt)).length;
 
   setText("metricTotal", String(total));
   setText("metricGuestCount", String(guests));
   setText("metricClubPaid", `${clubPaid} (${percent(clubPaid, total)}%)`);
-  setText("metricComputerPaid", `${computerPaid} (${percent(computerPaid, total)}%)`);
+  setText("metricComputerTotal", String(computerTotal));
+  setText("metricComputerPaid", `${computerPaid} (${percent(computerPaid, computerTotal)}%)`);
 
   const clubOpen = total - clubPaid;
-  const computerOpen = total - computerPaid;
+  const computerOpen = computerTotal - computerPaid;
 
   setText("metricClubOpen", `${clubOpen} (${percent(clubOpen, total)}%)`);
-  setText("metricComputerOpen", `${computerOpen} (${percent(computerOpen, total)}%)`);
+  setText("metricComputerOpen", `${computerOpen} (${percent(computerOpen, computerTotal)}%)`);
 
   const genderCounts = {
     m: 0,
