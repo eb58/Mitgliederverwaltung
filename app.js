@@ -1472,7 +1472,7 @@ const getImageMimeType = filePath => {
 
 const getElectronBridge = () => {
   const bridge = window.electron;
-  if (!bridge || !bridge.fs || !bridge.path || typeof bridge.getUserDataPath !== "function") {
+  if (!bridge || !bridge.fs || !bridge.path || typeof bridge.getUserDataPath !== "function" || typeof bridge.getPortableDataPath !== "function") {
     return null;
   }
   return bridge;
@@ -1497,10 +1497,17 @@ const getStorageFilePath = async () => {
 };
 
 const getDefaultStorageConfig = async bridge => {
-  const userDataPath = await bridge.getUserDataPath();
-  const membersFilePath = await bridge.path.join(userDataPath, STORAGE_FILE_NAME);
+  const portableDataPath = await bridge.getPortableDataPath();
+  const membersFilePath = await bridge.path.join(portableDataPath, STORAGE_FILE_NAME);
   return { membersFilePath };
 };
+
+const getLegacyStorageFilePath = async bridge => {
+  const userDataPath = await bridge.getUserDataPath();
+  return bridge.path.join(userDataPath, STORAGE_FILE_NAME);
+};
+
+const normalizeComparableFilePath = filePath => String(filePath || "").replace(/\//g, "\\").toLowerCase();
 
 const getStorageConfigPath = async bridge => {
   const userDataPath = await bridge.getUserDataPath();
@@ -1524,9 +1531,15 @@ const readStorageConfig = async bridge => {
   try {
     const raw = await bridge.fs.readFile(configPath);
     const parsed = raw && raw.trim() ? JSON.parse(raw) : {};
+    const legacyMembersFilePath = await getLegacyStorageFilePath(bridge);
     const membersFilePath = typeof parsed.membersFilePath === "string" && parsed.membersFilePath.trim()
       ? parsed.membersFilePath.trim()
       : defaultConfig.membersFilePath;
+
+    if (normalizeComparableFilePath(membersFilePath) === normalizeComparableFilePath(legacyMembersFilePath)) {
+      await writeStorageConfig(bridge, configPath, defaultConfig);
+      return defaultConfig;
+    }
 
     return { ...defaultConfig, ...parsed, membersFilePath };
   } catch (error) {
@@ -1540,6 +1553,14 @@ const ensureStorageFile = async () => {
   const bridge = getElectronBridge();
   if (!bridge) {
     throw new Error("Electron bridge nicht verfuegbar.");
+  }
+
+  if (typeof bridge.migratePortableData === "function") {
+    try {
+      await bridge.migratePortableData();
+    } catch (error) {
+      console.warn("Portable Datenmigration konnte nicht ausgefuehrt werden.", error);
+    }
   }
 
   const storageFilePath = await getStorageFilePath();

@@ -3,6 +3,28 @@ const path = require("node:path");
 const fs = require("node:fs");
 
 const appIconPath = path.join(__dirname, "assets", "app-icon.png");
+const storageFileNames = ["members.json", "members.csv"];
+
+const getPortableDataPath = () => app.isPackaged ? path.dirname(app.getPath("exe")) : app.getPath("userData");
+
+const copyIfMissing = async (sourcePath, targetPath) => {
+  if (!fs.existsSync(sourcePath) || fs.existsSync(targetPath)) {
+    return false;
+  }
+
+  await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.promises.copyFile(sourcePath, targetPath);
+  return true;
+};
+
+const copyDirectoryIfMissing = async (sourcePath, targetPath) => {
+  if (!fs.existsSync(sourcePath) || fs.existsSync(targetPath)) {
+    return false;
+  }
+
+  await fs.promises.cp(sourcePath, targetPath, { recursive: true });
+  return true;
+};
 
 const createApplicationMenu = () => Menu.buildFromTemplate([
   {
@@ -141,6 +163,28 @@ ipcMain.handle("path:dirname", (event, filePath) => {
 
 ipcMain.handle("app:getUserDataPath", (event) => {
   return app.getPath("userData");
+});
+
+ipcMain.handle("app:getPortableDataPath", () => {
+  return getPortableDataPath();
+});
+
+ipcMain.handle("app:migratePortableData", async () => {
+  const sourceDirectoryPath = app.getPath("userData");
+  const targetDirectoryPath = getPortableDataPath();
+  const copied = [];
+
+  for (const fileName of storageFileNames) {
+    if (await copyIfMissing(path.join(sourceDirectoryPath, fileName), path.join(targetDirectoryPath, fileName))) {
+      copied.push(fileName);
+    }
+  }
+
+  if (await copyDirectoryIfMissing(path.join(sourceDirectoryPath, "Passbilder"), path.join(targetDirectoryPath, "Passbilder"))) {
+    copied.push("Passbilder");
+  }
+
+  return { copied, targetDirectoryPath };
 });
 
 app.whenReady().then(() => {

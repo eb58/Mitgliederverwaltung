@@ -19,5 +19,7 @@ contextBridge.exposeInMainWorld("electron", {
   photos: {
     findDataUrl: (membersFilePath, fileNames) => ipcRenderer.invoke("photos:findDataUrl", membersFilePath, fileNames)
   },
-  getUserDataPath: () => ipcRenderer.invoke("app:getUserDataPath")
+  getUserDataPath: () => ipcRenderer.invoke("app:getUserDataPath"),
+  getPortableDataPath: () => ipcRenderer.invoke("app:getPortableDataPath"),
+  migratePortableData: () => ipcRenderer.invoke("app:migratePortableData")
 });
