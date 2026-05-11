@@ -4,10 +4,33 @@
   "description": "Electron desktop wrapper für die Mitgliederverwaltung Senioren Lübars",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "de.seniorenluebars.mitgliederverwaltung",
+    "productName": "Mitgliederverwaltung",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "assets/**/*",
+      "app.js",
+      "dummyData.js",
+      "index.html",
+      "main.js",
+      "preload.js",
+      "styles.css",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    }
   },
   "devDependencies": {
-    "electron": "^29.0.0"
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.3"
   },
   "dependencies": {
     "bootstrap": "^5.3.3",
