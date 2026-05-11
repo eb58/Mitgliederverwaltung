@@ -51,6 +51,23 @@ main.container-fluid {
   pointer-events: none;
 }
 
+.app-header__brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: min(100%, 520px);
+}
+
+.app-header__image {
+  width: min(460px, 48vw);
+  max-height: 76px;
+  object-fit: contain;
+  background: #ffffff;
+  border-radius: 6px;
+}
+
 .app-header h1 {
   letter-spacing: -0.02em;
   font-weight: 800;
@@ -552,6 +569,16 @@ main.container-fluid {
 @media (max-width: 768px) {
   .app-header {
     padding: 0.8rem;
+  }
+
+  .app-header__brand {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-header__image {
+    width: min(100%, 460px);
+    max-height: 68px;
   }
 
   .search-input {
