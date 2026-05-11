@@ -54,6 +54,7 @@ const funktionsMap = {
 
 const interestGroupOptions = Object.entries(interestGroupMap).map(([value, label]) => ({ value: Number(value), label }));
 const austrittsgrundOptions = Object.entries(austrittsgrundMap).map(([value, label]) => ({ value: Number(value), label }));
+const funktionsOptions = Object.entries(funktionsMap).map(([value, label]) => ({ value: Number(value), label }));
 const seniorenclubOptions = seniorenclubsMap
   .filter(club => club.id !== null)
   .map(club => ({ value: club.id, label: `${club.name} (${club.adresse})` }));
@@ -76,7 +77,7 @@ const fieldDefinitions = [
   { key: "austrittsgrund", label: "Austrittsgrund", type: "select", options: austrittsgrundOptions, allowEmpty: true },
   { key: "interessengruppen", label: "Interessengruppen", type: "multiselect", options: interestGroupOptions },
   { key: "gruppenwahl", label: "Gruppenwahl", type: "text" },
-  { key: "funktion", label: "Funktion", type: "text" },
+  { key: "funktion", label: "Funktion", type: "multiselect", options: funktionsOptions, valueType: "textList" },
   { key: "auswahl", label: "Auswahl", type: "checkbox" },
   { key: "ausweisErteilt", label: "Ausweis erteilt", type: "checkbox" },
   { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", type: "select", options: seniorenclubOptions, allowEmpty: true, valueType: "number" },
@@ -761,7 +762,8 @@ const fillMemberForm = (member, isNew) => {
     }
 
     if (field.type === "multiselect") {
-      const values = new Set((raw || []).map(value => String(value)));
+      const rawValues = Array.isArray(raw) ? raw : String(raw || "").split(/[|,;]/).map(value => value.trim()).filter(Boolean);
+      const values = new Set(rawValues.map(value => String(value)));
       Array.from(input.options).forEach(option => {
         option.selected = values.has(option.value);
       });
@@ -898,7 +900,8 @@ const readMemberFromForm = () => {
     }
 
     if (field.type === "multiselect") {
-      member[field.key] = Array.from(input.selectedOptions).map(option => Number(option.value));
+      const values = Array.from(input.selectedOptions).map(option => option.value);
+      member[field.key] = field.valueType === "textList" ? values.join("; ") : values.map(value => Number(value));
       return;
     }
 
