@@ -19,16 +19,16 @@ const interestGroupMap = {
 };
 
 const seniorenclubsMap = [
-  { id: null, name: "Adelheidallee", adresse: "Adelheidallee 5-7, 13507 Berlin" },
-  { id: null, name: "Club der Lebensfrohen", adresse: "Wilhelmsruher Damm 142 C, 13439 Berlin" },
+  { id: 1, name: "Adelheidallee", adresse: "Adelheidallee 5-7, 13507 Berlin" },
+  { id: 2, name: "Club der Lebensfrohen", adresse: "Wilhelmsruher Damm 142 C, 13439 Berlin" },
   { id: 3, name: "Hermsdorfer Seniorenfüchse", adresse: "Berliner Str. 105-107, 13467 Berlin" },
-  { id: null, name: "Heiligensee", adresse: "Alt-Heiligensee 39, 13503 Berlin" },
-  { id: null, name: "Alt-Tegel", adresse: "Alt-Tegel 43, 13507 Berlin" },
-  { id: 9, name: "Lübars", adresse: "Am Vierrutenberg 2, 13469 Berlin" },
-  { id: null, name: "Märkischer Seniorentreff", adresse: "Senftenberger Ring 34 A, 13435 Berlin" },
-  { id: null, name: "Am Schäfersee", adresse: "Stargardtstr. 3, 13407 Berlin" }
+  { id: 4, name: "Heiligensee", adresse: "Alt-Heiligensee 39, 13503 Berlin" },
+  { id: 5, name: "Alt-Tegel", adresse: "Alt-Tegel 43, 13507 Berlin" },
+  { id: 6, name: "Märkischer Seniorentreff", adresse: "Senftenberger Ring 34 A, 13435 Berlin" },
+  { id: 7, name: "Am Schäfersee", adresse: "Stargardtstr. 3, 13407 Berlin" },
+  { id: 8, name: "Aussiedlerberatungsstelle", adresse: "Auguste-Viktoria-Allee 50a 13403 Berlin" },
+  { id: 9, name: "Lübars", adresse: "Am Vierrutenberg 2, 13469 Berlin" }
 ];
-
 
 const austrittsgrundMap = {
   1: "Kein Interesse mehr",
@@ -43,8 +43,20 @@ const christmasChoiceMap = {
   2: "Ja + Gast"
 };
 
+const funktionsMap = {
+  1: "Vorstand",
+  2: "Kassenwart",
+  3: "Dozent",
+  4: "Keine Ahnung1",
+  5: "Keine Ahnung2",
+};
+
+
 const interestGroupOptions = Object.entries(interestGroupMap).map(([value, label]) => ({ value: Number(value), label }));
 const austrittsgrundOptions = Object.entries(austrittsgrundMap).map(([value, label]) => ({ value: Number(value), label }));
+const seniorenclubOptions = seniorenclubsMap
+  .filter(club => club.id !== null)
+  .map(club => ({ value: club.id, label: `${club.name} (${club.adresse})` }));
 
 const fieldDefinitions = [
   { key: "id", label: "ID", type: "number", required: true },
@@ -67,7 +79,7 @@ const fieldDefinitions = [
   { key: "funktion", label: "Funktion", type: "text" },
   { key: "auswahl", label: "Auswahl", type: "checkbox" },
   { key: "ausweisErteilt", label: "Ausweis erteilt", type: "checkbox" },
-  { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", type: "number" },
+  { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", type: "select", options: seniorenclubOptions, allowEmpty: true, valueType: "number" },
   { key: "weihnachtsessen", label: "Weihnachtsessen", type: "select", options: [{ value: 0, label: "Nein" }, { value: 1, label: "Ja" }, { value: 2, label: "Ja + Gast" }] },
   { key: "wnEssenBezahlt", label: "bezahlt", type: "checkbox" },
   { key: "beitragClubBezahlt", label: "Beitrag Club bezahlt", type: "checkbox" },
