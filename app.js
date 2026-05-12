@@ -18,7 +18,7 @@ const interestGroups = [
   { id: 18, label: "Smartphone Android" },
   { id: 19, label: "Video" },
   { id: 20, label: "Publisher" },
-  { id: 21, label: "PCimAlltag" },
+  { id: 21, label: "PC im Alltag" },
   { id: 22, label: "Grundlagen" },
   { id: 23, label: "Senioren-Skat" },
   { id: 24, label: "Gesprächskreis Aktuelles" },
@@ -57,7 +57,7 @@ const christmasChoiceMap = {
   2: "Ja + Gast"
 };
 
-const GUEST_CLUB_ID = 8;
+const MEMBER_CLUB_ID = 9;
 
 const funktionsMap = {
   1: "Vorstand",
@@ -966,7 +966,7 @@ const readMemberFromForm = () => {
 
 const hasExitReason = member => Boolean(austrittsgrundMap[Number(member.austrittsgrund)]);
 const isActiveMember = member => !member.austrittsdatum && !hasExitReason(member);
-const isGuestMember = member => Number(member?.clubzugehoerigkeit) === GUEST_CLUB_ID;
+const isGuestMember = member => Number(member?.clubzugehoerigkeit) !== MEMBER_CLUB_ID;
 const normalizeGroupText = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const isComputerGroupMember = member => computerGroupPatterns.some(pattern => normalizeGroupText(member?.gruppenwahl).includes(pattern));
 
