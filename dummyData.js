@@ -1,19 +1,28 @@
 // dummyData.js - Generierung von Dummy-Daten für die Mitgliederdatenbank
 
 const interestGroupMap = {
-  1: "Kreativ",
-  2: "Kartenspiel",
-  3: "Gymnastik",
-  4: "Tischtennis",
-  5: "Englisch",
-  6: "Schach",
-  7: "PC im Alltag",
-  8: "PC Anfänger/Fortgeschrittene",
-  9: "Excel",
-  10: "Smartphone",
-  11: "Videogruppe",
-  12: "Wandern",
-  13: "Fahrradtouren"
+  1: "Allgemein",
+  2: "Gymnastik 1",
+  3: "Kreativ",
+  4: "Computer",
+  5: "Kartenspiel",
+  6: "Englisch",
+  7: "Zeitlosen",
+  8: "Tischtennis 1",
+  9: "Schach",
+  10: "Smartphone Apple",
+  11: "Laufgruppe",
+  15: "Tischtennis 2",
+  16: "Excel",
+  17: "WinSoft",
+  18: "Smartphone Android",
+  19: "Video",
+  20: "Publisher",
+  21: "PCimAlltag",
+  22: "Grundlagen",
+  23: "Senioren-Skat",
+  24: "Gesprächskreis Aktuelles",
+  26: "Tischtennis 3"
 };
 
 const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;

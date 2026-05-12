@@ -1,40 +1,53 @@
 "use strict";
 
-import { createInitialMembers } from './dummyData.js';
+const interestGroups = [
+  { id: 1, label: "Allgemein", order: 9 },
+  { id: 2, label: "Gymnastik 1", order: 11 },
+  { id: 3, label: "Kreativ", order: 14 },
+  { id: 4, label: "Computer", order: 1 },
+  { id: 5, label: "Kartenspiel", order: 13 },
+  { id: 6, label: "Englisch", order: 10 },
+  { id: 7, label: "Zeitlosen", order: 19 },
+  { id: 8, label: "Tischtennis 1", order: 17 },
+  { id: 9, label: "Schach", order: 15 },
+  { id: 10, label: "Smartphone Apple", order: 16 },
+  { id: 11, label: "Laufgruppe", order: 12 },
+  { id: 15, label: "Tischtennis 2", order: 18 },
+  { id: 16, label: "Excel", order: 3 },
+  { id: 17, label: "WinSoft", order: 8 },
+  { id: 18, label: "Smartphone Android", order: 2 },
+  { id: 19, label: "Video", order: 7 },
+  { id: 20, label: "Publisher", order: 6 },
+  { id: 21, label: "PCimAlltag", order: 5 },
+  { id: 22, label: "Grundlagen", order: 4 },
+  { id: 23, label: "Senioren-Skat", order: 20 },
+  { id: 24, label: "Gesprächskreis Aktuelles", order: 21 },
+  { id: 26, label: "Tischtennis 3", order: 0 }
+];
 
-const interestGroupMap = {
-  1: "Kreativ",
-  2: "Kartenspiel",
-  3: "Gymnastik",
-  4: "Tischtennis",
-  5: "Englisch",
-  6: "Excel",
-  7: "PC im Alltag",
-  8: "PC Anfänger/Fortgeschrittene",
-  9: "Schach",
-  10: "Smartphone",
-  11: "Videogruppe",
-  12: "Wandern",
-  13: "Fahrradtouren"
-};
+const interestGroupMap = Object.fromEntries(interestGroups.map(group => [group.id, group.label]));
 
 const seniorenclubsMap = [
-  { id: 1, name: "Adelheidallee", adresse: "Adelheidallee 5-7, 13507 Berlin" },
-  { id: 2, name: "Club der Lebensfrohen", adresse: "Wilhelmsruher Damm 142 C, 13439 Berlin" },
-  { id: 3, name: "Hermsdorfer Seniorenfüchse", adresse: "Berliner Str. 105-107, 13467 Berlin" },
-  { id: 4, name: "Heiligensee", adresse: "Alt-Heiligensee 39, 13503 Berlin" },
-  { id: 5, name: "Alt-Tegel", adresse: "Alt-Tegel 43, 13507 Berlin" },
-  { id: 6, name: "Märkischer Seniorentreff", adresse: "Senftenberger Ring 34 A, 13435 Berlin" },
-  { id: 7, name: "Am Schäfersee", adresse: "Stargardtstr. 3, 13407 Berlin" },
-  { id: 8, name: "Aussiedlerberatungsstelle", adresse: "Auguste-Viktoria-Allee 50a 13403 Berlin" },
-  { id: 9, name: "Lübars", adresse: "Am Vierrutenberg 2, 13469 Berlin" }
+  { id: 1, name: "FZST Heiligensee" },
+  { id: 2, name: "FZST Tegel" },
+  { id: 3, name: "FZST Hermsdorf" },
+  { id: 4, name: "FZST Schäfersee" },
+  { id: 5, name: "FZST Märkischer Seniorentreff" },
+  { id: 6, name: "FZST Club der Lebensfrohen" },
+  { id: 7, name: "FZST Adelheidallee" },
+  { id: 8, name: "Gäste" },
+  { id: 9, name: "Lübars" }
 ];
 
 const austrittsgrundMap = {
-  1: "Kein Interesse mehr",
+  1: "",
   2: "Tod",
-  3: "Wegzug",
-  4: "Sonstiges"
+  3: "Kündigung",
+  4: "Umzug",
+  5: "Altenheim",
+  6: "anderer Club",
+  7: "ohne",
+  8: "Gesundheit"
 };
 
 const christmasChoiceMap = {
@@ -43,21 +56,29 @@ const christmasChoiceMap = {
   2: "Ja + Gast"
 };
 
+const GUEST_CLUB_ID = 8;
+
 const funktionsMap = {
   1: "Vorstand",
-  2: "Kassenwart",
-  3: "Dozent",
-  4: "Keine Ahnung1",
-  5: "Keine Ahnung2",
+  2: "Kassierer",
+  3: "Gruppenleiter",
+  4: "Gruppenleiter stellv.",
+  5: "Ersthelfer",
+  6: "Brandschutzbeauftragter",
+  7: "Rote Karte"
 };
 
 
-const interestGroupOptions = Object.entries(interestGroupMap).map(([value, label]) => ({ value: Number(value), label }));
-const austrittsgrundOptions = Object.entries(austrittsgrundMap).map(([value, label]) => ({ value: Number(value), label }));
+const interestGroupOptions = [...interestGroups]
+  .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, "de"))
+  .map(group => ({ value: group.id, label: group.label }));
+const austrittsgrundOptions = Object.entries(austrittsgrundMap)
+  .filter(([, label]) => label)
+  .map(([value, label]) => ({ value: Number(value), label }));
 const funktionsOptions = Object.entries(funktionsMap).map(([value, label]) => ({ value: Number(value), label }));
 const seniorenclubOptions = seniorenclubsMap
   .filter(club => club.id !== null)
-  .map(club => ({ value: club.id, label: `${club.name} (${club.adresse})` }));
+  .map(club => ({ value: club.id, label: club.adresse ? `${club.name} (${club.adresse})` : club.name }));
 
 const fieldDefinitions = [
   { key: "id", label: "ID", type: "number", required: true },
@@ -225,6 +246,9 @@ const gridLocaleText = {
 };
 
 const csvHeaderAliases = new Map([
+  ["zuname", "name"],
+  ["eintritt", "eintrittsdatum"],
+  ["austritt", "austrittsdatum"],
   ["wnessenbezahlt", "wnEssenBezahlt"],
   ["bezahlt", "wnEssenBezahlt"],
   ["email", "email"],
@@ -255,12 +279,8 @@ const photoPathCache = {
 
 const initApp = async () => {
   const loadedMembers = await loadStoredMembers();
-  state.members = loadedMembers || createInitialMembers(200);
+  state.members = loadedMembers || [];
   state.nextId = getNextId(state.members);
-
-  if (!loadedMembers) {
-    await persistMembersImmediate(true);
-  }
 
   buildMemberForm();
   memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
@@ -272,7 +292,7 @@ const initApp = async () => {
 document.addEventListener("DOMContentLoaded", () => {
   initApp().catch(error => {
     console.error("Initialisierung fehlgeschlagen.", error);
-    state.members = createInitialMembers(200);
+    state.members = [];
     state.nextId = getNextId(state.members);
     buildMemberForm();
     memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
@@ -943,9 +963,9 @@ const readMemberFromForm = () => {
   return normalizeMember(member);
 };
 
-const hasExitReason = member => Number(member.austrittsgrund) > 0;
+const hasExitReason = member => Boolean(austrittsgrundMap[Number(member.austrittsgrund)]);
 const isActiveMember = member => !member.austrittsdatum && !hasExitReason(member);
-const isGuestMember = member => Number(member?.clubzugehoerigkeit) !== 9;
+const isGuestMember = member => Number(member?.clubzugehoerigkeit) === GUEST_CLUB_ID;
 const normalizeGroupText = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const isComputerGroupMember = member => computerGroupPatterns.some(pattern => normalizeGroupText(member?.gruppenwahl).includes(pattern));
 
@@ -1530,7 +1550,8 @@ const readStorageConfig = async bridge => {
 
   try {
     const raw = await bridge.fs.readFile(configPath);
-    const parsed = raw && raw.trim() ? JSON.parse(raw) : {};
+    const text = String(raw || "").replace(/^\uFEFF/, "");
+    const parsed = text.trim() ? JSON.parse(text) : {};
     const legacyMembersFilePath = await getLegacyStorageFilePath(bridge);
     const membersFilePath = typeof parsed.membersFilePath === "string" && parsed.membersFilePath.trim()
       ? parsed.membersFilePath.trim()
@@ -1607,15 +1628,20 @@ const parseMembersCsv = raw => {
     return [];
   }
 
-  const firstRowHeaders = rows[0].map(resolveCsvHeaderKey);
-  const hasHeaderRow = firstRowHeaders.filter(Boolean).length >= Math.min(3, firstRowHeaders.length);
-  const headers = hasHeaderRow ? firstRowHeaders : fieldDefinitions.map(field => field.key);
-  const dataRows = hasHeaderRow ? rows.slice(1) : rows;
+  const headerRowIndex = findCsvHeaderRowIndex(rows);
+  const headers = headerRowIndex >= 0 ? rows[headerRowIndex].map(resolveCsvHeaderKey) : fieldDefinitions.map(field => field.key);
+  const dataRows = headerRowIndex >= 0 ? rows.slice(headerRowIndex + 1) : rows;
 
   return dataRows
     .map((row, index) => createMemberFromCsvRow(headers, row, index + 1))
     .map(normalizeMember);
 };
+
+const findCsvHeaderRowIndex = rows => rows.findIndex(row => {
+  const headers = row.map(resolveCsvHeaderKey);
+  const filledColumns = row.filter(value => String(value).trim()).length;
+  return headers.filter(Boolean).length >= Math.min(3, filledColumns);
+});
 
 const detectCsvDelimiter = text => {
   const sample = text.split(/\r?\n/).find(line => line.trim()) || "";
@@ -1724,12 +1750,13 @@ const readStorageDocument = async () => {
   const bridge = getElectronBridge();
   const storageFilePath = await ensureStorageFile();
   const raw = await bridge.fs.readFile(storageFilePath);
+  const text = String(raw || "").replace(/^\uFEFF/, "");
 
-  if (!raw || !raw.trim()) {
+  if (!text.trim()) {
     return { members: [] };
   }
 
-  const parsed = JSON.parse(raw);
+  const parsed = JSON.parse(text);
   if (Array.isArray(parsed)) {
     return { members: parsed };
   }

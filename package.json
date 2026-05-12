@@ -16,7 +16,6 @@
     "files": [
       "assets/**/*",
       "app.js",
-      "dummyData.js",
       "index.html",
       "main.js",
       "preload.js",
