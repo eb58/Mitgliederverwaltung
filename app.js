@@ -1146,6 +1146,29 @@ const renderBirthdayList = (members, today = new Date()) => {
     const row = document.createElement("div");
     row.className = "birthday-row";
 
+    const photo = document.createElement("div");
+    photo.className = "birthday-photo member-photo member-photo--fallback";
+    setFallbackPhoto(photo);
+    photo.classList.add("birthday-photo");
+    resolveMemberPhotoDataUrl(item.member).then(photoDataUrl => {
+      if (!photoDataUrl) return;
+
+      const image = document.createElement("img");
+      image.className = "member-photo__image";
+      image.alt = `Passfoto von ${formatMemberName(item.member)}`;
+      image.addEventListener("error", () => {
+        setFallbackPhoto(photo);
+        photo.classList.add("birthday-photo");
+      }, { once: true });
+      photo.className = "birthday-photo member-photo";
+      photo.title = image.alt;
+      photo.setAttribute("aria-label", image.alt);
+      photo.replaceChildren(image);
+      image.src = photoDataUrl;
+    }).catch(() => {
+      // Fallback remains visible.
+    });
+
     const person = document.createElement("div");
     person.className = "birthday-person";
     person.textContent = `${item.member.vorname || ""} ${item.member.name || ""}`.trim();
@@ -1160,7 +1183,7 @@ const renderBirthdayList = (members, today = new Date()) => {
 
     const text = document.createElement("div");
     text.append(person, details);
-    row.append(text, badge);
+    row.append(photo, text, badge);
     container.appendChild(row);
   });
 };
