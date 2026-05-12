@@ -1145,6 +1145,16 @@ const renderBirthdayList = (members, today = new Date()) => {
   birthdays.forEach(item => {
     const row = document.createElement("div");
     row.className = "birthday-row";
+    row.tabIndex = 0;
+    row.role = "button";
+    row.title = `${formatMemberName(item.member)} öffnen`;
+    row.addEventListener("click", () => openMemberModal(item.member.id));
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openMemberModal(item.member.id);
+      }
+    });
 
     const photo = document.createElement("div");
     photo.className = "birthday-photo member-photo member-photo--fallback";

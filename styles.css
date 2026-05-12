@@ -235,6 +235,16 @@ main.container-fluid {
   border-radius: 8px;
   padding: 0.8rem 0.9rem;
   background: var(--surface);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.birthday-row:hover,
+.birthday-row:focus-visible {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 0.18rem rgba(18, 128, 124, 0.12);
+  outline: none;
 }
 
 .birthday-row .birthday-photo {
