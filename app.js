@@ -1,30 +1,31 @@
 "use strict";
 
 const interestGroups = [
-  { id: 1, label: "Allgemein", order: 9 },
-  { id: 2, label: "Gymnastik 1", order: 11 },
-  { id: 3, label: "Kreativ", order: 14 },
-  { id: 4, label: "Computer", order: 1 },
-  { id: 5, label: "Kartenspiel", order: 13 },
-  { id: 6, label: "Englisch", order: 10 },
-  { id: 7, label: "Zeitlosen", order: 19 },
-  { id: 8, label: "Tischtennis 1", order: 17 },
-  { id: 9, label: "Schach", order: 15 },
-  { id: 10, label: "Smartphone Apple", order: 16 },
-  { id: 11, label: "Laufgruppe", order: 12 },
-  { id: 15, label: "Tischtennis 2", order: 18 },
-  { id: 16, label: "Excel", order: 3 },
-  { id: 17, label: "WinSoft", order: 8 },
-  { id: 18, label: "Smartphone Android", order: 2 },
-  { id: 19, label: "Video", order: 7 },
-  { id: 20, label: "Publisher", order: 6 },
-  { id: 21, label: "PCimAlltag", order: 5 },
-  { id: 22, label: "Grundlagen", order: 4 },
-  { id: 23, label: "Senioren-Skat", order: 20 },
-  { id: 24, label: "Gesprächskreis Aktuelles", order: 21 },
-  { id: 26, label: "Tischtennis 3", order: 0 }
+  { id: 1, label: "Allgemein" },
+  { id: 2, label: "Gymnastik" },
+  { id: 3, label: "Kreativ" },
+  { id: 4, label: "Computer" },
+  { id: 5, label: "Kartenspiel" },
+  { id: 6, label: "Englisch" },
+  { id: 7, label: "Zeitlosen" },
+  { id: 8, label: "Tischtennis 1" },
+  { id: 9, label: "Schach" },
+  { id: 10, label: "Smartphone Apple" },
+  { id: 11, label: "Laufgruppe" },
+  { id: 15, label: "Tischtennis 2" },
+  { id: 16, label: "Excel" },
+  { id: 17, label: "WinSoft" },
+  { id: 18, label: "Smartphone Android" },
+  { id: 19, label: "Video" },
+  { id: 20, label: "Publisher" },
+  { id: 21, label: "PCimAlltag" },
+  { id: 22, label: "Grundlagen" },
+  { id: 23, label: "Senioren-Skat" },
+  { id: 24, label: "Gesprächskreis Aktuelles" },
+  { id: 26, label: "Tischtennis 3" }
 ];
 
+const germanCollator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
 const interestGroupMap = Object.fromEntries(interestGroups.map(group => [group.id, group.label]));
 
 const seniorenclubsMap = [
@@ -70,7 +71,7 @@ const funktionsMap = {
 
 
 const interestGroupOptions = [...interestGroups]
-  .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, "de"))
+  .sort((a, b) => germanCollator.compare(a.label, b.label))
   .map(group => ({ value: group.id, label: group.label }));
 const austrittsgrundOptions = Object.entries(austrittsgrundMap)
   .filter(([, label]) => label)
@@ -1116,6 +1117,7 @@ const refreshDashboard = () => {
   const groupRows = Object.keys(groupCounts)
     .map(id => ({ id: Number(id), label: interestGroupMap[id] || `Gruppe ${id}`, count: groupCounts[id] }))
     .filter(item => item.count > 0)
+    .sort((a, b) => germanCollator.compare(a.label, b.label))
     .slice(0, Object.keys(interestGroupMap).length);
   renderInterestGroupChart(groupRows, total);
   renderBirthdayList(clubMembers, today);
@@ -1223,6 +1225,10 @@ const renderAgeChart = (buckets, total) => {
 const renderInterestGroupChart = (groups, total) => {
   const canvas = document.getElementById("groupChart");
   if (!canvas || !(canvas instanceof HTMLCanvasElement)) return;
+  const chartContainer = canvas.parentElement;
+  if (chartContainer) {
+    chartContainer.style.minHeight = `${Math.min(360, Math.max(280, groups.length * 20))}px`;
+  }
   interestGroupChart?.destroy();
   interestGroupChart = null;
   const labels = groups.map(item => item.label);
@@ -1231,7 +1237,7 @@ const renderInterestGroupChart = (groups, total) => {
   const borderColor = backgroundColor.map(color => color.replace(/0\.8?5\)$/, "1)"))
   interestGroupChart = new Chart(canvas, {
     type: "bar",
-    data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor, borderColor, borderWidth: 1, borderRadius: 12, borderSkipped: false, maxBarThickness: 26 }] },
+    data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor, borderColor, borderWidth: 1, borderRadius: 8, borderSkipped: false, maxBarThickness: 18 }] },
     options: {
       indexAxis: "y",
       responsive: true,
@@ -1251,7 +1257,7 @@ const renderInterestGroupChart = (groups, total) => {
       },
       scales: {
         x: { beginAtZero: true, grid: { color: "rgba(15, 118, 110, 0.08)", borderDash: [3, 3] }, ticks: { color: "#46535c", precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
-        y: { grid: { display: false }, ticks: { color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
+        y: { grid: { display: false }, ticks: { autoSkip: false, color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
       }
     }
   });
