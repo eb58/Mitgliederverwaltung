@@ -524,6 +524,13 @@ main.container-fluid {
   min-width: 0;
 }
 
+.member-form-selection-display {
+  margin-top: 0.45rem;
+  color: var(--ink);
+  background: var(--surface-2);
+  font-size: 0.92rem;
+}
+
 .form-check {
   display: flex;
   align-items: center;

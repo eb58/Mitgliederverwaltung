@@ -139,12 +139,12 @@ const formSections = [
       "eintrittsdatum",
       "austrittsdatum",
       "austrittsgrund",
+      "clubzugehoerigkeit",
       "interessengruppen",
-      "gruppenwahl",
       "funktion",
+      "gruppenwahl",
       "auswahl",
-      "ausweisErteilt",
-      "clubzugehoerigkeit"
+      "ausweisErteilt"
     ]
   },
   {
@@ -714,6 +714,7 @@ const createMemberFormGroup = (group, fieldByKey) => {
 
 const createMemberFormField = field => {
   const col = document.createElement("div");
+  col.dataset.fieldKey = field.key;
   if (field.type === "textarea") {
     col.className = "col-12 member-form-field";
   } else if (field.type === "checkbox") {
@@ -796,7 +797,10 @@ const createMemberFormField = field => {
     input = document.createElement("select");
     input.className = "form-select";
     input.multiple = true;
-    input.size = Math.min(6, field.options.length);
+    input.size = ["interessengruppen", "funktion"].includes(field.key) ? Math.min(8, field.options.length) : Math.min(6, field.options.length);
+    if (field.key === "interessengruppen") {
+      input.addEventListener("change", updateInterestGroupDisplayField);
+    }
     field.options.forEach(option => {
       const el = document.createElement("option");
       el.value = String(option.value);
@@ -828,7 +832,30 @@ const createMemberFormField = field => {
   }
 
   col.append(label, input);
+  if (field.key === "interessengruppen") {
+    col.appendChild(createInterestGroupDisplayField());
+  }
   return col;
+};
+
+const createInterestGroupDisplayField = () => {
+  const display = document.createElement("input");
+  display.type = "text";
+  display.id = "field-interessengruppen-display";
+  display.className = "form-control member-form-selection-display";
+  display.readOnly = true;
+  display.tabIndex = -1;
+  display.setAttribute("aria-label", "Ausgewählte Interessengruppen");
+  return display;
+};
+
+const updateInterestGroupDisplayField = () => {
+  const display = document.getElementById("field-interessengruppen-display");
+  const input = document.getElementById("field-interessengruppen");
+  if (!display || !input) return;
+
+  const groupIds = Array.from(input.selectedOptions).map(option => Number(option.value));
+  display.value = formatInterestGroups(groupIds);
 };
 
 const createMemberPhotoPreview = () => {
@@ -902,6 +929,9 @@ const fillMemberForm = (member, isNew) => {
       Array.from(input.options).forEach(option => {
         option.selected = values.has(option.value);
       });
+      if (field.key === "interessengruppen") {
+        updateInterestGroupDisplayField();
+      }
       return;
     }
 
