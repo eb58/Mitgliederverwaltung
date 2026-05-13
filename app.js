@@ -545,8 +545,8 @@ const getPaymentColumns = () => [
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
   { headerName: "Beitrag bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: toggleCellRenderer("beitragClubBezahlt") },
   { headerName: "Betrag bar", field: "betragClubBar", valueFormatter: currencyFormatter, minWidth: 150 },
-  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: toggleCellRenderer("beitragComputerBezahlt") },
-  { headerName: "Beitrag Computer bar", field: "betragComputerBar", valueFormatter: currencyFormatter, minWidth: 170 },
+  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: computerGroupToggleCellRenderer("beitragComputerBezahlt") },
+  { headerName: "Beitrag Computer bar", field: "betragComputerBar", valueFormatter: computerGroupCurrencyFormatter, minWidth: 170 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
 
@@ -608,6 +608,9 @@ const toggleCellRenderer = fieldName => params => {
   });
   return toggle;
 };
+
+const computerGroupToggleCellRenderer = fieldName => params => isComputerGroupMember(params.data) ? toggleCellRenderer(fieldName)(params) : "";
+const computerGroupCurrencyFormatter = params => isComputerGroupMember(params.data) ? currencyFormatter(params) : "";
 
 const buildMemberForm = () => {
   const container = document.getElementById("formFields");
