@@ -105,8 +105,8 @@ const fieldDefinitions = [
   { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", type: "select", options: seniorenclubOptions, allowEmpty: true, valueType: "number" },
   { key: "weihnachtsessen", label: "Weihnachtsessen", type: "select", options: [{ value: 0, label: "Nein" }, { value: 1, label: "Ja" }, { value: 2, label: "Ja + Gast" }] },
   { key: "wnEssenBezahlt", label: "bezahlt", type: "checkbox" },
-  { key: "beitragClubBezahlt", label: "Beitrag Club bezahlt", type: "checkbox" },
-  { key: "betragClubBar", label: "Betrag Club bar", type: "currency" },
+  { key: "beitragClubBezahlt", label: "Beitrag überwiesen", type: "checkbox" },
+  { key: "betragClubBar", label: "Betrag bar", type: "currency" },
   { key: "beitragComputerBezahlt", label: "Beitrag Computer bezahlt", type: "checkbox" },
   { key: "betragComputerBar", label: "Beitrag Computer bar", type: "currency" },
   { key: "preisClub", label: "Preis Club", type: "currency" },
@@ -467,9 +467,9 @@ const getPaymentColumns = () => [
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
-  { headerName: "Beitrag Club bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: toggleCellRenderer("beitragClubBezahlt") },
+  { headerName: "Beitrag überwiesen", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: toggleCellRenderer("beitragClubBezahlt") },
   { headerName: "Betrag Club bar", field: "betragClubBar", valueFormatter: currencyFormatter, minWidth: 150 },
-  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: toggleCellRenderer("beitragComputerBezahlt") },
+  { headerName: "Beitrag Computer überwiesen", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: toggleCellRenderer("beitragComputerBezahlt") },
   { headerName: "Beitrag Computer bar", field: "betragComputerBar", valueFormatter: currencyFormatter, minWidth: 170 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
