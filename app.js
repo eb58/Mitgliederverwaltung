@@ -150,17 +150,25 @@ const formSections = [
   {
     id: "zahlungen",
     label: "Zahlungen",
-    fieldKeys: [
-      "beitragClubBezahlt",
-      "betragClubBar",
-      "preisClub",
-      "gezahlterBetragClub",
-      "einzahlungClubAm",
-      "beitragComputerBezahlt",
-      "betragComputerBar",
-      "preisComputer",
-      "gezahlterBetragComputer",
-      "einzahlungComputerAm"
+    groups: [
+      {
+        label: "Club",
+        fieldKeys: [
+          "beitragClubBezahlt",
+          "betragClubBar",
+          "gezahlterBetragClub",
+          "einzahlungClubAm"
+        ]
+      },
+      {
+        label: "Computer",
+        fieldKeys: [
+          "beitragComputerBezahlt",
+          "betragComputerBar",
+          "gezahlterBetragComputer",
+          "einzahlungComputerAm"
+        ]
+      }
     ]
   },
   {
@@ -169,7 +177,6 @@ const formSections = [
     fieldKeys: [
       "weihnachtsessen",
       "wnEssenBezahlt",
-      "preisWeihnachten",
       "gezahlterBetragWeihnachten",
       "tischnummer"
     ]
@@ -580,18 +587,24 @@ const buildMemberForm = () => {
     pane.tabIndex = 0;
 
     const row = document.createElement("div");
-    row.className = "row g-3";
+    row.className = section.groups ? "member-payment-groups" : "row g-3";
 
     if (section.id === "basis") {
       pane.appendChild(createMemberPhotoPreview());
     }
 
-    section.fieldKeys.forEach(fieldKey => {
-      const field = fieldByKey.get(fieldKey);
-      if (field) {
-        row.appendChild(createMemberFormField(field));
-      }
-    });
+    if (section.groups) {
+      section.groups.forEach(group => {
+        row.appendChild(createMemberFormGroup(group, fieldByKey));
+      });
+    } else {
+      section.fieldKeys.forEach(fieldKey => {
+        const field = fieldByKey.get(fieldKey);
+        if (field) {
+          row.appendChild(createMemberFormField(field));
+        }
+      });
+    }
 
     tabItem.appendChild(tabButton);
     tabs.appendChild(tabItem);
@@ -600,6 +613,28 @@ const buildMemberForm = () => {
   });
 
   container.append(hiddenIdInput, tabs, tabContent);
+};
+
+const createMemberFormGroup = (group, fieldByKey) => {
+  const wrapper = document.createElement("section");
+  wrapper.className = "member-form-group";
+
+  const title = document.createElement("h3");
+  title.className = "member-form-group__title";
+  title.textContent = group.label;
+
+  const fields = document.createElement("div");
+  fields.className = "row g-3";
+
+  group.fieldKeys.forEach(fieldKey => {
+    const field = fieldByKey.get(fieldKey);
+    if (field) {
+      fields.appendChild(createMemberFormField(field));
+    }
+  });
+
+  wrapper.append(title, fields);
+  return wrapper;
 };
 
 const createMemberFormField = field => {

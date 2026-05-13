@@ -466,6 +466,36 @@ main.container-fluid {
   min-height: 320px;
 }
 
+.member-payment-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.member-form-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.95rem;
+  background: linear-gradient(180deg, #ffffff, var(--surface-2));
+}
+
+.member-form-group__title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.85rem;
+  color: var(--accent-dark);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.member-form-group__title::before {
+  content: "";
+  width: 0.35rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
 .member-form-field {
   min-width: 0;
 }
