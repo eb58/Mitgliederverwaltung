@@ -191,7 +191,11 @@ const formSections = [
 const state = {
   members: [],
   nextId: 1,
-  editingId: null
+  editingId: null,
+  showOverviewGuests: true,
+  showPaymentGuests: false,
+  showChristmasGuests: false,
+  showHistoricalGuests: true
 };
 
 const gridApis = {
@@ -208,6 +212,7 @@ const CONFIG_FILE_NAME = "config.json";
 const STORAGE_FILE_NAME = "members.json";
 const CSV_STORAGE_FILE_NAME = "members.csv";
 const SAVE_DEBOUNCE_MS = 450;
+const GRID_COLUMN_STATE_PREFIX = "mitgliederverwaltung:gridColumnState:";
 const searchableTabTargets = new Set([
   "#overview-pane",
   "#payments-pane",
@@ -280,6 +285,7 @@ let memberModal = null;
 let storageFilePathPromise = null;
 let persistTimerId = null;
 let persistQueue = Promise.resolve();
+const restoringGridStateKeys = new Set();
 const photoPathCache = {
   passbilderDirectoryPathPromise: null,
   photoFileNamesPromise: null
@@ -312,19 +318,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
+  document.getElementById("toggleOverviewGuestsBtn").addEventListener("click", toggleOverviewGuests);
+  document.getElementById("togglePaymentGuestsBtn").addEventListener("click", togglePaymentGuests);
+  document.getElementById("toggleChristmasGuestsBtn").addEventListener("click", toggleChristmasGuests);
+  document.getElementById("toggleHistoricalGuestsBtn").addEventListener("click", toggleHistoricalGuests);
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
+  updateOverviewGuestToggle();
+  updatePaymentGuestToggle();
+  updateChristmasGuestToggle();
+  updateHistoricalGuestToggle();
   updateGlobalSearchVisibility();
 
   document.querySelectorAll('#mainTabs button[data-bs-toggle="tab"]').forEach(tabButton => {
     tabButton.addEventListener("shown.bs.tab", event => {
       updateGlobalSearchVisibility(event.target.dataset.bsTarget);
       setTimeout(() => {
-        Object.values(gridApis).forEach(api => {
-          if (api && api.sizeColumnsToFit) {
-            api.sizeColumnsToFit();
-          }
-        });
+        Object.entries(gridApis).forEach(([gridKey, api]) => fitGridColumnsIfNeeded(gridKey, api));
       }, 10);
     });
   });
@@ -351,13 +361,13 @@ const updateGlobalSearchVisibility = activeTarget => {
 };
 
 const initGrids = () => {
-  gridApis.overview = createGrid("overviewGrid", getOverviewColumns());
-  gridApis.payments = createGrid("paymentsGrid", getPaymentColumns());
-  gridApis.christmas = createGrid("christmasGrid", getChristmasColumns());
-  gridApis.historical = createGrid("historicalGrid", getHistoricalColumns());
+  gridApis.overview = createGrid("overview", "overviewGrid", getOverviewColumns());
+  gridApis.payments = createGrid("payments", "paymentsGrid", getPaymentColumns());
+  gridApis.christmas = createGrid("christmas", "christmasGrid", getChristmasColumns());
+  gridApis.historical = createGrid("historical", "historicalGrid", getHistoricalColumns());
 };
 
-const createGrid = (containerId, columnDefs) => {
+const createGrid = (gridKey, containerId, columnDefs) => {
   const gridDiv = document.getElementById(containerId);
   const options = {
     columnDefs,
@@ -382,10 +392,19 @@ const createGrid = (containerId, columnDefs) => {
     rowClassRules: {
       "guest-row": params => isGuestMember(params.data)
     },
+    onColumnMoved: event => saveGridColumnState(gridKey, event.api),
+    onColumnPinned: event => saveGridColumnState(gridKey, event.api),
+    onColumnResized: event => {
+      if (event.finished) saveGridColumnState(gridKey, event.api);
+    },
+    onColumnVisible: event => saveGridColumnState(gridKey, event.api),
+    onSortChanged: event => saveGridColumnState(gridKey, event.api),
     onRowDoubleClicked: event => openMemberModal(event.data.id)
   };
 
-  return agGrid.createGrid(gridDiv, options);
+  const api = agGrid.createGrid(gridDiv, options);
+  restoreGridColumnState(gridKey, api);
+  return api;
 };
 
 const getOverviewColumns = () => [
@@ -444,6 +463,49 @@ const getPhotoColumn = () => ({
     return wrapper;
   }
 });
+
+const getGridColumnStateKey = gridKey => `${GRID_COLUMN_STATE_PREFIX}${gridKey}`;
+
+const hasSavedGridColumnState = gridKey => {
+  try {
+    return Boolean(localStorage.getItem(getGridColumnStateKey(gridKey)));
+  } catch (error) {
+    return false;
+  }
+};
+
+const saveGridColumnState = (gridKey, api) => {
+  if (!api?.getColumnState || restoringGridStateKeys.has(gridKey)) return;
+
+  try {
+    localStorage.setItem(getGridColumnStateKey(gridKey), JSON.stringify(api.getColumnState()));
+  } catch (error) {
+    console.warn("Tabelleneinstellungen konnten nicht gespeichert werden.", error);
+  }
+};
+
+const restoreGridColumnState = (gridKey, api) => {
+  if (!api?.applyColumnState) return;
+
+  let state = null;
+  try {
+    const rawState = localStorage.getItem(getGridColumnStateKey(gridKey));
+    state = rawState ? JSON.parse(rawState) : null;
+  } catch (error) {
+    console.warn("Tabelleneinstellungen konnten nicht gelesen werden.", error);
+  }
+
+  if (!Array.isArray(state) || state.length === 0) return;
+
+  restoringGridStateKeys.add(gridKey);
+  api.applyColumnState({ state, applyOrder: true });
+  setTimeout(() => restoringGridStateKeys.delete(gridKey), 0);
+};
+
+const fitGridColumnsIfNeeded = (gridKey, api) => {
+  if (!api?.sizeColumnsToFit || hasSavedGridColumnState(gridKey)) return;
+  api.sizeColumnsToFit();
+};
 
 const setFallbackPhoto = wrapper => {
   wrapper.className = "member-photo member-photo--fallback";
@@ -1005,6 +1067,44 @@ const isGuestMember = member => Number(member?.clubzugehoerigkeit) !== MEMBER_CL
 const normalizeGroupText = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const isComputerGroupMember = member => computerGroupPatterns.some(pattern => normalizeGroupText(member?.gruppenwahl).includes(pattern));
 
+const toggleOverviewGuests = () => {
+  state.showOverviewGuests = !state.showOverviewGuests;
+  updateOverviewGuestToggle();
+  refreshAllViews();
+};
+
+const togglePaymentGuests = () => {
+  state.showPaymentGuests = !state.showPaymentGuests;
+  updatePaymentGuestToggle();
+  refreshAllViews();
+};
+
+const toggleChristmasGuests = () => {
+  state.showChristmasGuests = !state.showChristmasGuests;
+  updateChristmasGuestToggle();
+  refreshAllViews();
+};
+
+const toggleHistoricalGuests = () => {
+  state.showHistoricalGuests = !state.showHistoricalGuests;
+  updateHistoricalGuestToggle();
+  refreshAllViews();
+};
+
+const updateOverviewGuestToggle = () => updateGuestToggleButton("toggleOverviewGuestsBtn", state.showOverviewGuests);
+const updatePaymentGuestToggle = () => updateGuestToggleButton("togglePaymentGuestsBtn", state.showPaymentGuests);
+const updateChristmasGuestToggle = () => updateGuestToggleButton("toggleChristmasGuestsBtn", state.showChristmasGuests);
+const updateHistoricalGuestToggle = () => updateGuestToggleButton("toggleHistoricalGuestsBtn", state.showHistoricalGuests);
+
+const updateGuestToggleButton = (buttonId, showGuests) => {
+  const button = document.getElementById(buttonId);
+  button.textContent = showGuests ? "Gäste ausblenden" : "Gäste anzeigen";
+  button.setAttribute("aria-pressed", String(showGuests));
+  button.classList.toggle("active", showGuests);
+};
+
+const filterGuests = (members, showGuests) => showGuests ? members : members.filter(member => !isGuestMember(member));
+
 const refreshAllViews = () => {
   const activeMembers = [...state.members]
     .filter(isActiveMember)
@@ -1014,9 +1114,12 @@ const refreshAllViews = () => {
       return String(a.vorname || "").localeCompare(String(b.vorname || ""), "de", { sensitivity: "base" });
     });
 
-  setGridData(gridApis.overview, activeMembers);
-  setGridData(gridApis.payments, activeMembers);
-  setGridData(gridApis.christmas, activeMembers);
+  const overviewMembers = filterGuests(activeMembers, state.showOverviewGuests);
+  const paymentMembers = filterGuests(activeMembers, state.showPaymentGuests);
+  const christmasMembers = filterGuests(activeMembers, state.showChristmasGuests);
+  setGridData(gridApis.overview, overviewMembers);
+  setGridData(gridApis.payments, paymentMembers);
+  setGridData(gridApis.christmas, christmasMembers);
 
   const historicalMembers = [...state.members]
     .filter(member => !isActiveMember(member))
@@ -1025,17 +1128,13 @@ const refreshAllViews = () => {
       if (nameA !== 0) return nameA;
       return String(a.vorname || "").localeCompare(String(b.vorname || ""), "de", { sensitivity: "base" });
     });
-  setGridData(gridApis.historical, historicalMembers);
+  setGridData(gridApis.historical, filterGuests(historicalMembers, state.showHistoricalGuests));
 
   refreshDashboard();
 
   applyQuickFilter(document.getElementById("globalSearchInput").value.trim());
 
-  Object.values(gridApis).forEach(api => {
-    if (api && api.sizeColumnsToFit) {
-      api.sizeColumnsToFit();
-    }
-  });
+  Object.entries(gridApis).forEach(([gridKey, api]) => fitGridColumnsIfNeeded(gridKey, api));
 };
 
 const setGridData = (api, rowData) => {

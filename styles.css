@@ -273,6 +273,24 @@ main.container-fluid {
   white-space: nowrap;
 }
 
+.grid-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.guest-toggle {
+  border-color: var(--border-strong);
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
+.guest-toggle.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
 .grid-host {
   width: 100%;
   height: calc(100dvh - 230px);
@@ -282,6 +300,10 @@ main.container-fluid {
   overflow: hidden;
   background: var(--surface);
   box-shadow: var(--shadow-md);
+}
+
+.grid-host--with-toolbar {
+  height: calc(100dvh - 280px);
 }
 
 .ag-theme-quartz {
