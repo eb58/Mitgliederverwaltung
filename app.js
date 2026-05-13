@@ -105,7 +105,7 @@ const fieldDefinitions = [
   { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", type: "select", options: seniorenclubOptions, allowEmpty: true, valueType: "number" },
   { key: "weihnachtsessen", label: "Weihnachtsessen", type: "select", options: [{ value: 0, label: "Nein" }, { value: 1, label: "Ja" }, { value: 2, label: "Ja + Gast" }] },
   { key: "wnEssenBezahlt", label: "bezahlt", type: "checkbox" },
-  { key: "beitragClubBezahlt", label: "Beitrag überwiesen", type: "checkbox" },
+  { key: "beitragClubBezahlt", label: "Beitrag bezahlt", type: "checkbox" },
   { key: "betragClubBar", label: "Betrag bar", type: "currency" },
   { key: "beitragComputerBezahlt", label: "Beitrag Computer bezahlt", type: "checkbox" },
   { key: "betragComputerBar", label: "Beitrag Computer bar", type: "currency" },
@@ -162,6 +162,7 @@ const formSections = [
       },
       {
         label: "Computer",
+        visibleWhen: "computerGroupMember",
         fieldKeys: [
           "beitragComputerBezahlt",
           "betragComputerBar",
@@ -194,6 +195,7 @@ const state = {
   editingId: null,
   showOverviewGuests: true,
   showPaymentGuests: false,
+  showOnlyPaymentComputerGroups: false,
   showChristmasGuests: false,
   showHistoricalGuests: true
 };
@@ -262,6 +264,10 @@ const csvHeaderAliases = new Map([
   ["zuname", "name"],
   ["eintritt", "eintrittsdatum"],
   ["austritt", "austrittsdatum"],
+  ["beitragclubbezahlt", "beitragClubBezahlt"],
+  ["betragclubbar", "betragClubBar"],
+  ["beitragcomputerbezahlt", "beitragComputerBezahlt"],
+  ["betragcomputerbar", "betragComputerBar"],
   ["wnessenbezahlt", "wnEssenBezahlt"],
   ["bezahlt", "wnEssenBezahlt"],
   ["email", "email"],
@@ -276,7 +282,6 @@ const computerGroupPatterns = [
   "grundlagen",
   "pc",
   "publisher",
-  "smartphone",
   "video",
   "winsoft"
 ];
@@ -320,12 +325,14 @@ const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
   document.getElementById("toggleOverviewGuestsBtn").addEventListener("click", toggleOverviewGuests);
   document.getElementById("togglePaymentGuestsBtn").addEventListener("click", togglePaymentGuests);
+  document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("toggleChristmasGuestsBtn").addEventListener("click", toggleChristmasGuests);
   document.getElementById("toggleHistoricalGuestsBtn").addEventListener("click", toggleHistoricalGuests);
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
   updateOverviewGuestToggle();
   updatePaymentGuestToggle();
+  updatePaymentComputerGroupToggle();
   updateChristmasGuestToggle();
   updateHistoricalGuestToggle();
   updateGlobalSearchVisibility();
@@ -536,9 +543,9 @@ const getPaymentColumns = () => [
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
-  { headerName: "Beitrag überwiesen", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: toggleCellRenderer("beitragClubBezahlt") },
-  { headerName: "Betrag Club bar", field: "betragClubBar", valueFormatter: currencyFormatter, minWidth: 150 },
-  { headerName: "Beitrag Computer überwiesen", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: toggleCellRenderer("beitragComputerBezahlt") },
+  { headerName: "Beitrag bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: toggleCellRenderer("beitragClubBezahlt") },
+  { headerName: "Betrag bar", field: "betragClubBar", valueFormatter: currencyFormatter, minWidth: 150 },
+  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: toggleCellRenderer("beitragComputerBezahlt") },
   { headerName: "Beitrag Computer bar", field: "betragComputerBar", valueFormatter: currencyFormatter, minWidth: 170 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
@@ -680,6 +687,9 @@ const buildMemberForm = () => {
 const createMemberFormGroup = (group, fieldByKey) => {
   const wrapper = document.createElement("section");
   wrapper.className = "member-form-group";
+  if (group.visibleWhen) {
+    wrapper.dataset.visibleWhen = group.visibleWhen;
+  }
 
   const title = document.createElement("h3");
   title.className = "member-form-group__title";
@@ -810,6 +820,10 @@ const createMemberFormField = field => {
     input.addEventListener("input", () => updateMemberPhotoPreview(readMemberPreviewFromForm()));
   }
 
+  if (field.key === "gruppenwahl") {
+    input.addEventListener("input", updateConditionalMemberFormGroups);
+  }
+
   col.append(label, input);
   return col;
 };
@@ -916,6 +930,7 @@ const fillMemberForm = (member, isNew) => {
   });
 
   updateMemberPhotoPreview(member);
+  updateConditionalMemberFormGroups(member);
 
   const idInput = document.getElementById("field-id");
   if (idInput) {
@@ -963,6 +978,17 @@ const readMemberPreviewFromForm = () => ({
   vorname: document.getElementById("field-vorname")?.value || "",
   passbild: ""
 });
+
+const readMemberGroupStatusFromForm = () => ({
+  gruppenwahl: document.getElementById("field-gruppenwahl")?.value || ""
+});
+
+const updateConditionalMemberFormGroups = member => {
+  const formMember = member || readMemberGroupStatusFromForm();
+  document.querySelectorAll("[data-visible-when='computerGroupMember']").forEach(group => {
+    group.hidden = !isComputerGroupMember(formMember);
+  });
+};
 
 const handleMemberSubmit = async event => {
   event.preventDefault();
@@ -1079,6 +1105,12 @@ const togglePaymentGuests = () => {
   refreshAllViews();
 };
 
+const togglePaymentComputerGroups = () => {
+  state.showOnlyPaymentComputerGroups = !state.showOnlyPaymentComputerGroups;
+  updatePaymentComputerGroupToggle();
+  refreshAllViews();
+};
+
 const toggleChristmasGuests = () => {
   state.showChristmasGuests = !state.showChristmasGuests;
   updateChristmasGuestToggle();
@@ -1093,6 +1125,12 @@ const toggleHistoricalGuests = () => {
 
 const updateOverviewGuestToggle = () => updateGuestToggleButton("toggleOverviewGuestsBtn", state.showOverviewGuests);
 const updatePaymentGuestToggle = () => updateGuestToggleButton("togglePaymentGuestsBtn", state.showPaymentGuests);
+const updatePaymentComputerGroupToggle = () => {
+  const button = document.getElementById("togglePaymentComputerGroupsBtn");
+  button.textContent = state.showOnlyPaymentComputerGroups ? "Alle Gruppen anzeigen" : "Nur Computergruppen";
+  button.setAttribute("aria-pressed", String(state.showOnlyPaymentComputerGroups));
+  button.classList.toggle("active", state.showOnlyPaymentComputerGroups);
+};
 const updateChristmasGuestToggle = () => updateGuestToggleButton("toggleChristmasGuestsBtn", state.showChristmasGuests);
 const updateHistoricalGuestToggle = () => updateGuestToggleButton("toggleHistoricalGuestsBtn", state.showHistoricalGuests);
 
@@ -1104,6 +1142,10 @@ const updateGuestToggleButton = (buttonId, showGuests) => {
 };
 
 const filterGuests = (members, showGuests) => showGuests ? members : members.filter(member => !isGuestMember(member));
+const filterPaymentMembers = members => {
+  const visibleMembers = filterGuests(members, state.showPaymentGuests);
+  return state.showOnlyPaymentComputerGroups ? visibleMembers.filter(isComputerGroupMember) : visibleMembers;
+};
 
 const refreshAllViews = () => {
   const activeMembers = [...state.members]
@@ -1115,7 +1157,7 @@ const refreshAllViews = () => {
     });
 
   const overviewMembers = filterGuests(activeMembers, state.showOverviewGuests);
-  const paymentMembers = filterGuests(activeMembers, state.showPaymentGuests);
+  const paymentMembers = filterPaymentMembers(activeMembers);
   const christmasMembers = filterGuests(activeMembers, state.showChristmasGuests);
   setGridData(gridApis.overview, overviewMembers);
   setGridData(gridApis.payments, paymentMembers);
@@ -1493,6 +1535,11 @@ const parseLegacyCurrency = value => {
   const normalized = String(value).replace(/\s/g, "").replace("€", "").replace(/\./g, "").replace(",", ".");
   const parsed = Number(normalized.replace(/[^0-9.-]/g, ""));
   return Number.isFinite(parsed) ? roundCurrency(parsed) : 0;
+};
+
+const parseLegacyCashAmount = (cashValue, paidValue) => {
+  const parsedCashValue = parseLegacyCurrency(cashValue);
+  return parsedCashValue === -1 ? parseLegacyCurrency(paidValue) : parsedCashValue;
 };
 
 const asBoolean = value => {
@@ -2052,9 +2099,9 @@ const normalizeMember = raw => {
   clone.weihnachtsessen = Number(clone.weihnachtsessen) || 0;
   clone.wnEssenBezahlt = asBoolean(clone.wnEssenBezahlt);
   clone.beitragClubBezahlt = asBoolean(clone.beitragClubBezahlt);
-  clone.betragClubBar = parseLegacyCurrency(clone.betragClubBar);
+  clone.betragClubBar = parseLegacyCashAmount(clone.betragClubBar, clone.gezahlterBetragClub);
   clone.beitragComputerBezahlt = asBoolean(clone.beitragComputerBezahlt);
-  clone.betragComputerBar = parseLegacyCurrency(clone.betragComputerBar);
+  clone.betragComputerBar = parseLegacyCashAmount(clone.betragComputerBar, clone.gezahlterBetragComputer);
   clone.preisClub = parseLegacyCurrency(clone.preisClub);
   clone.gezahlterBetragClub = parseLegacyCurrency(clone.gezahlterBetragClub);
   clone.einzahlungClubAm = parseLegacyDate(clone.einzahlungClubAm);
