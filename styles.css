@@ -635,6 +635,141 @@ main.container-fluid {
   font-weight: 700;
 }
 
+.login-modal .modal-dialog {
+  max-width: 430px;
+}
+
+.login-card {
+  overflow: hidden;
+  border: 1px solid rgba(17, 93, 82, 0.16);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.login-card__header {
+  display: grid;
+  gap: 1rem;
+  padding: 1.6rem 1.6rem 1rem;
+  background: linear-gradient(180deg, #ffffff, var(--surface-2));
+  border-bottom: 1px solid rgba(17, 93, 82, 0.1);
+}
+
+.login-card__logo {
+  width: min(100%, 300px);
+  max-height: 58px;
+  object-fit: contain;
+}
+
+.login-card__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 750;
+}
+
+.login-card__body {
+  display: grid;
+  gap: 1rem;
+  padding: 1.35rem 1.6rem 1rem;
+}
+
+.login-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.login-field__control {
+  position: relative;
+}
+
+.login-field__icon {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  color: var(--accent-dark);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.login-field__icon svg,
+.login-submit__icon {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.login-field .form-control {
+  min-height: 46px;
+  padding-left: 2.6rem;
+  padding-right: 2.75rem;
+}
+
+.login-field__toggle {
+  appearance: none;
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  transform: translateY(-50%);
+}
+
+.login-field__toggle:hover,
+.login-field__toggle:focus {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.login-field__toggle svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.login-error {
+  color: #9f2d20;
+  background: #fff0ed;
+  border: 1px solid #efb4aa;
+  border-radius: 8px;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.92rem;
+}
+
+.login-card__footer {
+  padding: 0 1.6rem 1.6rem;
+}
+
+.login-submit {
+  width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  font-weight: 700;
+}
+
+.login-submit__icon {
+  width: 18px;
+  height: 18px;
+}
+
 @media (max-width: 991px) {
   .grid-host {
     height: calc(100dvh - 245px);

@@ -304,6 +304,7 @@ const photoPathCache = {
 };
 
 const initApp = async () => {
+  setAppShellVisible(false);
   loginModal = new bootstrap.Modal(document.getElementById("loginModal"), {
     backdrop: "static",
     keyboard: false
@@ -320,6 +321,7 @@ const initApp = async () => {
   initGrids();
   wireUi();
   refreshAllViews();
+  setAppShellVisible(true);
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -345,6 +347,16 @@ const wireLoginForm = () => {
   if (!loginForm || loginForm.dataset.wired === "true") return;
   loginForm.dataset.wired = "true";
   loginForm.addEventListener("submit", handleLoginSubmit);
+  document.getElementById("toggleLoginPasswordBtn").addEventListener("click", toggleLoginPasswordVisibility);
+};
+
+const toggleLoginPasswordVisibility = () => {
+  const passwordInput = document.getElementById("loginPassword");
+  const button = document.getElementById("toggleLoginPasswordBtn");
+  const nextIsVisible = passwordInput.type === "password";
+  passwordInput.type = nextIsVisible ? "text" : "password";
+  button.setAttribute("aria-pressed", String(nextIsVisible));
+  button.setAttribute("aria-label", nextIsVisible ? "Passwort verbergen" : "Passwort anzeigen");
 };
 
 const handleLoginSubmit = async event => {
@@ -364,6 +376,7 @@ const handleLoginSubmit = async event => {
     } else {
       await reloadMembersFromApi();
     }
+    setAppShellVisible(true);
   } catch (error) {
     errorElement.textContent = error.message || "Anmeldung fehlgeschlagen.";
     errorElement.hidden = false;
@@ -372,6 +385,7 @@ const handleLoginSubmit = async event => {
 
 const ensureAuthenticated = async () => {
   if (!state.authToken) {
+    setAppShellVisible(false);
     loginModal.show();
     return new Promise(resolve => {
       loginWaitResolve = resolve;
@@ -383,6 +397,7 @@ const ensureAuthenticated = async () => {
     return true;
   } catch (error) {
     clearAuthToken();
+    setAppShellVisible(false);
     loginModal.show();
     return new Promise(resolve => {
       loginWaitResolve = resolve;
@@ -424,6 +439,7 @@ const logout = async () => {
   state.members = [];
   state.nextId = 1;
   refreshAllViews();
+  setAppShellVisible(false);
   loginModal.show();
 };
 
@@ -432,7 +448,15 @@ const reloadMembersFromApi = async () => {
   state.usesMemberApi = true;
   state.members = members;
   state.nextId = getNextId(state.members);
+  setAppShellVisible(true);
   refreshAllViews();
+};
+
+const setAppShellVisible = visible => {
+  const shell = document.getElementById("appShell");
+  if (shell) {
+    shell.hidden = !visible;
+  }
 };
 
 const wireUi = () => {

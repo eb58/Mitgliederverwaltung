@@ -13,7 +13,7 @@
 </head>
 
 <body>
-  <main class="container-fluid py-3">
+  <main id="appShell" class="container-fluid py-3" hidden>
     <header class="app-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
       <div class="app-header__brand">
         <img class="app-header__image" src="assets/website-logo.jpg" alt="Freizeitstätte Lübars">
@@ -215,26 +215,56 @@
     </div>
   </div>
 
-  <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+  <div class="modal fade login-modal" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
+      <div class="modal-content login-card">
         <form id="loginForm">
-          <div class="modal-header">
-            <h2 class="modal-title h5" id="loginModalLabel">Anmelden</h2>
+          <div class="login-card__header">
+            <img class="login-card__logo" src="assets/website-logo.jpg" alt="FreizeitstÃ¤tte LÃ¼bars">
+            <h2 class="login-card__title" id="loginModalLabel">Anmelden</h2>
           </div>
-          <div class="modal-body">
-            <div class="mb-3">
+          <div class="login-card__body">
+            <div class="login-field">
               <label class="form-label" for="loginUsername">Benutzername</label>
-              <input id="loginUsername" class="form-control" type="text" autocomplete="username" required>
+              <div class="login-field__control">
+                <span class="login-field__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M20 21a8 8 0 0 0-16 0"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                </span>
+                <input id="loginUsername" class="form-control" type="text" autocomplete="username" required>
+              </div>
             </div>
-            <div class="mb-2">
+            <div class="login-field">
               <label class="form-label" for="loginPassword">Passwort</label>
-              <input id="loginPassword" class="form-control" type="password" autocomplete="current-password" required>
+              <div class="login-field__control">
+                <span class="login-field__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <rect x="4" y="11" width="16" height="9" rx="2"></rect>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+                  </svg>
+                </span>
+                <input id="loginPassword" class="form-control" type="password" autocomplete="current-password" required>
+                <button id="toggleLoginPasswordBtn" class="login-field__toggle" type="button"
+                  aria-label="Passwort anzeigen" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div id="loginError" class="text-danger small" role="alert" hidden></div>
+            <div id="loginError" class="login-error" role="alert" hidden></div>
           </div>
-          <div class="modal-footer">
-            <button type="submit" class="btn btn-primary">Anmelden</button>
+          <div class="login-card__footer">
+            <button type="submit" class="btn btn-primary login-submit">
+              <span>Anmelden</span>
+              <svg class="login-submit__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M5 12h14"></path>
+                <path d="m13 6 6 6-6 6"></path>
+              </svg>
+            </button>
           </div>
         </form>
       </div>
