@@ -10,6 +10,9 @@ const config = {
     host: process.env.MEMBER_API_HOST || "127.0.0.1",
     port: toNumber(process.env.MEMBER_API_PORT, 3001)
   },
+  auth: {
+    sessionTtlMs: toNumber(process.env.MEMBER_API_SESSION_TTL_MS, 12 * 60 * 60 * 1000)
+  },
   database: {
     host: process.env.MEMBER_DB_HOST || "127.0.0.1",
     port: toNumber(process.env.MEMBER_DB_PORT, 3306),

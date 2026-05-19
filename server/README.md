@@ -22,10 +22,21 @@ MEMBER_DB_NAME=mitgliederverwaltung
 MEMBER_API_CORS_ORIGIN=*
 ```
 
+Benutzer liegen in der Tabelle `app_user`. Der Liquibase-ChangeLog legt initial `admin` mit Passwort `passwd` an.
+
+Passwort setzen oder neuen Benutzer anlegen:
+
+```powershell
+npm run user:set -- admin neues-passwort
+```
+
 ## Endpunkte
 
 ```text
 GET    /health
+POST   /api/session
+GET    /api/session
+DELETE /api/session
 GET    /api/members?search=barz&limit=50&offset=0
 GET    /api/members/:id
 POST   /api/members
@@ -40,11 +51,20 @@ DELETE /api/members/:id/photo
 Beispiel:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:3001/api/members?search=Barz
+$session = Invoke-RestMethod `
+  -Method Post `
+  -Uri http://127.0.0.1:3001/api/session `
+  -ContentType application/json `
+  -Body '{"username":"admin","password":"passwd"}'
+
+$headers = @{ Authorization = "Bearer $($session.token)" }
+
+Invoke-RestMethod -Headers $headers http://127.0.0.1:3001/api/members?search=Barz
 ```
 
 ```powershell
 Invoke-RestMethod `
+  -Headers $headers `
   -Method Patch `
   -Uri http://127.0.0.1:3001/api/members/7 `
   -ContentType application/json `
@@ -55,9 +75,9 @@ Passbilder koennen binaer hochgeladen werden:
 
 ```powershell
 Invoke-RestMethod `
+  -Headers ($headers + @{ "X-File-Name" = "Barz Monika.jpg" }) `
   -Method Put `
   -Uri http://127.0.0.1:3001/api/members/7/photo `
   -ContentType image/jpeg `
-  -Headers @{ "X-File-Name" = "Barz Monika.jpg" } `
   -InFile ".\Barz Monika.jpg"
 ```

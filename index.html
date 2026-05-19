@@ -22,6 +22,7 @@
         <input id="globalSearchInput" type="search" class="form-control search-input"
           placeholder="Suchen (Name, E-Mail, Straße, ...)">
         <button id="addMemberBtn" class="btn btn-primary">Neues Mitglied</button>
+        <button id="logoutBtn" class="btn btn-outline-secondary" type="button">Abmelden</button>
       </div>
     </header>
 
@@ -208,6 +209,32 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
             <button type="submit" class="btn btn-primary">Speichern</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="loginForm">
+          <div class="modal-header">
+            <h2 class="modal-title h5" id="loginModalLabel">Anmelden</h2>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label" for="loginUsername">Benutzername</label>
+              <input id="loginUsername" class="form-control" type="text" autocomplete="username" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label" for="loginPassword">Passwort</label>
+              <input id="loginPassword" class="form-control" type="password" autocomplete="current-password" required>
+            </div>
+            <div id="loginError" class="text-danger small" role="alert" hidden></div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Anmelden</button>
           </div>
         </form>
       </div>

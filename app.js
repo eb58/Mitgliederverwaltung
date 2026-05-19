@@ -198,7 +198,8 @@ const state = {
   showOnlyPaymentComputerGroups: false,
   showChristmasGuests: false,
   showHistoricalGuests: true,
-  usesMemberApi: false
+  usesMemberApi: false,
+  authToken: localStorage.getItem("mitgliederverwaltung:authToken") || ""
 };
 
 const gridApis = {
@@ -216,6 +217,7 @@ const STORAGE_FILE_NAME = "members.json";
 const CSV_STORAGE_FILE_NAME = "members.csv";
 const MEMBER_API_BASE_URL = "http://127.0.0.1:3001";
 const MEMBER_API_PAGE_SIZE = 500;
+const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
 const SAVE_DEBOUNCE_MS = 450;
 const GRID_COLUMN_STATE_PREFIX = "mitgliederverwaltung:gridColumnState:";
 const searchableTabTargets = new Set([
@@ -290,6 +292,8 @@ const computerGroupPatterns = [
 ];
 
 let memberModal = null;
+let loginModal = null;
+let loginWaitResolve = null;
 let storageFilePathPromise = null;
 let persistTimerId = null;
 let persistQueue = Promise.resolve();
@@ -300,6 +304,13 @@ const photoPathCache = {
 };
 
 const initApp = async () => {
+  loginModal = new bootstrap.Modal(document.getElementById("loginModal"), {
+    backdrop: "static",
+    keyboard: false
+  });
+  wireLoginForm();
+  await ensureAuthenticated();
+
   const loadedMembers = await loadStoredMembers();
   state.members = loadedMembers || [];
   state.nextId = getNextId(state.members);
@@ -316,6 +327,11 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("Initialisierung fehlgeschlagen.", error);
     state.members = [];
     state.nextId = getNextId(state.members);
+    loginModal = new bootstrap.Modal(document.getElementById("loginModal"), {
+      backdrop: "static",
+      keyboard: false
+    });
+    wireLoginForm();
     buildMemberForm();
     memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
     initGrids();
@@ -324,8 +340,104 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+const wireLoginForm = () => {
+  const loginForm = document.getElementById("loginForm");
+  if (!loginForm || loginForm.dataset.wired === "true") return;
+  loginForm.dataset.wired = "true";
+  loginForm.addEventListener("submit", handleLoginSubmit);
+};
+
+const handleLoginSubmit = async event => {
+  event.preventDefault();
+  const usernameInput = document.getElementById("loginUsername");
+  const passwordInput = document.getElementById("loginPassword");
+  const errorElement = document.getElementById("loginError");
+
+  try {
+    errorElement.hidden = true;
+    await login(usernameInput.value.trim(), passwordInput.value);
+    passwordInput.value = "";
+    loginModal.hide();
+    if (loginWaitResolve) {
+      loginWaitResolve(true);
+      loginWaitResolve = null;
+    } else {
+      await reloadMembersFromApi();
+    }
+  } catch (error) {
+    errorElement.textContent = error.message || "Anmeldung fehlgeschlagen.";
+    errorElement.hidden = false;
+  }
+};
+
+const ensureAuthenticated = async () => {
+  if (!state.authToken) {
+    loginModal.show();
+    return new Promise(resolve => {
+      loginWaitResolve = resolve;
+    });
+  }
+
+  try {
+    await requestMemberApi("/api/session");
+    return true;
+  } catch (error) {
+    clearAuthToken();
+    loginModal.show();
+    return new Promise(resolve => {
+      loginWaitResolve = resolve;
+    });
+  }
+};
+
+const login = async (username, password) => {
+  const payload = await requestMemberApi("/api/session", {
+    method: "POST",
+    body: { username, password },
+    requiresAuth: false
+  });
+  setAuthToken(payload.token);
+};
+
+const setAuthToken = token => {
+  state.authToken = token || "";
+  if (state.authToken) {
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, state.authToken);
+  } else {
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  }
+};
+
+const clearAuthToken = () => setAuthToken("");
+
+const logout = async () => {
+  if (state.authToken) {
+    try {
+      await requestMemberApi("/api/session", { method: "DELETE" });
+    } catch (error) {
+      console.warn("Server-Logout fehlgeschlagen.", error);
+    }
+  }
+
+  clearAuthToken();
+  state.usesMemberApi = false;
+  state.members = [];
+  state.nextId = 1;
+  refreshAllViews();
+  loginModal.show();
+};
+
+const reloadMembersFromApi = async () => {
+  const members = await loadMembersFromApi();
+  state.usesMemberApi = true;
+  state.members = members;
+  state.nextId = getNextId(state.members);
+  refreshAllViews();
+};
+
 const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
+  document.getElementById("logoutBtn").addEventListener("click", logout);
   document.getElementById("toggleOverviewGuestsBtn").addEventListener("click", toggleOverviewGuests);
   document.getElementById("togglePaymentGuestsBtn").addEventListener("click", togglePaymentGuests);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
@@ -1694,7 +1806,7 @@ const formatMemberName = member => `${member?.vorname || ""} ${member?.name || "
 
 const resolveMemberPhotoDataUrl = async member => {
   if (state.usesMemberApi && member?.id && member.hasPassbildInDb) {
-    return createMemberApiUrl(`/api/members/${member.id}/photo`);
+    return fetchMemberPhotoObjectUrl(member.id);
   }
 
   const bridge = getElectronBridge();
@@ -2154,11 +2266,14 @@ const createMemberApiUrl = (path, params = {}) => {
   return url.toString();
 };
 
-const requestMemberApi = async (path, { method = "GET", params = {}, body = null } = {}) => {
-  const options = { method };
+const requestMemberApi = async (path, { method = "GET", params = {}, body = null, requiresAuth = true } = {}) => {
+  const options = { method, headers: {} };
+  if (requiresAuth && state.authToken) {
+    options.headers.Authorization = `Bearer ${state.authToken}`;
+  }
   if (body !== null) {
-    options.headers = { "Content-Type": "application/json" };
-    options.body = JSON.stringify(toMemberApiPayload(body));
+    options.headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify(body);
   }
 
   const response = await fetch(createMemberApiUrl(path, params), options);
@@ -2195,12 +2310,20 @@ const toMemberApiPayload = member => {
 };
 
 const createMemberViaApi = async member => {
-  const payload = await requestMemberApi("/api/members", { method: "POST", body: member });
+  const payload = await requestMemberApi("/api/members", { method: "POST", body: toMemberApiPayload(member) });
   return normalizeMember(payload.member);
 };
 
+const fetchMemberPhotoObjectUrl = async memberId => {
+  const response = await fetch(createMemberApiUrl(`/api/members/${memberId}/photo`), {
+    headers: { Authorization: `Bearer ${state.authToken}` }
+  });
+  if (!response.ok) return null;
+  return URL.createObjectURL(await response.blob());
+};
+
 const updateMemberViaApi = async member => {
-  const payload = await requestMemberApi(`/api/members/${member.id}`, { method: "PUT", body: member });
+  const payload = await requestMemberApi(`/api/members/${member.id}`, { method: "PUT", body: toMemberApiPayload(member) });
   return normalizeMember(payload.member);
 };
 

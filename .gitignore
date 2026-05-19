@@ -7,6 +7,4 @@ yarn-debug.log*
 yarn-error.log*
 *.log
 lib/*.jar
-db/README.md
-db/changelog/db.changelog-master.sql
-db/changelog/data/members.mysql.sql
+db/changelog/data/

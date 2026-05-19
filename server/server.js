@@ -1,8 +1,10 @@
 "use strict";
 
 const http = require("node:http");
+const crypto = require("node:crypto");
 const config = require("./config");
 const repository = require("./member-repository");
+const { authenticateUser } = require("./user-repository");
 const {
   readJsonBody,
   readRequestBody,
@@ -14,6 +16,65 @@ const {
 
 const memberPathPattern = /^\/api\/members\/(\d+)$/;
 const memberPhotoPathPattern = /^\/api\/members\/(\d+)\/photo$/;
+const sessions = new Map();
+
+const createSession = user => {
+  const token = crypto.randomBytes(32).toString("base64url");
+  sessions.set(token, { expiresAt: Date.now() + config.auth.sessionTtlMs, user });
+  return token;
+};
+
+const getBearerToken = request => {
+  const header = request.headers.authorization || "";
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1] : "";
+};
+
+const isAuthenticated = request => {
+  const token = getBearerToken(request);
+  const session = sessions.get(token);
+  if (!session) return false;
+  if (session.expiresAt < Date.now()) {
+    sessions.delete(token);
+    return false;
+  }
+  session.expiresAt = Date.now() + config.auth.sessionTtlMs;
+  request.user = session.user;
+  return true;
+};
+
+const requireAuthentication = (request, response) => {
+  if (isAuthenticated(request)) return true;
+  sendJson(response, 401, { error: "Anmeldung erforderlich." });
+  return false;
+};
+
+const handleSession = async (request, response) => {
+  if (request.method === "POST") {
+    const body = await readJsonBody(request);
+    const user = await authenticateUser(body.username, body.password);
+    if (!user) {
+      sendJson(response, 401, { error: "Benutzername oder Passwort ist falsch." });
+      return;
+    }
+    sendJson(response, 200, { token: createSession(user), user });
+    return;
+  }
+
+  if (request.method === "GET") {
+    if (!requireAuthentication(request, response)) return;
+    sendJson(response, 200, { user: request.user });
+    return;
+  }
+
+  if (request.method === "DELETE") {
+    sessions.delete(getBearerToken(request));
+    sendNoContent(response);
+    return;
+  }
+
+  sendJson(response, 405, { error: "Methode nicht erlaubt." });
+};
 
 const parseId = value => {
   const id = Number(value);
@@ -146,7 +207,7 @@ const handleRequest = async (request, response) => {
 
   response.setHeader("Access-Control-Allow-Origin", process.env.MEMBER_API_CORS_ORIGIN || "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type,X-File-Name");
+  response.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type,X-File-Name");
 
   if (request.method === "OPTIONS") {
     sendNoContent(response);
@@ -155,6 +216,15 @@ const handleRequest = async (request, response) => {
 
   if (url.pathname === "/health") {
     sendJson(response, 200, { status: "ok" });
+    return;
+  }
+
+  if (url.pathname === "/api/session") {
+    await handleSession(request, response);
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/") && !requireAuthentication(request, response)) {
     return;
   }
 
