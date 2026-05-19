@@ -5,6 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "server": "node server/server.js",
+    "db:export": "node scripts/create-mysql-data-changelog.js",
     "dist": "electron-builder --win"
   },
   "build": {
@@ -32,8 +34,9 @@
     "electron-builder": "^24.13.3"
   },
   "dependencies": {
-    "bootstrap": "^5.3.3",
-    "ag-grid-community": "^35.2.1",
-    "chart.js": "^4.4.2"
+    "mysql2": "^3.11.5",
+    "bootstrap": "^5.3.8",
+    "ag-grid-community": "^35.3.0",
+    "chart.js": "^4.5.1"
   }
 }
