@@ -21,6 +21,7 @@
       "index.html",
       "main.js",
       "preload.js",
+      "server/**/*",
       "styles.css",
       "package.json"
     ],

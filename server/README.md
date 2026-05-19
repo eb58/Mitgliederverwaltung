@@ -19,6 +19,7 @@ MEMBER_DB_PORT=3306
 MEMBER_DB_USER=wp_user
 MEMBER_DB_PASSWORD=passwd
 MEMBER_DB_NAME=mitgliederverwaltung
+MEMBER_API_CORS_ORIGIN=*
 ```
 
 ## Endpunkte

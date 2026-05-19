@@ -144,7 +144,7 @@ const handleMemberPhoto = async (request, response, id) => {
 const handleRequest = async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
-  response.setHeader("Access-Control-Allow-Origin", process.env.MEMBER_API_CORS_ORIGIN || "http://localhost:3000");
+  response.setHeader("Access-Control-Allow-Origin", process.env.MEMBER_API_CORS_ORIGIN || "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type,X-File-Name");
 
@@ -178,10 +178,28 @@ const handleRequest = async (request, response) => {
   sendJson(response, 404, { error: "Route nicht gefunden." });
 };
 
-const server = http.createServer((request, response) => {
+const createServer = () => http.createServer((request, response) => {
   handleRequest(request, response).catch(error => sendError(response, error));
 });
 
-server.listen(config.server.port, config.server.host, () => {
-  console.log(`Mitglieder-API laeuft auf http://${config.server.host}:${config.server.port}`);
+const startServer = ({ host = config.server.host, port = config.server.port } = {}) => new Promise((resolve, reject) => {
+  const server = createServer();
+  server.once("error", reject);
+  server.listen(port, host, () => {
+    server.off("error", reject);
+    console.log(`Mitglieder-API laeuft auf http://${host}:${port}`);
+    resolve(server);
+  });
 });
+
+if (require.main === module) {
+  startServer().catch(error => {
+    console.error("Mitglieder-API konnte nicht gestartet werden.", error);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  createServer,
+  startServer
+};

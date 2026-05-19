@@ -1,9 +1,11 @@
 const { app, BrowserWindow, Menu, ipcMain } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
+const { startServer: startMemberApiServer } = require("./server/server");
 
 const appIconPath = path.join(__dirname, "assets", "app-icon.png");
 const storageFileNames = ["members.json", "members.csv"];
+let memberApiServer = null;
 
 const getPortableDataPath = () => app.isPackaged ? path.dirname(app.getPath("exe")) : app.getPath("userData");
 
@@ -187,7 +189,17 @@ ipcMain.handle("app:migratePortableData", async () => {
   return { copied, targetDirectoryPath };
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  try {
+    memberApiServer = await startMemberApiServer();
+  } catch (error) {
+    if (error.code === "EADDRINUSE") {
+      console.warn("Mitglieder-API laeuft bereits.");
+    } else {
+      console.warn("Mitglieder-API konnte nicht gestartet werden.", error);
+    }
+  }
+
   Menu.setApplicationMenu(createApplicationMenu());
   createMainWindow();
 
@@ -201,5 +213,12 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
+  }
+});
+
+app.on("before-quit", () => {
+  if (memberApiServer) {
+    memberApiServer.close();
+    memberApiServer = null;
   }
 });

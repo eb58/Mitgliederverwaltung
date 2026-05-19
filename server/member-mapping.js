@@ -96,8 +96,15 @@ const toNumberOrNull = value => {
 };
 
 const normalizeArray = values => Array.isArray(values)
-  ? [...new Set(values.map(value => Number(value)).filter(Number.isFinite))]
+  ? [...new Set(values.map(value => Number(value)).filter(value => Number.isFinite(value) && value > 0))]
   : [];
+
+const normalizeFunctionIds = value => String(value || "")
+  .split(";")
+  .map(item => item.trim())
+  .filter(Boolean)
+  .map(Number)
+  .filter(value => Number.isFinite(value) && value > 0);
 
 const normalizeMemberInput = (payload, { partial = false } = {}) => {
   const input = payload && typeof payload === "object" ? payload : {};
@@ -112,7 +119,9 @@ const normalizeMemberInput = (payload, { partial = false } = {}) => {
       member[jsonKey] = input[jsonKey] || null;
     } else if (numberFields.has(jsonKey)) {
       const value = toNumberOrNull(input[jsonKey]);
-      member[jsonKey] = nullableNumberFields.has(jsonKey) ? value : value || 0;
+      member[jsonKey] = nullableNumberFields.has(jsonKey)
+        ? (value && value > 0 ? value : null)
+        : value || 0;
     } else {
       member[jsonKey] = input[jsonKey] === null || input[jsonKey] === undefined ? "" : String(input[jsonKey]);
     }
@@ -121,8 +130,10 @@ const normalizeMemberInput = (payload, { partial = false } = {}) => {
   if (!partial || Object.prototype.hasOwnProperty.call(input, "interessengruppen")) {
     member.interessengruppen = normalizeArray(input.interessengruppen);
   }
-  if (!partial || Object.prototype.hasOwnProperty.call(input, "funktionen")) {
-    member.funktionen = normalizeArray(input.funktionen);
+  if (!partial || Object.prototype.hasOwnProperty.call(input, "funktionen") || Object.prototype.hasOwnProperty.call(input, "funktion")) {
+    member.funktionen = Object.prototype.hasOwnProperty.call(input, "funktionen")
+      ? normalizeArray(input.funktionen)
+      : normalizeFunctionIds(input.funktion);
   }
 
   return member;

@@ -197,7 +197,8 @@ const state = {
   showPaymentGuests: false,
   showOnlyPaymentComputerGroups: false,
   showChristmasGuests: false,
-  showHistoricalGuests: true
+  showHistoricalGuests: true,
+  usesMemberApi: false
 };
 
 const gridApis = {
@@ -213,6 +214,8 @@ let interestGroupChart = null;
 const CONFIG_FILE_NAME = "config.json";
 const STORAGE_FILE_NAME = "members.json";
 const CSV_STORAGE_FILE_NAME = "members.csv";
+const MEMBER_API_BASE_URL = "http://127.0.0.1:3001";
+const MEMBER_API_PAGE_SIZE = 500;
 const SAVE_DEBOUNCE_MS = 450;
 const GRID_COLUMN_STATE_PREFIX = "mitgliederverwaltung:gridColumnState:";
 const searchableTabTargets = new Set([
@@ -599,12 +602,28 @@ const toggleCellRenderer = fieldName => params => {
   toggle.checked = asBoolean(params.value);
   toggle.title = "Status umschalten";
 
-  toggle.addEventListener("change", () => {
+  toggle.addEventListener("change", async () => {
+    const previousValue = asBoolean(params.data[fieldName]);
     params.data[fieldName] = toggle.checked;
     params.node.setDataValue(fieldName, toggle.checked);
-    persistMembers();
-    refreshDashboard();
-    refreshAllGridCells();
+
+    try {
+      toggle.disabled = true;
+      const savedMember = await persistMemberImmediate(params.data, true);
+      if (savedMember) {
+        replaceMemberInState(savedMember);
+      }
+      refreshDashboard();
+      refreshAllGridCells();
+    } catch (error) {
+      console.warn("Status konnte nicht gespeichert werden.", error);
+      params.data[fieldName] = previousValue;
+      toggle.checked = previousValue;
+      params.node.setDataValue(fieldName, previousValue);
+      window.alert("Speichern in der Datenbank fehlgeschlagen.");
+    } finally {
+      toggle.disabled = false;
+    }
   });
   return toggle;
 };
@@ -898,8 +917,16 @@ const openMemberModal = memberId => {
 
   state.editingId = isNew ? null : member.id;
   fillMemberForm(member, isNew);
+  updateMemberDeleteButton(isNew);
   resetMemberFormTabs();
   memberModal.show();
+};
+
+const updateMemberDeleteButton = isNew => {
+  const deleteButton = document.getElementById("deleteMemberBtn");
+  if (deleteButton) {
+    deleteButton.hidden = isNew;
+  }
 };
 
 const resetMemberFormTabs = () => {
@@ -1026,7 +1053,7 @@ const updateConditionalMemberFormGroups = member => {
 const handleMemberSubmit = async event => {
   event.preventDefault();
 
-  const formData = readMemberFromForm();
+  let formData = readMemberFromForm();
   if (!formData.name || !formData.vorname) {
     window.alert("Name und Vorname sind Pflichtfelder.");
     return;
@@ -1036,6 +1063,15 @@ const handleMemberSubmit = async event => {
     if (state.members.some(member => member.id === formData.id)) {
       window.alert(`Die ID ${formData.id} existiert bereits. Bitte eine andere ID wählen.`);
       return;
+    }
+    if (state.usesMemberApi) {
+      try {
+        formData = await createMemberViaApi(formData);
+      } catch (error) {
+        console.warn("Mitglied konnte nicht angelegt werden.", error);
+        window.alert("Speichern in der Datenbank fehlgeschlagen.");
+        return;
+      }
     }
     state.members.push(formData);
     state.nextId = Math.max(state.nextId, formData.id + 1);
@@ -1047,6 +1083,15 @@ const handleMemberSubmit = async event => {
     }
     formData.id = state.editingId;
     formData.passbild = state.members[index].passbild || "";
+    if (state.usesMemberApi) {
+      try {
+        formData = await updateMemberViaApi(formData);
+      } catch (error) {
+        console.warn("Mitglied konnte nicht gespeichert werden.", error);
+        window.alert("Speichern in der Datenbank fehlgeschlagen.");
+        return;
+      }
+    }
     state.members[index] = formData;
   }
 
@@ -1057,9 +1102,41 @@ const handleMemberSubmit = async event => {
     }
     return a.vorname.localeCompare(b.vorname, "de");
   });
-  await persistMembersImmediate(false);
+  if (!state.usesMemberApi) {
+    await persistMembersImmediate(false);
+  }
   memberModal.hide();
   refreshAllViews();
+};
+
+const handleMemberDelete = async () => {
+  if (state.editingId === null) return;
+
+  const member = findMemberById(state.editingId);
+  if (!member) {
+    window.alert("Der Datensatz wurde nicht gefunden.");
+    return;
+  }
+
+  if (!window.confirm(`${formatMemberName(member)} wirklich loeschen?`)) {
+    return;
+  }
+
+  try {
+    if (state.usesMemberApi) {
+      await deleteMemberViaApi(member.id);
+    }
+    state.members = state.members.filter(item => item.id !== member.id);
+    if (!state.usesMemberApi) {
+      await persistMembersImmediate(false);
+    }
+    state.editingId = null;
+    memberModal.hide();
+    refreshAllViews();
+  } catch (error) {
+    console.warn("Mitglied konnte nicht geloescht werden.", error);
+    window.alert("Loeschen in der Datenbank fehlgeschlagen.");
+  }
 };
 
 const readMemberFromForm = () => {
@@ -1616,6 +1693,10 @@ const roundCurrency = value => Math.round(Number(value) * 100) / 100;
 const formatMemberName = member => `${member?.vorname || ""} ${member?.name || ""}`.trim() || "Mitglied";
 
 const resolveMemberPhotoDataUrl = async member => {
+  if (state.usesMemberApi && member?.id && member.hasPassbildInDb) {
+    return createMemberApiUrl(`/api/members/${member.id}/photo`);
+  }
+
   const bridge = getElectronBridge();
   if (!bridge) return null;
 
@@ -2043,6 +2124,15 @@ const shouldRepairCsvImport = async (bridge, data, storageFilePath) => {
 
 const loadStoredMembers = async () => {
   try {
+    const members = await loadMembersFromApi();
+    state.usesMemberApi = true;
+    return members;
+  } catch (error) {
+    state.usesMemberApi = false;
+    console.warn("Mitgliederdaten konnten nicht ueber die API geladen werden. Dateifallback wird verwendet.", error);
+  }
+
+  try {
     const data = await readStorageDocument();
     if (!Array.isArray(data.members) || data.members.length === 0) {
       return null;
@@ -2054,7 +2144,81 @@ const loadStoredMembers = async () => {
   }
 };
 
+const createMemberApiUrl = (path, params = {}) => {
+  const url = new URL(path, MEMBER_API_BASE_URL);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== "") {
+      url.searchParams.set(key, value);
+    }
+  });
+  return url.toString();
+};
+
+const requestMemberApi = async (path, { method = "GET", params = {}, body = null } = {}) => {
+  const options = { method };
+  if (body !== null) {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify(toMemberApiPayload(body));
+  }
+
+  const response = await fetch(createMemberApiUrl(path, params), options);
+  if (response.status === 204) return null;
+
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : null;
+  if (!response.ok) {
+    const error = new Error(payload?.error || `API-Fehler ${response.status}`);
+    error.statusCode = response.status;
+    throw error;
+  }
+  return payload;
+};
+
+const loadMembersFromApi = async () => {
+  const members = [];
+  for (let offset = 0; ; offset += MEMBER_API_PAGE_SIZE) {
+    const payload = await requestMemberApi("/api/members", {
+      params: { limit: MEMBER_API_PAGE_SIZE, offset }
+    });
+    const page = Array.isArray(payload?.members) ? payload.members : [];
+    members.push(...page);
+    if (page.length < MEMBER_API_PAGE_SIZE) {
+      break;
+    }
+  }
+  return members.map(normalizeMember);
+};
+
+const toMemberApiPayload = member => {
+  if (!member || typeof member !== "object") return member;
+  return Object.fromEntries(fieldDefinitions.map(field => [field.key, member[field.key]]));
+};
+
+const createMemberViaApi = async member => {
+  const payload = await requestMemberApi("/api/members", { method: "POST", body: member });
+  return normalizeMember(payload.member);
+};
+
+const updateMemberViaApi = async member => {
+  const payload = await requestMemberApi(`/api/members/${member.id}`, { method: "PUT", body: member });
+  return normalizeMember(payload.member);
+};
+
+const deleteMemberViaApi = id => requestMemberApi(`/api/members/${id}`, { method: "DELETE" });
+
+const replaceMemberInState = member => {
+  const index = state.members.findIndex(item => item.id === member.id);
+  if (index >= 0) {
+    state.members[index] = member;
+  }
+  state.members.sort((a, b) => a.name.localeCompare(b.name, "de") || a.vorname.localeCompare(b.vorname, "de"));
+};
+
 const persistMembers = () => {
+  if (state.usesMemberApi) {
+    return;
+  }
+
   if (persistTimerId) {
     clearTimeout(persistTimerId);
   }
@@ -2069,8 +2233,28 @@ const persistMembers = () => {
   }, SAVE_DEBOUNCE_MS);
 };
 
+const persistMemberImmediate = async (member, silent = false) => {
+  if (!state.usesMemberApi) {
+    await persistMembersImmediate(silent);
+    return member;
+  }
+
+  try {
+    return updateMemberViaApi(member);
+  } catch (error) {
+    if (!silent) {
+      window.alert("Speichern in der Datenbank fehlgeschlagen.");
+    }
+    throw error;
+  }
+};
+
 const persistMembersImmediate = async (silent = false) => {
   try {
+    if (state.usesMemberApi) {
+      return true;
+    }
+
     const bridge = getElectronBridge();
     if (!bridge) {
       throw new Error("Electron bridge nicht verfuegbar.");
