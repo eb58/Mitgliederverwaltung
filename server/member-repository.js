@@ -192,6 +192,10 @@ const upsertMemberPhoto = async (id, { fileName, mimeType, content }) => {
        inhalt = VALUES(inhalt)`,
     [id, fileName, mimeType, content.length, sha256, content]
   );
+  await pool.execute(
+    "UPDATE mitglied SET passbild = ? WHERE id = ?",
+    [fileName, id]
+  );
   return { id, fileName, mimeType, size: content.length, sha256 };
 };
 

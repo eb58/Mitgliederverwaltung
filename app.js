@@ -294,6 +294,8 @@ const computerGroupPatterns = [
 let memberModal = null;
 let loginModal = null;
 let loginWaitResolve = null;
+let selectedMemberPhotoFile = null;
+let selectedMemberPhotoObjectUrl = null;
 let storageFilePathPromise = null;
 let persistTimerId = null;
 let persistQueue = Promise.resolve();
@@ -1036,7 +1038,19 @@ const createMemberPhotoPreview = () => {
   fileName.id = "memberPhotoPreviewFile";
   fileName.textContent = "Kein Passfoto vorhanden";
 
-  text.append(title, fileName);
+  const fileInput = document.createElement("input");
+  fileInput.className = "member-photo-preview__input";
+  fileInput.id = "memberPhotoUploadInput";
+  fileInput.type = "file";
+  fileInput.accept = "image/jpeg,image/png,image/webp";
+  fileInput.addEventListener("change", handleMemberPhotoSelection);
+
+  const uploadLabel = document.createElement("label");
+  uploadLabel.className = "btn btn-outline-secondary btn-sm member-photo-preview__button";
+  uploadLabel.setAttribute("for", fileInput.id);
+  uploadLabel.textContent = "Passfoto wählen";
+
+  text.append(title, fileName, uploadLabel, fileInput);
   preview.append(photo, text);
   return preview;
 };
@@ -1052,6 +1066,7 @@ const openMemberModal = memberId => {
   }
 
   state.editingId = isNew ? null : member.id;
+  clearSelectedMemberPhoto();
   fillMemberForm(member, isNew);
   updateMemberDeleteButton(isNew);
   resetMemberFormTabs();
@@ -1146,6 +1161,19 @@ const updateMemberPhotoPreview = member => {
   previewImage.className = "member-photo-preview__image member-photo member-photo--fallback";
   previewFile.textContent = "Kein Passfoto vorhanden";
 
+  if (selectedMemberPhotoFile && selectedMemberPhotoObjectUrl) {
+    const image = document.createElement("img");
+    image.className = "member-photo__image";
+    image.alt = `Ausgewähltes Passfoto von ${formatMemberName(member)}`;
+    previewImage.className = "member-photo-preview__image member-photo";
+    previewImage.title = image.alt;
+    previewImage.setAttribute("aria-label", image.alt);
+    previewImage.replaceChildren(image);
+    previewFile.textContent = selectedMemberPhotoFile.name;
+    image.src = selectedMemberPhotoObjectUrl;
+    return;
+  }
+
   resolveMemberPhotoDataUrl(member).then(photoDataUrl => {
     if (!photoDataUrl) return;
 
@@ -1167,6 +1195,38 @@ const updateMemberPhotoPreview = member => {
   }).catch(() => {
     // Fallback remains visible.
   });
+};
+
+const handleMemberPhotoSelection = event => {
+  const file = event.target.files?.[0] || null;
+  clearSelectedMemberPhoto();
+  if (!file) {
+    updateMemberPhotoPreview(readMemberPreviewFromForm());
+    return;
+  }
+
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    window.alert("Bitte ein JPG-, PNG- oder WebP-Bild auswählen.");
+    event.target.value = "";
+    updateMemberPhotoPreview(readMemberPreviewFromForm());
+    return;
+  }
+
+  selectedMemberPhotoFile = file;
+  selectedMemberPhotoObjectUrl = URL.createObjectURL(file);
+  updateMemberPhotoPreview(readMemberPreviewFromForm());
+};
+
+const clearSelectedMemberPhoto = () => {
+  if (selectedMemberPhotoObjectUrl) {
+    URL.revokeObjectURL(selectedMemberPhotoObjectUrl);
+  }
+  selectedMemberPhotoFile = null;
+  selectedMemberPhotoObjectUrl = null;
+  const input = document.getElementById("memberPhotoUploadInput");
+  if (input) {
+    input.value = "";
+  }
 };
 
 const readMemberPreviewFromForm = () => ({
@@ -1209,6 +1269,11 @@ const handleMemberSubmit = async event => {
         return;
       }
     }
+    try {
+      formData = await uploadSelectedMemberPhotoIfNeeded(formData);
+    } catch {
+      return;
+    }
     state.members.push(formData);
     state.nextId = Math.max(state.nextId, formData.id + 1);
   } else {
@@ -1228,6 +1293,11 @@ const handleMemberSubmit = async event => {
         return;
       }
     }
+    try {
+      formData = await uploadSelectedMemberPhotoIfNeeded(formData);
+    } catch {
+      return;
+    }
     state.members[index] = formData;
   }
 
@@ -1241,8 +1311,30 @@ const handleMemberSubmit = async event => {
   if (!state.usesMemberApi) {
     await persistMembersImmediate(false);
   }
+  clearSelectedMemberPhoto();
   memberModal.hide();
   refreshAllViews();
+};
+
+const uploadSelectedMemberPhotoIfNeeded = async member => {
+  if (!selectedMemberPhotoFile) return member;
+  if (!state.usesMemberApi) {
+    window.alert("Passfotos können nur bei aktiver Datenbankverbindung hochgeladen werden.");
+    return member;
+  }
+
+  try {
+    const photo = await uploadMemberPhotoViaApi(member.id, selectedMemberPhotoFile);
+    return {
+      ...member,
+      passbild: photo.fileName || member.passbild,
+      hasPassbildInDb: true
+    };
+  } catch (error) {
+    console.warn("Passfoto konnte nicht hochgeladen werden.", error);
+    window.alert("Passfoto konnte nicht hochgeladen werden.");
+    throw error;
+  }
 };
 
 const handleMemberDelete = async () => {
@@ -2344,6 +2436,25 @@ const fetchMemberPhotoObjectUrl = async memberId => {
   });
   if (!response.ok) return null;
   return URL.createObjectURL(await response.blob());
+};
+
+const uploadMemberPhotoViaApi = async (memberId, file) => {
+  const response = await fetch(createMemberApiUrl(`/api/members/${memberId}/photo`), {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${state.authToken}`,
+      "Content-Type": file.type || "application/octet-stream",
+      "X-File-Name": encodeURIComponent(file.name)
+    },
+    body: file
+  });
+
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : null;
+  if (!response.ok) {
+    throw new Error(payload?.error || `API-Fehler ${response.status}`);
+  }
+  return payload.photo;
 };
 
 const updateMemberViaApi = async member => {

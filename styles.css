@@ -443,6 +443,8 @@ main.container-fluid {
 }
 
 .member-photo-preview__text {
+  display: grid;
+  gap: 0.45rem;
   min-width: 0;
 }
 
@@ -455,6 +457,19 @@ main.container-fluid {
   color: var(--muted);
   font-size: 0.9rem;
   word-break: break-word;
+}
+
+.member-photo-preview__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.member-photo-preview__button {
+  width: max-content;
 }
 
 .form-label {

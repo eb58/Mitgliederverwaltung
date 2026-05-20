@@ -87,6 +87,13 @@ const parseId = value => {
 };
 
 const parsePhotoPayload = async request => {
+  const decodeFileName = value => {
+    try {
+      return decodeURIComponent(String(value || ""));
+    } catch {
+      return String(value || "");
+    }
+  };
   const contentType = request.headers["content-type"] || "application/octet-stream";
   if (contentType.startsWith("application/json")) {
     const payload = await readJsonBody(request);
@@ -104,7 +111,7 @@ const parsePhotoPayload = async request => {
   }
 
   return {
-    fileName: request.headers["x-file-name"] || "passbild.jpg",
+    fileName: decodeFileName(request.headers["x-file-name"]) || "passbild.jpg",
     mimeType: contentType.split(";")[0] || "application/octet-stream",
     content: await readRequestBody(request)
   };
