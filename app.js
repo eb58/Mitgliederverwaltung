@@ -954,9 +954,11 @@ const createMemberFormField = field => {
     input = document.createElement("select");
     input.className = "form-select";
     input.multiple = true;
-    input.size = ["interessengruppen", "funktion"].includes(field.key) ? Math.min(8, field.options.length) : Math.min(6, field.options.length);
+    input.size = ["interessengruppen", "funktion"].includes(field.key) ? 8 : Math.min(6, field.options.length);
     if (field.key === "interessengruppen") {
       input.addEventListener("change", updateInterestGroupDisplayField);
+    } else if (field.key === "funktion") {
+      input.addEventListener("change", updateFunctionDisplayField);
     }
     field.options.forEach(option => {
       const el = document.createElement("option");
@@ -991,6 +993,8 @@ const createMemberFormField = field => {
   col.append(label, input);
   if (field.key === "interessengruppen") {
     col.appendChild(createInterestGroupDisplayField());
+  } else if (field.key === "funktion") {
+    col.appendChild(createFunctionDisplayField());
   }
   return col;
 };
@@ -1013,6 +1017,26 @@ const updateInterestGroupDisplayField = () => {
 
   const groupIds = Array.from(input.selectedOptions).map(option => Number(option.value));
   display.value = formatInterestGroups(groupIds);
+};
+
+const createFunctionDisplayField = () => {
+  const display = document.createElement("input");
+  display.type = "text";
+  display.id = "field-funktion-display";
+  display.className = "form-control member-form-selection-display";
+  display.readOnly = true;
+  display.tabIndex = -1;
+  display.setAttribute("aria-label", "Ausgewählte Funktionen");
+  return display;
+};
+
+const updateFunctionDisplayField = () => {
+  const display = document.getElementById("field-funktion-display");
+  const input = document.getElementById("field-funktion");
+  if (!display || !input) return;
+
+  const functionIds = Array.from(input.selectedOptions).map(option => Number(option.value));
+  display.value = formatFunctions(functionIds);
 };
 
 const createMemberPhotoPreview = () => {
@@ -1109,6 +1133,8 @@ const fillMemberForm = (member, isNew) => {
       });
       if (field.key === "interessengruppen") {
         updateInterestGroupDisplayField();
+      } else if (field.key === "funktion") {
+        updateFunctionDisplayField();
       }
       return;
     }
@@ -1841,6 +1867,8 @@ const interestGroupFormatter = params => formatInterestGroups(params.value);
 const christmasFormatter = params => christmasChoiceMap[Number(params.value)] || christmasChoiceMap[0];
 
 const formatInterestGroups = groupIds => !groupIds || groupIds.length === 0 ? "" : groupIds.map(id => interestGroupMap[id] || `ID ${id}`).join(", ");
+
+const formatFunctions = functionIds => !functionIds || functionIds.length === 0 ? "" : functionIds.map(id => funktionsMap[id] || `ID ${id}`).join(", ");
 
 const formatDateDE = isoDate => {
   if (!isoDate || typeof isoDate !== "string") return "";
