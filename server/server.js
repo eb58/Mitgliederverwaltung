@@ -31,6 +31,50 @@ const staticMimeTypes = {
   ".woff": "font/woff",
   ".woff2": "font/woff2"
 };
+const publicStaticFiles = new Set([
+  "app.js",
+  "index.html",
+  path.normalize("node_modules/ag-grid-community/dist/ag-grid-community.min.js"),
+  path.normalize("node_modules/ag-grid-community/styles/ag-grid.css"),
+  path.normalize("node_modules/ag-grid-community/styles/ag-theme-quartz.css"),
+  path.normalize("node_modules/bootstrap/dist/css/bootstrap.min.css"),
+  path.normalize("node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"),
+  path.normalize("node_modules/chart.js/dist/chart.umd.min.js"),
+  "styles.css"
+]);
+
+const resolveStaticFilePath = url => {
+  let pathname;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    const error = new Error("Ungueltiger Dateipfad.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const normalizedRelativePath = path.normalize(relativePath);
+  const isPublicFile = publicStaticFiles.has(normalizedRelativePath);
+  const isAssetFile = normalizedRelativePath.startsWith(`assets${path.sep}`);
+  if (
+    normalizedRelativePath.startsWith("..") ||
+    path.isAbsolute(normalizedRelativePath) ||
+    (!isPublicFile && !isAssetFile)
+  ) {
+    const error = new Error("Datei nicht gefunden.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const filePath = path.resolve(staticRoot, normalizedRelativePath);
+  if (!filePath.startsWith(staticRoot + path.sep)) {
+    const error = new Error("Zugriff verweigert.");
+    error.statusCode = 403;
+    throw error;
+  }
+  return filePath;
+};
 
 const createSession = user => {
   const token = crypto.randomBytes(32).toString("base64url");
@@ -229,15 +273,8 @@ const sendStaticFile = async (request, response, url) => {
     return;
   }
 
-  const pathname = decodeURIComponent(url.pathname);
-  const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const filePath = path.resolve(staticRoot, relativePath);
-  if (!filePath.startsWith(staticRoot + path.sep)) {
-    sendJson(response, 403, { error: "Zugriff verweigert." });
-    return;
-  }
-
   try {
+    const filePath = resolveStaticFilePath(url);
     const stat = await fs.promises.stat(filePath);
     if (!stat.isFile()) {
       sendJson(response, 404, { error: "Datei nicht gefunden." });
@@ -256,6 +293,10 @@ const sendStaticFile = async (request, response, url) => {
   } catch (error) {
     if (error.code === "ENOENT") {
       sendJson(response, 404, { error: "Datei nicht gefunden." });
+      return;
+    }
+    if (error.statusCode) {
+      sendJson(response, error.statusCode, { error: error.message });
       return;
     }
     throw error;
