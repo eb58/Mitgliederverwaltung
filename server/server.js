@@ -2,6 +2,8 @@
 
 const http = require("node:http");
 const crypto = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
 const config = require("./config");
 const repository = require("./member-repository");
 const { authenticateUser } = require("./user-repository");
@@ -17,6 +19,18 @@ const {
 const memberPathPattern = /^\/api\/members\/(\d+)$/;
 const memberPhotoPathPattern = /^\/api\/members\/(\d+)\/photo$/;
 const sessions = new Map();
+const staticRoot = path.resolve(__dirname, "..");
+const staticMimeTypes = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2"
+};
 
 const createSession = user => {
   const token = crypto.randomBytes(32).toString("base64url");
@@ -209,6 +223,45 @@ const handleMemberPhoto = async (request, response, id) => {
   sendJson(response, 405, { error: "Methode nicht erlaubt." });
 };
 
+const sendStaticFile = async (request, response, url) => {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    sendJson(response, 405, { error: "Methode nicht erlaubt." });
+    return;
+  }
+
+  const pathname = decodeURIComponent(url.pathname);
+  const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const filePath = path.resolve(staticRoot, relativePath);
+  if (!filePath.startsWith(staticRoot + path.sep)) {
+    sendJson(response, 403, { error: "Zugriff verweigert." });
+    return;
+  }
+
+  try {
+    const stat = await fs.promises.stat(filePath);
+    if (!stat.isFile()) {
+      sendJson(response, 404, { error: "Datei nicht gefunden." });
+      return;
+    }
+
+    response.writeHead(200, {
+      "Content-Type": staticMimeTypes[path.extname(filePath).toLowerCase()] || "application/octet-stream",
+      "Content-Length": stat.size
+    });
+    if (request.method === "HEAD") {
+      response.end();
+      return;
+    }
+    fs.createReadStream(filePath).pipe(response);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      sendJson(response, 404, { error: "Datei nicht gefunden." });
+      return;
+    }
+    throw error;
+  }
+};
+
 const handleRequest = async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
@@ -252,7 +305,7 @@ const handleRequest = async (request, response) => {
     return;
   }
 
-  sendJson(response, 404, { error: "Route nicht gefunden." });
+  await sendStaticFile(request, response, url);
 };
 
 const createServer = () => http.createServer((request, response) => {

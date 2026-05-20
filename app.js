@@ -215,7 +215,7 @@ let interestGroupChart = null;
 const CONFIG_FILE_NAME = "config.json";
 const STORAGE_FILE_NAME = "members.json";
 const CSV_STORAGE_FILE_NAME = "members.csv";
-const MEMBER_API_BASE_URL = "http://127.0.0.1:3001";
+const DEFAULT_MEMBER_API_BASE_URL = globalThis.location.protocol.startsWith("http") ? globalThis.location.origin : "http://127.0.0.1:3001";
 const MEMBER_API_PAGE_SIZE = 500;
 const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
 const SAVE_DEBOUNCE_MS = 450;
@@ -294,6 +294,7 @@ const computerGroupPatterns = [
 let memberModal = null;
 let loginModal = null;
 let loginWaitResolve = null;
+let memberApiBaseUrl = DEFAULT_MEMBER_API_BASE_URL;
 let selectedMemberPhotoFile = null;
 let selectedMemberPhotoObjectUrl = null;
 let storageFilePathPromise = null;
@@ -2401,7 +2402,31 @@ const loadStoredMembers = async () => {
 };
 
 const createMemberApiUrl = (path, params = {}) => {
-  const url = new URL(path, MEMBER_API_BASE_URL);
+  const url = new URL(path, memberApiBaseUrl);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== "") {
+      url.searchParams.set(key, value);
+    }
+  });
+  return url.toString();
+};
+
+const getMemberApiBaseUrlCandidates = () => {
+  const candidates = [memberApiBaseUrl, DEFAULT_MEMBER_API_BASE_URL];
+  if (window.location.protocol.startsWith("http")) {
+    candidates.push(`${window.location.protocol}//${window.location.hostname}:3001`);
+    if (window.location.protocol === "http:") {
+      candidates.push("http://localhost:3001");
+      candidates.push("http://127.0.0.1:3001");
+    }
+  } else {
+    candidates.push("http://127.0.0.1:3001");
+  }
+  return [...new Set(candidates)];
+};
+
+const createMemberApiUrlForBase = (baseUrl, path, params = {}) => {
+  const url = new URL(path, baseUrl);
   Object.entries(params).forEach(([key, value]) => {
     if (value !== null && value !== undefined && value !== "") {
       url.searchParams.set(key, value);
@@ -2420,7 +2445,29 @@ const requestMemberApi = async (path, { method = "GET", params = {}, body = null
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(createMemberApiUrl(path, params), options);
+  let response;
+  let lastNetworkError = null;
+  let lastApiFallbackResponse = null;
+  for (const baseUrl of getMemberApiBaseUrlCandidates()) {
+    try {
+      const candidateResponse = await fetch(createMemberApiUrlForBase(baseUrl, path, params), options);
+      if (path.startsWith("/api/") && [404, 405].includes(candidateResponse.status)) {
+        lastApiFallbackResponse = candidateResponse;
+        continue;
+      }
+      response = candidateResponse;
+      memberApiBaseUrl = baseUrl;
+      break;
+    } catch (error) {
+      lastNetworkError = error;
+    }
+  }
+  if (!response && lastApiFallbackResponse) {
+    response = lastApiFallbackResponse;
+  }
+  if (!response) {
+    throw lastNetworkError || new Error("API nicht erreichbar.");
+  }
   if (response.status === 204) return null;
 
   const text = await response.text();

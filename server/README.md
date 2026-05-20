@@ -9,6 +9,23 @@ npm install
 npm run server
 ```
 
+Der Server liefert auch das Frontend aus. Lokal ist die Anwendung danach unter `http://127.0.0.1:3001/` erreichbar.
+
+Fuer Zugriff von einem anderen Rechner oder per Cloudflare Tunnel muss der Server auf allen Interfaces lauschen:
+
+```powershell
+$env:MEMBER_API_HOST="0.0.0.0"
+npm run server
+```
+
+Cloudflare Tunnel sollte auf denselben Server zeigen:
+
+```powershell
+cloudflared tunnel --url http://localhost:3001
+```
+
+Dann die Cloudflare-URL direkt oeffnen. Frontend und API laufen dabei unter derselben HTTPS-Origin, dadurch gibt es kein Mixed-Content-Problem.
+
 Standardwerte:
 
 ```text
