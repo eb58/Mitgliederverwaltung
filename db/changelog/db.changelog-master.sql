@@ -202,3 +202,18 @@ INSERT INTO app_user (username, password_hash, role, active) VALUES
   ('admin', 'scrypt$16384$8$1$sVf0NClmMTJ5VxIeYZKnqA$b0FRpmWonziJEgTJzQdDsSnQGnAZ6F4x6GQ9lcbwA9s', 'admin', 1);
 
 --rollback DROP TABLE app_user;
+
+--changeset codex:004-create-app-sessions dbms:mysql
+CREATE TABLE app_session (
+  token_hash CHAR(64) NOT NULL,
+  user_id INT NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (token_hash),
+  INDEX idx_app_session_expires_at (expires_at),
+  CONSTRAINT fk_app_session_user
+    FOREIGN KEY (user_id) REFERENCES app_user (id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--rollback DROP TABLE app_session;

@@ -215,7 +215,9 @@ let interestGroupChart = null;
 const CONFIG_FILE_NAME = "config.json";
 const STORAGE_FILE_NAME = "members.json";
 const CSV_STORAGE_FILE_NAME = "members.csv";
+const MEMBER_API_BROWSER_CONFIG_FILE_NAME = "member-api.config.json";
 const DEFAULT_MEMBER_API_BASE_URL = globalThis.location.protocol.startsWith("http") ? globalThis.location.origin : "http://127.0.0.1:3001";
+const PHP_MEMBER_API_BASE_PATH = "/php-api/index.php";
 const MEMBER_API_PAGE_SIZE = 500;
 const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
 const SAVE_DEBOUNCE_MS = 450;
@@ -306,8 +308,24 @@ const photoPathCache = {
   photoFileNamesPromise: null
 };
 
+const loadMemberApiBrowserConfig = async () => {
+  if (!globalThis.location.protocol.startsWith("http")) return;
+  try {
+    const response = await fetch(MEMBER_API_BROWSER_CONFIG_FILE_NAME, { cache: "no-store" });
+    if (!response.ok) return;
+    const config = await response.json();
+    const configuredBaseUrl = String(config.memberApiBaseUrl || "").trim();
+    if (configuredBaseUrl) {
+      memberApiBaseUrl = configuredBaseUrl;
+    }
+  } catch (error) {
+    console.warn("API-Browser-Konfiguration konnte nicht gelesen werden.", error);
+  }
+};
+
 const initApp = async () => {
   setAppShellVisible(false);
+  await loadMemberApiBrowserConfig();
   loginModal = new bootstrap.Modal(document.getElementById("loginModal"), {
     backdrop: "static",
     keyboard: false
@@ -2402,18 +2420,13 @@ const loadStoredMembers = async () => {
 };
 
 const createMemberApiUrl = (path, params = {}) => {
-  const url = new URL(path, memberApiBaseUrl);
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== null && value !== undefined && value !== "") {
-      url.searchParams.set(key, value);
-    }
-  });
-  return url.toString();
+  return createMemberApiUrlForBase(memberApiBaseUrl, path, params);
 };
 
 const getMemberApiBaseUrlCandidates = () => {
   const candidates = [memberApiBaseUrl, DEFAULT_MEMBER_API_BASE_URL];
   if (window.location.protocol.startsWith("http")) {
+    candidates.push(new URL(PHP_MEMBER_API_BASE_PATH, window.location.origin).toString());
     candidates.push(`${window.location.protocol}//${window.location.hostname}:3001`);
     if (window.location.protocol === "http:") {
       candidates.push("http://localhost:3001");
@@ -2426,7 +2439,14 @@ const getMemberApiBaseUrlCandidates = () => {
 };
 
 const createMemberApiUrlForBase = (baseUrl, path, params = {}) => {
-  const url = new URL(path, baseUrl);
+  const url = new URL(baseUrl);
+  const normalizedPath = path.replace(/^\/+/, "");
+  if (url.pathname.endsWith(".php")) {
+    url.pathname = `${url.pathname}/${normalizedPath}`;
+  } else {
+    const basePath = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+    url.pathname = `${basePath}/${normalizedPath}`;
+  }
   Object.entries(params).forEach(([key, value]) => {
     if (value !== null && value !== undefined && value !== "") {
       url.searchParams.set(key, value);
@@ -2451,7 +2471,8 @@ const requestMemberApi = async (path, { method = "GET", params = {}, body = null
   for (const baseUrl of getMemberApiBaseUrlCandidates()) {
     try {
       const candidateResponse = await fetch(createMemberApiUrlForBase(baseUrl, path, params), options);
-      if (path.startsWith("/api/") && [404, 405].includes(candidateResponse.status)) {
+      const contentType = candidateResponse.headers.get("content-type") || "";
+      if (path.startsWith("/api/") && ([404, 405].includes(candidateResponse.status) || !contentType.includes("application/json"))) {
         lastApiFallbackResponse = candidateResponse;
         continue;
       }
@@ -2471,7 +2492,12 @@ const requestMemberApi = async (path, { method = "GET", params = {}, body = null
   if (response.status === 204) return null;
 
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  let payload = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error("API hat kein JSON geliefert. Bitte API-Adresse pruefen.");
+  }
   if (!response.ok) {
     const error = new Error(payload?.error || `API-Fehler ${response.status}`);
     error.statusCode = response.status;

@@ -40,6 +40,7 @@ const sqlNumber = value => Number.isFinite(Number(value)) ? String(Number(value)
 const sqlNullableNumber = value => value === null || value === undefined || value === "" ? "NULL" : sqlNumber(value);
 const sqlNullablePositiveNumber = value => Number(value) > 0 ? sqlNumber(value) : "NULL";
 const sqlBoolean = value => value === true || value === 1 || value === "1" || value === "true" || value === "ja" ? "1" : "0";
+const sqlChristmasChoice = value => [0, 1, 2].includes(Number(value)) ? String(Number(value)) : "0";
 
 const sqlDate = value => {
   if (!value) return "NULL";
@@ -117,7 +118,7 @@ const createMemberInsert = member => {
     sqlBoolean(member.auswahl),
     sqlBoolean(member.ausweisErteilt),
     sqlNullablePositiveNumber(member.clubzugehoerigkeit),
-    sqlNumber(member.weihnachtsessen),
+    sqlChristmasChoice(member.weihnachtsessen),
     sqlBoolean(member.wnEssenBezahlt),
     sqlBoolean(member.beitragClubBezahlt),
     sqlNumber(member.betragClubBar),

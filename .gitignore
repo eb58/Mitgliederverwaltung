@@ -8,3 +8,7 @@ yarn-error.log*
 *.log
 lib/*.jar
 db/changelog/data/
+php-api/config.local.php
+php-api/setup-user-once.php
+member-api.config.json
+db/import/

@@ -34,12 +34,7 @@ const staticMimeTypes = {
 const publicStaticFiles = new Set([
   "app.js",
   "index.html",
-  path.normalize("node_modules/ag-grid-community/dist/ag-grid-community.min.js"),
-  path.normalize("node_modules/ag-grid-community/styles/ag-grid.css"),
-  path.normalize("node_modules/ag-grid-community/styles/ag-theme-quartz.css"),
-  path.normalize("node_modules/bootstrap/dist/css/bootstrap.min.css"),
-  path.normalize("node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"),
-  path.normalize("node_modules/chart.js/dist/chart.umd.min.js"),
+  "member-api.config.json",
   "styles.css"
 ]);
 
@@ -57,10 +52,11 @@ const resolveStaticFilePath = url => {
   const normalizedRelativePath = path.normalize(relativePath);
   const isPublicFile = publicStaticFiles.has(normalizedRelativePath);
   const isAssetFile = normalizedRelativePath.startsWith(`assets${path.sep}`);
+  const isVendorFile = normalizedRelativePath.startsWith(`vendor${path.sep}`);
   if (
     normalizedRelativePath.startsWith("..") ||
     path.isAbsolute(normalizedRelativePath) ||
-    (!isPublicFile && !isAssetFile)
+    (!isPublicFile && !isAssetFile && !isVendorFile)
   ) {
     const error = new Error("Datei nicht gefunden.");
     error.statusCode = 404;
