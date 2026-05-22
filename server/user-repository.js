@@ -45,7 +45,66 @@ const upsertUser = async ({ username, password, role = "admin", active = true })
   };
 };
 
+const listUsers = async () => {
+  const [rows] = await pool.execute("SELECT id, username, role, active FROM app_user ORDER BY username");
+  return rows.map(row => ({
+    id: row.id,
+    username: row.username,
+    role: row.role,
+    active: Boolean(row.active)
+  }));
+};
+
+const findUserById = async id => {
+  const [rows] = await pool.execute("SELECT id, username, role, active FROM app_user WHERE id = ?", [id]);
+  const user = rows[0];
+  return user ? {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    active: Boolean(user.active)
+  } : null;
+};
+
+const createUser = async ({ username, password, role = "admin", active = true }) => {
+  if (!username || !password) {
+    const error = new Error("Benutzername und Passwort sind erforderlich.");
+    error.statusCode = 400;
+    throw error;
+  }
+  const [result] = await pool.execute(
+    "INSERT INTO app_user (username, password_hash, role, active) VALUES (?, ?, ?, ?)",
+    [username, await hashPassword(password), role || "admin", active ? 1 : 0]
+  );
+  return findUserById(result.insertId);
+};
+
+const updateUser = async (id, { password = "", role = "admin", active = true }) => {
+  if (password) {
+    await pool.execute(
+      "UPDATE app_user SET password_hash = ?, role = ?, active = ? WHERE id = ?",
+      [await hashPassword(password), role || "admin", active ? 1 : 0, id]
+    );
+  } else {
+    await pool.execute(
+      "UPDATE app_user SET role = ?, active = ? WHERE id = ?",
+      [role || "admin", active ? 1 : 0, id]
+    );
+  }
+  return findUserById(id);
+};
+
+const deactivateUser = async id => {
+  const [result] = await pool.execute("UPDATE app_user SET active = 0 WHERE id = ?", [id]);
+  return result.affectedRows > 0;
+};
+
 module.exports = {
   authenticateUser,
+  createUser,
+  deactivateUser,
+  findUserById,
+  listUsers,
+  updateUser,
   upsertUser
 };

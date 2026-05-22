@@ -6,7 +6,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const config = require("./config");
 const repository = require("./member-repository");
-const { authenticateUser } = require("./user-repository");
+const {
+  authenticateUser,
+  createUser,
+  deactivateUser,
+  listUsers,
+  updateUser
+} = require("./user-repository");
 const {
   readJsonBody,
   readRequestBody,
@@ -18,6 +24,7 @@ const {
 
 const memberPathPattern = /^\/api\/members\/(\d+)$/;
 const memberPhotoPathPattern = /^\/api\/members\/(\d+)\/photo$/;
+const userPathPattern = /^\/api\/users\/(\d+)$/;
 const sessions = new Map();
 const staticRoot = path.resolve(__dirname, "..");
 const staticMimeTypes = {
@@ -103,6 +110,12 @@ const requireAuthentication = (request, response) => {
   return false;
 };
 
+const requireAdmin = (request, response) => {
+  if (request.user?.role === "admin") return true;
+  sendJson(response, 403, { error: "Administratorrechte erforderlich." });
+  return false;
+};
+
 const handleSession = async (request, response) => {
   if (request.method === "POST") {
     const body = await readJsonBody(request);
@@ -127,6 +140,51 @@ const handleSession = async (request, response) => {
     return;
   }
 
+  sendJson(response, 405, { error: "Methode nicht erlaubt." });
+};
+
+const handleUsersCollection = async (request, response) => {
+  if (!requireAdmin(request, response)) return;
+  if (request.method === "GET") {
+    sendJson(response, 200, { users: await listUsers() });
+    return;
+  }
+  if (request.method === "POST") {
+    const user = await createUser(await readJsonBody(request));
+    sendJson(response, 201, { user });
+    return;
+  }
+  sendJson(response, 405, { error: "Methode nicht erlaubt." });
+};
+
+const handleUserResource = async (request, response, id) => {
+  if (!requireAdmin(request, response)) return;
+  if ((request.method === "PUT" || request.method === "PATCH")) {
+    const body = await readJsonBody(request);
+    if (id === request.user.id && body.active === false) {
+      sendJson(response, 400, { error: "Der eigene Benutzer kann nicht deaktiviert werden." });
+      return;
+    }
+    const user = await updateUser(id, body);
+    if (!user) {
+      sendJson(response, 404, { error: "Benutzer nicht gefunden." });
+      return;
+    }
+    sendJson(response, 200, { user });
+    return;
+  }
+  if (request.method === "DELETE") {
+    if (id === request.user.id) {
+      sendJson(response, 400, { error: "Der eigene Benutzer kann nicht deaktiviert werden." });
+      return;
+    }
+    if (!await deactivateUser(id)) {
+      sendJson(response, 404, { error: "Benutzer nicht gefunden." });
+      return;
+    }
+    sendNoContent(response);
+    return;
+  }
   sendJson(response, 405, { error: "Methode nicht erlaubt." });
 };
 
@@ -327,6 +385,17 @@ const handleRequest = async (request, response) => {
 
   if (url.pathname === "/api/members") {
     await handleMembersCollection(request, response, url);
+    return;
+  }
+
+  if (url.pathname === "/api/users") {
+    await handleUsersCollection(request, response);
+    return;
+  }
+
+  const userMatch = url.pathname.match(userPathPattern);
+  if (userMatch) {
+    await handleUserResource(request, response, parseId(userMatch[1]));
     return;
   }
 
