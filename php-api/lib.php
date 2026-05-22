@@ -147,6 +147,13 @@ function requireAuth(): array
     return ['id' => (int) $user['id'], 'username' => $user['username'], 'role' => $user['role']];
 }
 
+function requireAdmin(array $user): void
+{
+    if (($user['role'] ?? '') !== 'admin') {
+        throw new ApiError('Administratorrechte erforderlich.', 403);
+    }
+}
+
 function handleSession(): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
@@ -171,6 +178,94 @@ function handleSession(): void
         if ($token !== '') {
             db()->prepare('DELETE FROM app_session WHERE token_hash = ?')->execute([tokenHash($token)]);
         }
+        noContent();
+    }
+
+    throw new ApiError('Methode nicht erlaubt.', 405);
+}
+
+function publicUser(array $user): array
+{
+    return [
+        'id' => (int) $user['id'],
+        'username' => $user['username'],
+        'role' => $user['role'],
+        'active' => (bool) $user['active'],
+    ];
+}
+
+function handleUsersCollection(array $currentUser): void
+{
+    requireAdmin($currentUser);
+    $method = $_SERVER['REQUEST_METHOD'];
+
+    if ($method === 'GET') {
+        $rows = db()->query('SELECT id, username, role, active FROM app_user ORDER BY username')->fetchAll();
+        jsonResponse(['users' => array_map('publicUser', $rows)]);
+    }
+
+    if ($method === 'POST') {
+        $body = readJsonBody();
+        $username = trim((string) ($body['username'] ?? ''));
+        $password = (string) ($body['password'] ?? '');
+        $role = trim((string) ($body['role'] ?? 'admin')) ?: 'admin';
+        $active = array_key_exists('active', $body) ? (bool) $body['active'] : true;
+        if ($username === '' || $password === '') {
+            throw new ApiError('Benutzername und Passwort sind erforderlich.', 400);
+        }
+        $statement = db()->prepare(
+            "INSERT INTO app_user (username, password_hash, role, active)
+             VALUES (?, ?, ?, ?)"
+        );
+        $statement->execute([$username, password_hash($password, PASSWORD_DEFAULT), $role, $active ? 1 : 0]);
+        $id = (int) db()->lastInsertId();
+        jsonResponse(['user' => findUserById($id)], 201);
+    }
+
+    throw new ApiError('Methode nicht erlaubt.', 405);
+}
+
+function findUserById(int $id): ?array
+{
+    $statement = db()->prepare('SELECT id, username, role, active FROM app_user WHERE id = ?');
+    $statement->execute([$id]);
+    $user = $statement->fetch();
+    return $user ? publicUser($user) : null;
+}
+
+function handleUserResource(array $currentUser, int $id): void
+{
+    requireAdmin($currentUser);
+    $method = $_SERVER['REQUEST_METHOD'];
+
+    if ($method === 'PUT' || $method === 'PATCH') {
+        $existing = findUserById($id);
+        if (!$existing) throw new ApiError('Benutzer nicht gefunden.', 404);
+        $body = readJsonBody();
+        $role = trim((string) ($body['role'] ?? $existing['role'])) ?: 'admin';
+        $active = array_key_exists('active', $body) ? (bool) $body['active'] : (bool) $existing['active'];
+        if ($id === (int) $currentUser['id'] && !$active) {
+            throw new ApiError('Der eigene Benutzer kann nicht deaktiviert werden.', 400);
+        }
+
+        $password = (string) ($body['password'] ?? '');
+        if ($password !== '') {
+            $statement = db()->prepare('UPDATE app_user SET role = ?, active = ?, password_hash = ? WHERE id = ?');
+            $statement->execute([$role, $active ? 1 : 0, password_hash($password, PASSWORD_DEFAULT), $id]);
+        } else {
+            $statement = db()->prepare('UPDATE app_user SET role = ?, active = ? WHERE id = ?');
+            $statement->execute([$role, $active ? 1 : 0, $id]);
+        }
+        jsonResponse(['user' => findUserById($id)]);
+    }
+
+    if ($method === 'DELETE') {
+        if ($id === (int) $currentUser['id']) {
+            throw new ApiError('Der eigene Benutzer kann nicht deaktiviert werden.', 400);
+        }
+        $statement = db()->prepare('UPDATE app_user SET active = 0 WHERE id = ?');
+        $statement->execute([$id]);
+        if ($statement->rowCount() === 0) throw new ApiError('Benutzer nicht gefunden.', 404);
         noContent();
     }
 

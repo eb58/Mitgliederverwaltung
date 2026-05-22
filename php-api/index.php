@@ -19,7 +19,14 @@ try {
     }
 
     $user = requireAuth();
-    unset($user);
+
+    if ($path === '/api/users') {
+        handleUsersCollection($user);
+    }
+
+    if (preg_match('#^/api/users/(\d+)$#', $path, $matches)) {
+        handleUserResource($user, (int) $matches[1]);
+    }
 
     if ($path === '/api/members') {
         handleMembersCollection();

@@ -199,6 +199,7 @@ const state = {
   showChristmasGuests: false,
   showHistoricalGuests: true,
   usesMemberApi: false,
+  currentUser: null,
   authToken: localStorage.getItem("mitgliederverwaltung:authToken") || ""
 };
 
@@ -295,6 +296,7 @@ const computerGroupPatterns = [
 
 let memberModal = null;
 let loginModal = null;
+let userAdminModal = null;
 let loginWaitResolve = null;
 let memberApiBaseUrl = DEFAULT_MEMBER_API_BASE_URL;
 let selectedMemberPhotoFile = null;
@@ -339,6 +341,7 @@ const initApp = async () => {
 
   buildMemberForm();
   memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
+  userAdminModal = new bootstrap.Modal(document.getElementById("userAdminModal"));
   initGrids();
   wireUi();
   refreshAllViews();
@@ -357,6 +360,7 @@ document.addEventListener("DOMContentLoaded", () => {
     wireLoginForm();
     buildMemberForm();
     memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
+    userAdminModal = new bootstrap.Modal(document.getElementById("userAdminModal"));
     initGrids();
     wireUi();
     refreshAllViews();
@@ -414,10 +418,12 @@ const ensureAuthenticated = async () => {
   }
 
   try {
-    await requestMemberApi("/api/session");
+    const payload = await requestMemberApi("/api/session");
+    state.currentUser = payload.user || null;
     return true;
   } catch (error) {
     clearAuthToken();
+    state.currentUser = null;
     setAppShellVisible(false);
     loginModal.show();
     return new Promise(resolve => {
@@ -432,6 +438,7 @@ const login = async (username, password) => {
     body: { username, password },
     requiresAuth: false
   });
+  state.currentUser = payload.user || null;
   setAuthToken(payload.token);
 };
 
@@ -446,22 +453,22 @@ const setAuthToken = token => {
 
 const clearAuthToken = () => setAuthToken("");
 
-const logout = async () => {
-  if (state.authToken) {
-    try {
-      await requestMemberApi("/api/session", { method: "DELETE" });
-    } catch (error) {
-      console.warn("Server-Logout fehlgeschlagen.", error);
-    }
-  }
-
+const logout = () => {
+  const token = state.authToken;
   clearAuthToken();
+  state.currentUser = null;
   state.usesMemberApi = false;
   state.members = [];
   state.nextId = 1;
   refreshAllViews();
   setAppShellVisible(false);
   loginModal.show();
+
+  if (token) {
+    requestMemberApi("/api/session", { method: "DELETE", authToken: token }).catch(error => {
+      console.warn("Server-Logout fehlgeschlagen.", error);
+    });
+  }
 };
 
 const reloadMembersFromApi = async () => {
@@ -473,16 +480,134 @@ const reloadMembersFromApi = async () => {
   refreshAllViews();
 };
 
+const loadUsersFromApi = () => requestMemberApi("/api/users");
+const createUserViaApi = user => requestMemberApi("/api/users", { method: "POST", body: user });
+const updateUserViaApi = user => requestMemberApi(`/api/users/${user.id}`, { method: "PUT", body: user });
+const deactivateUserViaApi = id => requestMemberApi(`/api/users/${id}`, { method: "DELETE" });
+
+const resetUserForm = () => {
+  document.getElementById("userId").value = "";
+  document.getElementById("userUsername").value = "";
+  document.getElementById("userUsername").disabled = false;
+  document.getElementById("userPassword").value = "";
+  document.getElementById("userPassword").required = true;
+  document.getElementById("userRole").value = "admin";
+  document.getElementById("userActive").checked = true;
+  document.getElementById("userAdminError").hidden = true;
+};
+
+const renderUsers = users => {
+  const tbody = document.getElementById("userTableBody");
+  tbody.replaceChildren(...users.map(user => {
+    const row = document.createElement("tr");
+    const cells = [
+      user.username,
+      user.role,
+      user.active ? "aktiv" : "inaktiv"
+    ].map(text => {
+      const cell = document.createElement("td");
+      cell.textContent = text;
+      return cell;
+    });
+    const actions = document.createElement("td");
+    const editButton = document.createElement("button");
+    editButton.className = "btn btn-sm btn-outline-secondary me-2";
+    editButton.type = "button";
+    editButton.textContent = "Bearbeiten";
+    editButton.addEventListener("click", () => fillUserForm(user));
+    const deactivateButton = document.createElement("button");
+    deactivateButton.className = "btn btn-sm btn-outline-danger";
+    deactivateButton.type = "button";
+    deactivateButton.textContent = "Deaktivieren";
+    deactivateButton.disabled = !user.active || user.id === state.currentUser?.id;
+    deactivateButton.addEventListener("click", () => deactivateUser(user.id));
+    actions.append(editButton, deactivateButton);
+    row.append(...cells, actions);
+    return row;
+  }));
+};
+
+const fillUserForm = user => {
+  document.getElementById("userId").value = user.id;
+  document.getElementById("userUsername").value = user.username;
+  document.getElementById("userUsername").disabled = true;
+  document.getElementById("userPassword").value = "";
+  document.getElementById("userPassword").required = false;
+  document.getElementById("userRole").value = user.role || "admin";
+  document.getElementById("userActive").checked = Boolean(user.active);
+  document.getElementById("userAdminError").hidden = true;
+};
+
+const refreshUsers = async () => {
+  const payload = await loadUsersFromApi();
+  renderUsers(Array.isArray(payload.users) ? payload.users : []);
+};
+
+const openUserAdminModal = async () => {
+  resetUserForm();
+  await refreshUsers();
+  userAdminModal.show();
+};
+
+const handleUserFormSubmit = async event => {
+  event.preventDefault();
+  const errorElement = document.getElementById("userAdminError");
+  const id = Number(document.getElementById("userId").value);
+  const user = {
+    id,
+    username: document.getElementById("userUsername").value.trim(),
+    password: document.getElementById("userPassword").value,
+    role: document.getElementById("userRole").value,
+    active: document.getElementById("userActive").checked
+  };
+  try {
+    errorElement.hidden = true;
+    if (id) {
+      await updateUserViaApi(user);
+    } else {
+      await createUserViaApi(user);
+    }
+    resetUserForm();
+    await refreshUsers();
+  } catch (error) {
+    errorElement.textContent = error.message || "Benutzer konnte nicht gespeichert werden.";
+    errorElement.hidden = false;
+  }
+};
+
+const deactivateUser = async id => {
+  const errorElement = document.getElementById("userAdminError");
+  try {
+    errorElement.hidden = true;
+    await deactivateUserViaApi(id);
+    await refreshUsers();
+  } catch (error) {
+    errorElement.textContent = error.message || "Benutzer konnte nicht deaktiviert werden.";
+    errorElement.hidden = false;
+  }
+};
+
 const setAppShellVisible = visible => {
   const shell = document.getElementById("appShell");
   if (shell) {
     shell.hidden = !visible;
+  }
+  updateUserAdminButton();
+};
+
+const updateUserAdminButton = () => {
+  const item = document.getElementById("manageUsersMenuItem");
+  if (item) {
+    item.hidden = state.currentUser?.role !== "admin";
   }
 };
 
 const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
   document.getElementById("logoutBtn").addEventListener("click", logout);
+  document.getElementById("manageUsersBtn").addEventListener("click", openUserAdminModal);
+  document.getElementById("userForm").addEventListener("submit", handleUserFormSubmit);
+  document.getElementById("resetUserFormBtn").addEventListener("click", resetUserForm);
   document.getElementById("toggleOverviewGuestsBtn").addEventListener("click", toggleOverviewGuests);
   document.getElementById("togglePaymentGuestsBtn").addEventListener("click", togglePaymentGuests);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
@@ -2455,10 +2580,11 @@ const createMemberApiUrlForBase = (baseUrl, path, params = {}) => {
   return url.toString();
 };
 
-const requestMemberApi = async (path, { method = "GET", params = {}, body = null, requiresAuth = true } = {}) => {
+const requestMemberApi = async (path, { method = "GET", params = {}, body = null, requiresAuth = true, authToken = "" } = {}) => {
   const options = { method, headers: {} };
-  if (requiresAuth && state.authToken) {
-    options.headers.Authorization = `Bearer ${state.authToken}`;
+  const token = authToken || state.authToken;
+  if (requiresAuth && token) {
+    options.headers.Authorization = `Bearer ${token}`;
   }
   if (body !== null) {
     options.headers["Content-Type"] = "application/json";
@@ -2472,7 +2598,7 @@ const requestMemberApi = async (path, { method = "GET", params = {}, body = null
     try {
       const candidateResponse = await fetch(createMemberApiUrlForBase(baseUrl, path, params), options);
       const contentType = candidateResponse.headers.get("content-type") || "";
-      if (path.startsWith("/api/") && ([404, 405].includes(candidateResponse.status) || !contentType.includes("application/json"))) {
+      if (path.startsWith("/api/") && candidateResponse.status !== 204 && ([404, 405].includes(candidateResponse.status) || !contentType.includes("application/json"))) {
         lastApiFallbackResponse = candidateResponse;
         continue;
       }

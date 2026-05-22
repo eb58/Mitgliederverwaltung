@@ -37,7 +37,6 @@ main.container-fluid {
   border-radius: 18px;
   padding: 1.3rem 1.4rem;
   box-shadow: var(--shadow-md);
-  overflow: hidden;
 }
 
 .app-header::after {
@@ -69,12 +68,24 @@ main.container-fluid {
 }
 
 .app-header h1 {
-  letter-spacing: -0.02em;
+  margin: 0;
+  letter-spacing: 0;
   font-weight: 800;
+  font-size: 1.55rem;
 }
 
 .app-header .text-secondary {
   color: var(--muted) !important;
+}
+
+.app-header__title {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.app-header__title span {
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .search-input {
@@ -679,6 +690,79 @@ main.container-fluid {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 750;
+}
+
+.app-menu {
+  position: relative;
+  z-index: 1;
+}
+
+.app-menu__button {
+  width: 40px;
+  height: 38px;
+  display: inline-grid;
+  place-content: center;
+  gap: 4px;
+  padding: 0;
+  border-color: rgba(17, 93, 82, 0.22);
+  background: #ffffff;
+  color: #26413d;
+  box-shadow: 0 1px 2px rgba(31, 41, 51, 0.08);
+}
+
+.app-menu__button span {
+  width: 18px;
+  height: 2px;
+  display: block;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.app-menu .dropdown-menu {
+  min-width: 180px;
+  margin-top: 0.45rem;
+  padding: 0.35rem;
+  border: 1px solid rgba(17, 93, 82, 0.14);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.app-menu .dropdown-item {
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+}
+
+.app-menu .dropdown-item:active {
+  background: var(--accent);
+}
+
+.login-card__subtitle {
+  margin: -0.65rem 0 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.user-admin-form {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.2fr) minmax(170px, 1.2fr) minmax(120px, 0.8fr) auto;
+  gap: 0.8rem;
+  align-items: end;
+}
+
+.user-admin-form__active {
+  padding-bottom: 0.45rem;
+}
+
+.user-admin-form__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.user-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .login-card__body {

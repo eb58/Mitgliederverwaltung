@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Senioren Lübars</title>
+  <title>Mitgliederverwaltung Senioren Lübars</title>
   <link rel="icon" type="image/png" href="assets/app-icon.png">
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
@@ -17,12 +17,27 @@
     <header class="app-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
       <div class="app-header__brand">
         <img class="app-header__image" src="assets/website-logo.jpg" alt="Freizeitstätte Lübars">
+        <div class="app-header__title">
+          <h1>Mitgliederverwaltung</h1>
+          <span>Senioren Lübars</span>
+        </div>
       </div>
       <div class="d-flex flex-wrap align-items-center gap-2">
         <input id="globalSearchInput" type="search" class="form-control search-input"
           placeholder="Suchen (Name, E-Mail, Straße, ...)">
         <button id="addMemberBtn" class="btn btn-primary">Neues Mitglied</button>
-        <button id="logoutBtn" class="btn btn-outline-secondary" type="button">Abmelden</button>
+        <div class="dropdown app-menu">
+          <button id="appMenuBtn" class="btn btn-outline-secondary app-menu__button" type="button"
+            data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menü">
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li id="manageUsersMenuItem" hidden><button id="manageUsersBtn" class="dropdown-item" type="button">Benutzer</button></li>
+            <li><button id="logoutBtn" class="dropdown-item" type="button">Abmelden</button></li>
+          </ul>
+        </div>
       </div>
     </header>
 
@@ -215,13 +230,66 @@
     </div>
   </div>
 
+  <div class="modal fade" id="userAdminModal" tabindex="-1" aria-labelledby="userAdminModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="userAdminModalLabel">Benutzerverwaltung</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body">
+          <form id="userForm" class="user-admin-form">
+            <input id="userId" type="hidden">
+            <div>
+              <label class="form-label" for="userUsername">Benutzername</label>
+              <input id="userUsername" class="form-control" type="text" autocomplete="username" required>
+            </div>
+            <div>
+              <label class="form-label" for="userPassword">Passwort</label>
+              <input id="userPassword" class="form-control" type="password" autocomplete="new-password">
+            </div>
+            <div>
+              <label class="form-label" for="userRole">Rolle</label>
+              <select id="userRole" class="form-select">
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div class="form-check user-admin-form__active">
+              <input id="userActive" class="form-check-input" type="checkbox" checked>
+              <label class="form-check-label" for="userActive">Aktiv</label>
+            </div>
+            <div class="user-admin-form__actions">
+              <button id="resetUserFormBtn" class="btn btn-outline-secondary" type="button">Neu</button>
+              <button class="btn btn-primary" type="submit">Speichern</button>
+            </div>
+          </form>
+          <div id="userAdminError" class="login-error mt-3" role="alert" hidden></div>
+          <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle user-table">
+              <thead>
+                <tr>
+                  <th>Benutzer</th>
+                  <th>Rolle</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade login-modal" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content login-card">
         <form id="loginForm">
           <div class="login-card__header">
             <img class="login-card__logo" src="assets/website-logo.jpg" alt="FreizeitstÃ¤tte LÃ¼bars">
-            <h2 class="login-card__title" id="loginModalLabel">Anmelden</h2>
+            <h2 class="login-card__title" id="loginModalLabel">Mitgliederverwaltung</h2>
+            <p class="login-card__subtitle">Anmelden bei Senioren Lübars</p>
           </div>
           <div class="login-card__body">
             <div class="login-field">
