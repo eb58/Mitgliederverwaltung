@@ -456,6 +456,7 @@ const ensureAuthenticated = async () => {
   try {
     const payload = await requestMemberApi("/api/session");
     state.currentUser = payload.user || null;
+    updateUserAdminButton();
     return true;
   } catch (error) {
     clearAuthToken();
@@ -475,6 +476,7 @@ const login = async (username, password) => {
     requiresAuth: false
   });
   state.currentUser = payload.user || null;
+  updateUserAdminButton();
   setAuthToken(payload.token);
 };
 
@@ -676,7 +678,9 @@ const setAppShellVisible = visible => {
 };
 
 const updateUserAdminButton = () => {
-  const isAdmin = state.currentUser?.role === "admin";
+  const isAdmin = String(state.currentUser?.role || "").trim().toLowerCase() === "admin";
+  const adminMenu = document.getElementById("adminMenu");
+  if (adminMenu) adminMenu.hidden = !isAdmin;
   ["manageUsersMenuItem", "manageReferenceDataMenuItem"].forEach(id => {
     const item = document.getElementById(id);
     if (item) item.hidden = !isAdmin;

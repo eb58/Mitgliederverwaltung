@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
   <link rel="stylesheet" href="vendor/ag-theme-quartz.css">
-  <link rel="stylesheet" href="styles.css?v=20260524-refactive">
+  <link rel="stylesheet" href="styles.css?v=20260527-actions5">
 </head>
 
 <body>
@@ -26,19 +26,20 @@
         <input id="globalSearchInput" type="search" class="form-control search-input"
           placeholder="Suchen (Name, E-Mail, Straße, ...)">
         <button id="addMemberBtn" class="btn btn-primary">Neues Mitglied</button>
-        <div class="dropdown app-menu">
-          <button id="appMenuBtn" class="btn btn-outline-secondary app-menu__button" type="button"
-            data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menü">
-            <span aria-hidden="true"></span>
-            <span aria-hidden="true"></span>
-            <span aria-hidden="true"></span>
-          </button>
+        <div id="adminMenu" class="dropdown app-menu" hidden>
+          <button id="appMenuBtn" class="btn btn-primary app-menu__button" type="button"
+            data-bs-toggle="dropdown" aria-expanded="false">Admin</button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li id="manageUsersMenuItem" hidden><button id="manageUsersBtn" class="dropdown-item" type="button">Benutzer</button></li>
-            <li id="manageReferenceDataMenuItem" hidden><button id="manageReferenceDataBtn" class="dropdown-item" type="button">Stammdaten</button></li>
-            <li><button id="logoutBtn" class="dropdown-item" type="button">Abmelden</button></li>
+            <li id="manageUsersMenuItem"><button id="manageUsersBtn" class="dropdown-item" type="button">Benutzer</button></li>
+            <li id="manageReferenceDataMenuItem"><button id="manageReferenceDataBtn" class="dropdown-item" type="button">Stammdaten</button></li>
           </ul>
         </div>
+        <button id="logoutBtn" class="btn logout-icon-btn" type="button" aria-label="Abmelden" title="Abmelden">
+          <svg class="logout-icon-btn__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M10 12.5a.5.5 0 0 1-.5.5h-7A1.5 1.5 0 0 1 1 11.5v-7A1.5 1.5 0 0 1 2.5 3h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h7a.5.5 0 0 1 .5.5z"></path>
+            <path fill="currentColor" d="M15.85 8.35a.5.5 0 0 0 0-.7l-3-3a.5.5 0 0 0-.7.7L14.29 7.5H6.5a.5.5 0 0 0 0 1h7.79l-2.14 2.15a.5.5 0 0 0 .7.7l3-3z"></path>
+          </svg>
+        </button>
       </div>
     </header>
 
@@ -382,7 +383,7 @@
   <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="vendor/ag-grid-community.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
-  <script type="module" src="app.js?v=20260524-refactive"></script>
+  <script type="module" src="app.js?v=20260527-actions"></script>
 </body>
 
 </html>

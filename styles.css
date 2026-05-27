@@ -698,24 +698,38 @@ main.container-fluid {
 }
 
 .app-menu__button {
-  width: 40px;
+  --bs-btn-bg: var(--accent);
+  --bs-btn-border-color: var(--accent);
+  --bs-btn-color: #ffffff;
+  --bs-btn-hover-bg: var(--accent-dark);
+  --bs-btn-hover-border-color: var(--accent-dark);
+  --bs-btn-hover-color: #ffffff;
+  --bs-btn-active-bg: var(--accent-dark);
+  --bs-btn-active-border-color: var(--accent-dark);
+  --bs-btn-active-color: #ffffff;
   height: 38px;
-  display: inline-grid;
-  place-content: center;
-  gap: 4px;
-  padding: 0;
-  border-color: rgba(17, 93, 82, 0.22);
-  background: #ffffff;
-  color: #26413d;
-  box-shadow: 0 1px 2px rgba(31, 41, 51, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.85rem;
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 400 !important;
+  line-height: 1.5;
+  box-shadow: var(--shadow-sm);
 }
 
-.app-menu__button span {
-  width: 18px;
-  height: 2px;
-  display: block;
-  background: currentColor;
-  border-radius: 999px;
+.app-menu__button:hover,
+.app-menu__button:focus,
+.app-menu__button:active,
+.app-menu__button.show {
+  background: var(--accent-dark);
+  background-color: var(--accent-dark);
+  border-color: var(--accent-dark);
+  color: #ffffff;
 }
 
 .app-menu .dropdown-menu {
@@ -734,6 +748,33 @@ main.container-fluid {
 
 .app-menu .dropdown-item:active {
   background: var(--accent);
+}
+
+.logout-icon-btn {
+  width: 42px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.logout-icon-btn:hover,
+.logout-icon-btn:focus {
+  color: #ffffff;
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.logout-icon-btn__icon {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .login-card__subtitle {
