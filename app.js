@@ -26,7 +26,7 @@ const interestGroups = [
 ];
 
 const germanCollator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
-const interestGroupMap = Object.fromEntries(interestGroups.map(group => [group.id, group.label]));
+const interestGroupMap = {};
 
 const seniorenclubsMap = [
   { id: 1, name: "FZST Heiligensee" },
@@ -70,16 +70,10 @@ const funktionsMap = {
 };
 
 
-const interestGroupOptions = [...interestGroups]
-  .sort((a, b) => germanCollator.compare(a.label, b.label))
-  .map(group => ({ value: group.id, label: group.label }));
-const austrittsgrundOptions = Object.entries(austrittsgrundMap)
-  .filter(([, label]) => label)
-  .map(([value, label]) => ({ value: Number(value), label }));
-const funktionsOptions = Object.entries(funktionsMap).map(([value, label]) => ({ value: Number(value), label }));
-const seniorenclubOptions = seniorenclubsMap
-  .filter(club => club.id !== null)
-  .map(club => ({ value: club.id, label: club.adresse ? `${club.name} (${club.adresse})` : club.name }));
+const interestGroupOptions = [];
+const austrittsgrundOptions = [];
+const funktionsOptions = [];
+const seniorenclubOptions = [];
 
 const fieldDefinitions = [
   { key: "id", label: "ID", type: "number", required: true },
@@ -218,7 +212,7 @@ const STORAGE_FILE_NAME = "members.json";
 const CSV_STORAGE_FILE_NAME = "members.csv";
 const MEMBER_API_BROWSER_CONFIG_FILE_NAME = "member-api.config.json";
 const DEFAULT_MEMBER_API_BASE_URL = globalThis.location.protocol.startsWith("http") ? globalThis.location.origin : "http://127.0.0.1:3001";
-const PHP_MEMBER_API_BASE_PATH = "/php-api/index.php";
+const PHP_MEMBER_API_BASE_PATH = "/mitgliederverwaltung/php-api/index.php";
 const MEMBER_API_PAGE_SIZE = 500;
 const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
 const SAVE_DEBOUNCE_MS = 450;
@@ -297,9 +291,11 @@ const computerGroupPatterns = [
 let memberModal = null;
 let loginModal = null;
 let userAdminModal = null;
+let referenceDataModal = null;
 let loginWaitResolve = null;
 let memberApiBaseUrl = DEFAULT_MEMBER_API_BASE_URL;
 let selectedMemberPhotoFile = null;
+let referenceAdminData = {};
 let selectedMemberPhotoObjectUrl = null;
 let storageFilePathPromise = null;
 let persistTimerId = null;
@@ -309,6 +305,41 @@ const photoPathCache = {
   passbilderDirectoryPathPromise: null,
   photoFileNamesPromise: null
 };
+
+const replaceObjectContents = (target, entries) => {
+  Object.keys(target).forEach(key => delete target[key]);
+  Object.assign(target, Object.fromEntries(entries));
+};
+
+const replaceArrayContents = (target, values) => {
+  target.splice(0, target.length, ...values);
+};
+
+const refreshReferenceOptions = () => {
+  replaceObjectContents(interestGroupMap, interestGroups.map(group => [group.id, group.label]));
+  replaceArrayContents(
+    interestGroupOptions,
+    [...interestGroups]
+      .sort((a, b) => germanCollator.compare(a.label, b.label))
+      .map(group => ({ value: group.id, label: group.label }))
+  );
+  replaceArrayContents(
+    austrittsgrundOptions,
+    Object.entries(austrittsgrundMap)
+      .filter(([, label]) => label)
+      .map(([value, label]) => ({ value: Number(value), label }))
+  );
+  replaceArrayContents(
+    funktionsOptions,
+    Object.entries(funktionsMap).map(([value, label]) => ({ value: Number(value), label }))
+  );
+  replaceArrayContents(
+    seniorenclubOptions,
+    seniorenclubsMap.map(club => ({ value: club.id, label: club.name }))
+  );
+};
+
+refreshReferenceOptions();
 
 const loadMemberApiBrowserConfig = async () => {
   if (!globalThis.location.protocol.startsWith("http")) return;
@@ -334,6 +365,7 @@ const initApp = async () => {
   });
   wireLoginForm();
   await ensureAuthenticated();
+  await loadReferenceData();
 
   const loadedMembers = await loadStoredMembers();
   state.members = loadedMembers || [];
@@ -342,6 +374,8 @@ const initApp = async () => {
   buildMemberForm();
   memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
   userAdminModal = new bootstrap.Modal(document.getElementById("userAdminModal"));
+  referenceDataModal = new bootstrap.Modal(document.getElementById("referenceDataModal"));
+  buildReferenceDataAdmin();
   initGrids();
   wireUi();
   refreshAllViews();
@@ -361,6 +395,8 @@ document.addEventListener("DOMContentLoaded", () => {
     buildMemberForm();
     memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
     userAdminModal = new bootstrap.Modal(document.getElementById("userAdminModal"));
+    referenceDataModal = new bootstrap.Modal(document.getElementById("referenceDataModal"));
+    buildReferenceDataAdmin();
     initGrids();
     wireUi();
     refreshAllViews();
@@ -484,6 +520,50 @@ const loadUsersFromApi = () => requestMemberApi("/api/users");
 const createUserViaApi = user => requestMemberApi("/api/users", { method: "POST", body: user });
 const updateUserViaApi = user => requestMemberApi(`/api/users/${user.id}`, { method: "PUT", body: user });
 const deactivateUserViaApi = id => requestMemberApi(`/api/users/${id}`, { method: "DELETE" });
+const loadReferenceDataFromApi = () => requestMemberApi("/api/reference-data");
+const loadReferenceItemsFromApi = type => requestMemberApi(`/api/reference-data/${type}`);
+const createReferenceItemViaApi = (type, item) => requestMemberApi(`/api/reference-data/${type}`, { method: "POST", body: item });
+const updateReferenceItemViaApi = (type, item) => requestMemberApi(`/api/reference-data/${type}/${item.id}`, { method: "PUT", body: item });
+const deleteReferenceItemViaApi = (type, id) => requestMemberApi(`/api/reference-data/${type}/${id}`, { method: "DELETE" });
+
+const referenceSections = [
+  { type: "interest-groups", title: "Interessengruppen", labelName: "Bezeichnung" },
+  { type: "functions", title: "Funktionen", labelName: "Bezeichnung" },
+  { type: "exit-reasons", title: "Austrittsgründe", labelName: "Bezeichnung" },
+  { type: "senior-clubs", title: "Seniorenclubs", labelName: "Name" }
+];
+
+const applyReferenceData = data => {
+  if (Array.isArray(data?.interestGroups)) {
+    replaceArrayContents(interestGroups, data.interestGroups.map(item => ({ id: Number(item.id), label: item.label || item.name || "" })));
+  }
+  if (Array.isArray(data?.seniorClubs)) {
+    replaceArrayContents(seniorenclubsMap, data.seniorClubs.map(item => ({ id: Number(item.id), name: item.name || item.label || "" })));
+  }
+  if (Array.isArray(data?.exitReasons)) {
+    replaceObjectContents(austrittsgrundMap, data.exitReasons.map(item => [Number(item.id), item.label || item.name || ""]));
+  }
+  if (Array.isArray(data?.functions)) {
+    replaceObjectContents(funktionsMap, data.functions.map(item => [Number(item.id), item.label || item.name || ""]));
+  }
+  refreshReferenceOptions();
+};
+
+const loadReferenceData = async () => {
+  try {
+    applyReferenceData(await loadReferenceDataFromApi());
+  } catch (error) {
+    console.warn("Stammdaten konnten nicht ueber die API geladen werden. Feste Werte werden verwendet.", error);
+  }
+};
+
+const loadReferenceAdminData = async () => {
+  const entries = await Promise.all(referenceSections.map(async section => {
+    const data = await loadReferenceItemsFromApi(section.type);
+    return [section.type, data.items || []];
+  }));
+  referenceAdminData = Object.fromEntries(entries);
+};
 
 const resetUserForm = () => {
   document.getElementById("userId").value = "";
@@ -596,9 +676,179 @@ const setAppShellVisible = visible => {
 };
 
 const updateUserAdminButton = () => {
-  const item = document.getElementById("manageUsersMenuItem");
-  if (item) {
-    item.hidden = state.currentUser?.role !== "admin";
+  const isAdmin = state.currentUser?.role === "admin";
+  ["manageUsersMenuItem", "manageReferenceDataMenuItem"].forEach(id => {
+    const item = document.getElementById(id);
+    if (item) item.hidden = !isAdmin;
+  });
+};
+
+const buildReferenceDataAdmin = () => {
+  const panes = document.getElementById("referenceDataPanes");
+  if (!panes) return;
+  referenceSections.forEach(section => {
+    const pane = document.querySelector(`[data-reference-type="${section.type}"]`);
+    if (!pane || pane.dataset.built === "true") return;
+    pane.dataset.built = "true";
+    pane.innerHTML = `
+      <form class="reference-form">
+        <input type="hidden" data-reference-field="id">
+        <div>
+          <label class="form-label">ID</label>
+          <input class="form-control" type="number" min="1" step="1" data-reference-field="newId" required>
+        </div>
+        <div>
+          <label class="form-label">${section.labelName}</label>
+          <input class="form-control" type="text" data-reference-field="label" required>
+        </div>
+        <div class="reference-form__actions">
+          <button class="btn btn-outline-secondary" type="button" data-reference-action="new">Neu</button>
+          <button class="btn btn-primary" type="submit">Speichern</button>
+        </div>
+      </form>
+      <div class="table-responsive mt-3">
+        <table class="table table-sm align-middle reference-table">
+          <thead><tr><th>ID</th><th>${section.labelName}</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    `;
+    pane.querySelector(".reference-form").addEventListener("submit", event => handleReferenceFormSubmit(event, section.type));
+    pane.querySelector('[data-reference-action="new"]').addEventListener("click", () => resetReferenceForm(section.type));
+  });
+};
+
+const getReferenceItems = type => {
+  if (referenceAdminData[type]) {
+    return referenceAdminData[type].map(item => ({
+      id: Number(item.id),
+      label: item.label || item.name || "",
+      active: item.active !== false
+    }));
+  }
+  if (type === "interest-groups") return interestGroups.map(item => ({ id: item.id, label: item.label }));
+  if (type === "functions") return Object.entries(funktionsMap).map(([id, label]) => ({ id: Number(id), label }));
+  if (type === "exit-reasons") return Object.entries(austrittsgrundMap).map(([id, label]) => ({ id: Number(id), label }));
+  if (type === "senior-clubs") return seniorenclubsMap.map(item => ({ id: item.id, label: item.name }));
+  return [];
+};
+
+const renderReferenceTable = type => {
+  const pane = document.querySelector(`[data-reference-type="${type}"]`);
+  const tbody = pane?.querySelector("tbody");
+  if (!tbody) return;
+  const rows = getReferenceItems(type).sort((a, b) => a.id - b.id).map(item => {
+    const row = document.createElement("tr");
+    const idCell = document.createElement("td");
+    idCell.textContent = item.id;
+    const labelCell = document.createElement("td");
+    labelCell.textContent = item.label;
+    const statusCell = document.createElement("td");
+    statusCell.textContent = item.active === false ? "inaktiv" : "aktiv";
+    const actions = document.createElement("td");
+    const editButton = document.createElement("button");
+    editButton.className = "btn btn-sm btn-outline-secondary me-2";
+    editButton.type = "button";
+    editButton.textContent = "Bearbeiten";
+    editButton.addEventListener("click", () => fillReferenceForm(type, item));
+    const toggleButton = document.createElement("button");
+    toggleButton.className = item.active === false ? "btn btn-sm btn-outline-primary" : "btn btn-sm btn-outline-danger";
+    toggleButton.type = "button";
+    toggleButton.textContent = item.active === false ? "Aktivieren" : "Deaktivieren";
+    toggleButton.addEventListener("click", () => toggleReferenceItem(type, item));
+    actions.append(editButton, toggleButton);
+    row.classList.toggle("text-muted", item.active === false);
+    row.append(idCell, labelCell, statusCell, actions);
+    return row;
+  });
+  tbody.replaceChildren(...rows);
+};
+
+const renderAllReferenceTables = () => referenceSections.forEach(section => renderReferenceTable(section.type));
+
+const resetReferenceForm = type => {
+  const pane = document.querySelector(`[data-reference-type="${type}"]`);
+  if (!pane) return;
+  pane.querySelector('[data-reference-field="id"]').value = "";
+  const idInput = pane.querySelector('[data-reference-field="newId"]');
+  idInput.value = "";
+  idInput.disabled = false;
+  pane.querySelector('[data-reference-field="label"]').value = "";
+  document.getElementById("referenceDataError").hidden = true;
+};
+
+const fillReferenceForm = (type, item) => {
+  const pane = document.querySelector(`[data-reference-type="${type}"]`);
+  if (!pane) return;
+  pane.querySelector('[data-reference-field="id"]').value = item.id;
+  const idInput = pane.querySelector('[data-reference-field="newId"]');
+  idInput.value = item.id;
+  idInput.disabled = true;
+  pane.querySelector('[data-reference-field="label"]').value = item.label;
+  document.getElementById("referenceDataError").hidden = true;
+};
+
+const openReferenceDataModal = async () => {
+  const errorElement = document.getElementById("referenceDataError");
+  try {
+    errorElement.hidden = true;
+    buildReferenceDataAdmin();
+    await loadReferenceAdminData();
+    renderAllReferenceTables();
+    referenceDataModal.show();
+  } catch (error) {
+    errorElement.textContent = error.message || "Stammdaten konnten nicht geladen werden.";
+    errorElement.hidden = false;
+    referenceDataModal.show();
+  }
+};
+
+const refreshReferenceDataAfterSave = async () => {
+  await loadReferenceData();
+  await loadReferenceAdminData();
+  buildMemberForm();
+  refreshAllViews();
+  renderAllReferenceTables();
+};
+
+const handleReferenceFormSubmit = async (event, type) => {
+  event.preventDefault();
+  const errorElement = document.getElementById("referenceDataError");
+  const pane = event.target.closest("[data-reference-type]");
+  const id = Number(pane.querySelector('[data-reference-field="id"]').value);
+  const item = {
+    id: id || Number(pane.querySelector('[data-reference-field="newId"]').value),
+    label: pane.querySelector('[data-reference-field="label"]').value.trim()
+  };
+  try {
+    errorElement.hidden = true;
+    if (id) {
+      await updateReferenceItemViaApi(type, item);
+    } else {
+      await createReferenceItemViaApi(type, item);
+    }
+    resetReferenceForm(type);
+    await refreshReferenceDataAfterSave();
+  } catch (error) {
+    errorElement.textContent = error.message || "Stammdaten konnten nicht gespeichert werden.";
+    errorElement.hidden = false;
+  }
+};
+
+const toggleReferenceItem = async (type, item) => {
+  const errorElement = document.getElementById("referenceDataError");
+  try {
+    errorElement.hidden = true;
+    if (item.active === false) {
+      await updateReferenceItemViaApi(type, { id: item.id, label: item.label, active: true });
+    } else {
+      await deleteReferenceItemViaApi(type, item.id);
+    }
+    resetReferenceForm(type);
+    await refreshReferenceDataAfterSave();
+  } catch (error) {
+    errorElement.textContent = error.message || "Stammdatensatz konnte nicht aktualisiert werden.";
+    errorElement.hidden = false;
   }
 };
 
@@ -606,6 +856,7 @@ const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
   document.getElementById("logoutBtn").addEventListener("click", logout);
   document.getElementById("manageUsersBtn").addEventListener("click", openUserAdminModal);
+  document.getElementById("manageReferenceDataBtn").addEventListener("click", openReferenceDataModal);
   document.getElementById("userForm").addEventListener("submit", handleUserFormSubmit);
   document.getElementById("resetUserFormBtn").addEventListener("click", resetUserForm);
   document.getElementById("toggleOverviewGuestsBtn").addEventListener("click", toggleOverviewGuests);

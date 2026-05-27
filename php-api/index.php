@@ -28,6 +28,18 @@ try {
         handleUserResource($user, (int) $matches[1]);
     }
 
+    if ($path === '/api/reference-data') {
+        handleReferenceDataOverview($user);
+    }
+
+    if (preg_match('#^/api/reference-data/([a-z-]+)$#', $path, $matches)) {
+        handleReferenceDataCollection($user, $matches[1]);
+    }
+
+    if (preg_match('#^/api/reference-data/([a-z-]+)/(\d+)$#', $path, $matches)) {
+        handleReferenceDataResource($user, $matches[1], (int) $matches[2]);
+    }
+
     if ($path === '/api/members') {
         handleMembersCollection();
     }

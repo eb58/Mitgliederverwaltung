@@ -14,7 +14,7 @@ if (!$username || !$password) {
     exit(1);
 }
 
-$role = $argv[3] ?? 'admin';
+$role = normalizeUserRole($argv[3] ?? 'admin');
 $pdo = db();
 $hash = password_hash((string) $password, PASSWORD_DEFAULT);
 $statement = $pdo->prepare(
@@ -25,6 +25,6 @@ $statement = $pdo->prepare(
        role = VALUES(role),
        active = VALUES(active)"
 );
-$statement->execute([(string) $username, $hash, (string) $role]);
+$statement->execute([(string) $username, $hash, $role]);
 
 echo "User {$username} wurde angelegt/aktualisiert.\n";

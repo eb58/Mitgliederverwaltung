@@ -13,7 +13,7 @@ $config = [
         'charset' => 'utf8mb4',
     ],
     'auth' => [
-        'session_ttl_seconds' => (int) $env('MEMBER_API_SESSION_TTL_SECONDS', (string) (12 * 60 * 60)),
+        'session_ttl_seconds' => (int) $env('MEMBER_API_SESSION_TTL_SECONDS', "1800" ), // half an hour
     ],
     'cors_origin' => $env('MEMBER_API_CORS_ORIGIN', '*'),
 ];

@@ -765,6 +765,23 @@ main.container-fluid {
   white-space: nowrap;
 }
 
+.reference-form {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.35fr) minmax(220px, 1fr) auto;
+  gap: 0.8rem;
+  align-items: end;
+}
+
+.reference-form__actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.reference-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .login-card__body {
   display: grid;
   gap: 1rem;

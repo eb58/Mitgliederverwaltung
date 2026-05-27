@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
   <link rel="stylesheet" href="vendor/ag-theme-quartz.css">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260524-refactive">
 </head>
 
 <body>
@@ -35,6 +35,7 @@
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li id="manageUsersMenuItem" hidden><button id="manageUsersBtn" class="dropdown-item" type="button">Benutzer</button></li>
+            <li id="manageReferenceDataMenuItem" hidden><button id="manageReferenceDataBtn" class="dropdown-item" type="button">Stammdaten</button></li>
             <li><button id="logoutBtn" class="dropdown-item" type="button">Abmelden</button></li>
           </ul>
         </div>
@@ -252,6 +253,7 @@
               <label class="form-label" for="userRole">Rolle</label>
               <select id="userRole" class="form-select">
                 <option value="admin">admin</option>
+                <option value="user">user</option>
               </select>
             </div>
             <div class="form-check user-admin-form__active">
@@ -277,6 +279,44 @@
               <tbody id="userTableBody"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="referenceDataModal" tabindex="-1" aria-labelledby="referenceDataModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="referenceDataModalLabel">Stammdaten</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="nav nav-tabs" id="referenceDataTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" data-reference-tab="interest-groups" data-bs-toggle="tab"
+                data-bs-target="#reference-interest-groups" type="button" role="tab">Interessengruppen</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-reference-tab="functions" data-bs-toggle="tab"
+                data-bs-target="#reference-functions" type="button" role="tab">Funktionen</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-reference-tab="exit-reasons" data-bs-toggle="tab"
+                data-bs-target="#reference-exit-reasons" type="button" role="tab">Austrittsgründe</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-reference-tab="senior-clubs" data-bs-toggle="tab"
+                data-bs-target="#reference-senior-clubs" type="button" role="tab">Seniorenclubs</button>
+            </li>
+          </ul>
+          <div id="referenceDataPanes" class="tab-content pt-3">
+            <section id="reference-interest-groups" class="tab-pane fade show active" data-reference-type="interest-groups" role="tabpanel"></section>
+            <section id="reference-functions" class="tab-pane fade" data-reference-type="functions" role="tabpanel"></section>
+            <section id="reference-exit-reasons" class="tab-pane fade" data-reference-type="exit-reasons" role="tabpanel"></section>
+            <section id="reference-senior-clubs" class="tab-pane fade" data-reference-type="senior-clubs" role="tabpanel"></section>
+          </div>
+          <div id="referenceDataError" class="login-error mt-3" role="alert" hidden></div>
         </div>
       </div>
     </div>
@@ -342,7 +382,7 @@
   <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="vendor/ag-grid-community.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=20260524-refactive"></script>
 </body>
 
 </html>

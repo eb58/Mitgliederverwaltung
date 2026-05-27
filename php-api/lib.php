@@ -39,6 +39,20 @@ function db(): PDO
     return $pdo;
 }
 
+function tableHasColumn(string $table, string $column): bool
+{
+    static $cache = [];
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $cache)) return $cache[$key];
+
+    $statement = db()->prepare(
+        'SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+    );
+    $statement->execute([$table, $column]);
+    $cache[$key] = (int) $statement->fetchColumn() > 0;
+    return $cache[$key];
+}
+
 function sendCorsHeaders(): void
 {
     header('Access-Control-Allow-Origin: ' . config()['cors_origin']);
@@ -154,6 +168,15 @@ function requireAdmin(array $user): void
     }
 }
 
+function normalizeUserRole(mixed $role): string
+{
+    $value = trim((string) ($role ?: 'admin')) ?: 'admin';
+    if (!in_array($value, ['admin', 'user'], true)) {
+        throw new ApiError('Ungueltige Benutzerrolle.', 400);
+    }
+    return $value;
+}
+
 function handleSession(): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
@@ -208,7 +231,7 @@ function handleUsersCollection(array $currentUser): void
         $body = readJsonBody();
         $username = trim((string) ($body['username'] ?? ''));
         $password = (string) ($body['password'] ?? '');
-        $role = trim((string) ($body['role'] ?? 'admin')) ?: 'admin';
+        $role = normalizeUserRole($body['role'] ?? 'admin');
         $active = array_key_exists('active', $body) ? (bool) $body['active'] : true;
         if ($username === '' || $password === '') {
             throw new ApiError('Benutzername und Passwort sind erforderlich.', 400);
@@ -242,10 +265,13 @@ function handleUserResource(array $currentUser, int $id): void
         $existing = findUserById($id);
         if (!$existing) throw new ApiError('Benutzer nicht gefunden.', 404);
         $body = readJsonBody();
-        $role = trim((string) ($body['role'] ?? $existing['role'])) ?: 'admin';
+        $role = normalizeUserRole($body['role'] ?? $existing['role']);
         $active = array_key_exists('active', $body) ? (bool) $body['active'] : (bool) $existing['active'];
         if ($id === (int) $currentUser['id'] && !$active) {
             throw new ApiError('Der eigene Benutzer kann nicht deaktiviert werden.', 400);
+        }
+        if ($id === (int) $currentUser['id'] && $role !== 'admin') {
+            throw new ApiError('Der eigene Benutzer muss Admin bleiben.', 400);
         }
 
         $password = (string) ($body['password'] ?? '');
@@ -269,6 +295,129 @@ function handleUserResource(array $currentUser, int $id): void
         noContent();
     }
 
+    throw new ApiError('Methode nicht erlaubt.', 405);
+}
+
+function referenceDefinitions(): array
+{
+    return [
+        'interest-groups' => ['table' => 'interessengruppe', 'column' => 'bezeichnung', 'listKey' => 'interestGroups', 'labelKey' => 'label'],
+        'functions' => ['table' => 'funktion', 'column' => 'bezeichnung', 'listKey' => 'functions', 'labelKey' => 'label'],
+        'exit-reasons' => ['table' => 'austrittsgrund', 'column' => 'bezeichnung', 'listKey' => 'exitReasons', 'labelKey' => 'label'],
+        'senior-clubs' => ['table' => 'seniorenclub', 'column' => 'name', 'listKey' => 'seniorClubs', 'labelKey' => 'name'],
+    ];
+}
+
+function referenceDefinition(string $type): array
+{
+    $definitions = referenceDefinitions();
+    if (!isset($definitions[$type])) {
+        throw new ApiError('Unbekannte Stammdatenart.', 404);
+    }
+    return $definitions[$type];
+}
+
+function listReferenceItems(string $type, bool $includeInactive = false): array
+{
+    $definition = referenceDefinition($type);
+    $hasActiveColumn = tableHasColumn($definition['table'], 'active');
+    $activeSelect = $hasActiveColumn ? 'active' : '1 AS active';
+    $where = $includeInactive || !$hasActiveColumn ? '' : ' WHERE active = 1';
+    $statement = db()->query("SELECT id, {$definition['column']} AS label, {$activeSelect} FROM {$definition['table']}{$where} ORDER BY id");
+    return array_map(static fn(array $row): array => [
+        'id' => (int) $row['id'],
+        $definition['labelKey'] => $row['label'],
+        'label' => $row['label'],
+        'active' => (bool) $row['active'],
+    ], $statement->fetchAll());
+}
+
+function handleReferenceDataOverview(array $currentUser): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        throw new ApiError('Methode nicht erlaubt.', 405);
+    }
+    $payload = [];
+    foreach (referenceDefinitions() as $type => $definition) {
+        $payload[$definition['listKey']] = listReferenceItems($type);
+    }
+    jsonResponse($payload);
+}
+
+function readReferenceItemPayload(): array
+{
+    $body = readJsonBody();
+    $id = (int) ($body['id'] ?? 0);
+    $label = trim((string) ($body['label'] ?? $body['name'] ?? ''));
+    if ($id <= 0 || $label === '') {
+        throw new ApiError('ID und Bezeichnung sind erforderlich.', 400);
+    }
+    return ['id' => $id, 'label' => $label];
+}
+
+function handleReferenceDataCollection(array $currentUser, string $type): void
+{
+    $definition = referenceDefinition($type);
+    $method = $_SERVER['REQUEST_METHOD'];
+    if ($method === 'GET') {
+        requireAdmin($currentUser);
+        jsonResponse(['items' => listReferenceItems($type, true)]);
+    }
+    if ($method === 'POST') {
+        requireAdmin($currentUser);
+        $item = readReferenceItemPayload();
+        $hasActiveColumn = tableHasColumn($definition['table'], 'active');
+        $statement = db()->prepare($hasActiveColumn
+            ? "INSERT INTO {$definition['table']} (id, {$definition['column']}, active)
+               VALUES (?, ?, 1)
+               ON DUPLICATE KEY UPDATE {$definition['column']} = VALUES({$definition['column']}), active = 1"
+            : "INSERT INTO {$definition['table']} (id, {$definition['column']})
+               VALUES (?, ?)
+               ON DUPLICATE KEY UPDATE {$definition['column']} = VALUES({$definition['column']})"
+        );
+        $statement->execute([$item['id'], $item['label']]);
+        jsonResponse(['item' => $item + ['active' => true]], 201);
+    }
+    throw new ApiError('Methode nicht erlaubt.', 405);
+}
+
+function handleReferenceDataResource(array $currentUser, string $type, int $id): void
+{
+    $definition = referenceDefinition($type);
+    $method = $_SERVER['REQUEST_METHOD'];
+    if ($method === 'PUT' || $method === 'PATCH') {
+        requireAdmin($currentUser);
+        $hasActiveColumn = tableHasColumn($definition['table'], 'active');
+        $body = readJsonBody();
+        $label = trim((string) ($body['label'] ?? $body['name'] ?? ''));
+        if ($label === '') {
+            throw new ApiError('Bezeichnung ist erforderlich.', 400);
+        }
+        $activeSelect = $hasActiveColumn ? 'active' : '1 AS active';
+        $exists = db()->prepare("SELECT id, {$activeSelect} FROM {$definition['table']} WHERE id = ?");
+        $exists->execute([$id]);
+        $existing = $exists->fetch();
+        if (!$existing) {
+            throw new ApiError('Stammdatensatz nicht gefunden.', 404);
+        }
+        $hasActive = $hasActiveColumn && array_key_exists('active', $body);
+        $statement = db()->prepare("UPDATE {$definition['table']} SET {$definition['column']} = ?" . ($hasActive ? ', active = ?' : '') . " WHERE id = ?");
+        $values = $hasActive ? [$label, (bool) $body['active'] ? 1 : 0, $id] : [$label, $id];
+        $statement->execute($values);
+        jsonResponse(['item' => ['id' => $id, 'label' => $label, 'active' => $hasActive ? (bool) $body['active'] : (bool) $existing['active']]]);
+    }
+    if ($method === 'DELETE') {
+        requireAdmin($currentUser);
+        if (!tableHasColumn($definition['table'], 'active')) {
+            throw new ApiError('Stammdaten koennen erst deaktiviert werden, wenn die active-Spalten importiert wurden.', 409);
+        }
+        $statement = db()->prepare("UPDATE {$definition['table']} SET active = 0 WHERE id = ?");
+        $statement->execute([$id]);
+        if ($statement->rowCount() === 0) {
+            throw new ApiError('Stammdatensatz nicht gefunden.', 404);
+        }
+        noContent();
+    }
     throw new ApiError('Methode nicht erlaubt.', 405);
 }
 

@@ -217,3 +217,14 @@ CREATE TABLE app_session (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --rollback DROP TABLE app_session;
+
+--changeset codex:005-add-reference-data-active dbms:mysql
+ALTER TABLE seniorenclub ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
+ALTER TABLE austrittsgrund ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
+ALTER TABLE interessengruppe ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
+ALTER TABLE funktion ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
+
+--rollback ALTER TABLE funktion DROP COLUMN active;
+--rollback ALTER TABLE interessengruppe DROP COLUMN active;
+--rollback ALTER TABLE austrittsgrund DROP COLUMN active;
+--rollback ALTER TABLE seniorenclub DROP COLUMN active;

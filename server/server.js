@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const config = require("./config");
 const repository = require("./member-repository");
+const references = require("./reference-repository");
 const {
   authenticateUser,
   createUser,
@@ -25,6 +26,8 @@ const {
 const memberPathPattern = /^\/api\/members\/(\d+)$/;
 const memberPhotoPathPattern = /^\/api\/members\/(\d+)\/photo$/;
 const userPathPattern = /^\/api\/users\/(\d+)$/;
+const referenceCollectionPathPattern = /^\/api\/reference-data\/([a-z-]+)$/;
+const referenceResourcePathPattern = /^\/api\/reference-data\/([a-z-]+)\/(\d+)$/;
 const sessions = new Map();
 const staticRoot = path.resolve(__dirname, "..");
 const staticMimeTypes = {
@@ -165,6 +168,10 @@ const handleUserResource = async (request, response, id) => {
       sendJson(response, 400, { error: "Der eigene Benutzer kann nicht deaktiviert werden." });
       return;
     }
+    if (id === request.user.id && body.role && body.role !== "admin") {
+      sendJson(response, 400, { error: "Der eigene Benutzer muss Admin bleiben." });
+      return;
+    }
     const user = await updateUser(id, body);
     if (!user) {
       sendJson(response, 404, { error: "Benutzer nicht gefunden." });
@@ -180,6 +187,48 @@ const handleUserResource = async (request, response, id) => {
     }
     if (!await deactivateUser(id)) {
       sendJson(response, 404, { error: "Benutzer nicht gefunden." });
+      return;
+    }
+    sendNoContent(response);
+    return;
+  }
+  sendJson(response, 405, { error: "Methode nicht erlaubt." });
+};
+
+const handleReferenceDataOverview = async (request, response) => {
+  if (request.method !== "GET") {
+    sendJson(response, 405, { error: "Methode nicht erlaubt." });
+    return;
+  }
+  sendJson(response, 200, await references.listReferenceData());
+};
+
+const handleReferenceDataCollection = async (request, response, type) => {
+  if (request.method === "GET") {
+    if (!requireAdmin(request, response)) return;
+    sendJson(response, 200, { items: await references.listReferenceItems(type, { includeInactive: true }) });
+    return;
+  }
+  if (request.method === "POST") {
+    if (!requireAdmin(request, response)) return;
+    const item = await references.createReferenceItem(type, await readJsonBody(request));
+    sendJson(response, 201, { item });
+    return;
+  }
+  sendJson(response, 405, { error: "Methode nicht erlaubt." });
+};
+
+const handleReferenceDataResource = async (request, response, type, id) => {
+  if (request.method === "PUT" || request.method === "PATCH") {
+    if (!requireAdmin(request, response)) return;
+    const item = await references.updateReferenceItem(type, id, await readJsonBody(request));
+    sendJson(response, 200, { item });
+    return;
+  }
+  if (request.method === "DELETE") {
+    if (!requireAdmin(request, response)) return;
+    if (!await references.deleteReferenceItem(type, id)) {
+      sendJson(response, 404, { error: "Stammdatensatz nicht gefunden." });
       return;
     }
     sendNoContent(response);
@@ -396,6 +445,23 @@ const handleRequest = async (request, response) => {
   const userMatch = url.pathname.match(userPathPattern);
   if (userMatch) {
     await handleUserResource(request, response, parseId(userMatch[1]));
+    return;
+  }
+
+  if (url.pathname === "/api/reference-data") {
+    await handleReferenceDataOverview(request, response);
+    return;
+  }
+
+  const referenceResourceMatch = url.pathname.match(referenceResourcePathPattern);
+  if (referenceResourceMatch) {
+    await handleReferenceDataResource(request, response, referenceResourceMatch[1], parseId(referenceResourceMatch[2]));
+    return;
+  }
+
+  const referenceCollectionMatch = url.pathname.match(referenceCollectionPathPattern);
+  if (referenceCollectionMatch) {
+    await handleReferenceDataCollection(request, response, referenceCollectionMatch[1]);
     return;
   }
 

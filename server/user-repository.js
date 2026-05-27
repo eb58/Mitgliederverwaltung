@@ -3,6 +3,18 @@
 const { pool } = require("./db");
 const { hashPassword, verifyPassword } = require("./passwords");
 
+const allowedRoles = new Set(["admin", "user"]);
+
+const normalizeRole = role => {
+  const value = String(role || "admin").trim() || "admin";
+  if (!allowedRoles.has(value)) {
+    const error = new Error("Ungueltige Benutzerrolle.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return value;
+};
+
 const findUserByUsername = async username => {
   const [rows] = await pool.execute(
     `SELECT id, username, password_hash, role, active
@@ -27,6 +39,7 @@ const authenticateUser = async (username, password) => {
 
 const upsertUser = async ({ username, password, role = "admin", active = true }) => {
   const passwordHash = await hashPassword(password);
+  const normalizedRole = normalizeRole(role);
   await pool.execute(
     `INSERT INTO app_user (username, password_hash, role, active)
      VALUES (?, ?, ?, ?)
@@ -34,7 +47,7 @@ const upsertUser = async ({ username, password, role = "admin", active = true })
        password_hash = VALUES(password_hash),
        role = VALUES(role),
        active = VALUES(active)`,
-    [username, passwordHash, role, active ? 1 : 0]
+    [username, passwordHash, normalizedRole, active ? 1 : 0]
   );
   const user = await findUserByUsername(username);
   return {
@@ -72,23 +85,29 @@ const createUser = async ({ username, password, role = "admin", active = true })
     error.statusCode = 400;
     throw error;
   }
+  const normalizedRole = normalizeRole(role);
   const [result] = await pool.execute(
     "INSERT INTO app_user (username, password_hash, role, active) VALUES (?, ?, ?, ?)",
-    [username, await hashPassword(password), role || "admin", active ? 1 : 0]
+    [username, await hashPassword(password), normalizedRole, active ? 1 : 0]
   );
   return findUserById(result.insertId);
 };
 
-const updateUser = async (id, { password = "", role = "admin", active = true }) => {
+const updateUser = async (id, { password = "", role, active } = {}) => {
+  const existing = await findUserById(id);
+  if (!existing) return null;
+
+  const normalizedRole = normalizeRole(role ?? existing.role);
+  const normalizedActive = active === undefined ? existing.active : active;
   if (password) {
     await pool.execute(
       "UPDATE app_user SET password_hash = ?, role = ?, active = ? WHERE id = ?",
-      [await hashPassword(password), role || "admin", active ? 1 : 0, id]
+      [await hashPassword(password), normalizedRole, normalizedActive ? 1 : 0, id]
     );
   } else {
     await pool.execute(
       "UPDATE app_user SET role = ?, active = ? WHERE id = ?",
-      [role || "admin", active ? 1 : 0, id]
+      [normalizedRole, normalizedActive ? 1 : 0, id]
     );
   }
   return findUserById(id);
