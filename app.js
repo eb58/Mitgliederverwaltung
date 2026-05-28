@@ -191,6 +191,7 @@ const state = {
   showOverviewGuests: true,
   showPaymentGuests: false,
   showOnlyPaymentComputerGroups: false,
+  showOnlyOpenClubPayments: false,
   showChristmasGuests: false,
   showHistoricalGuests: true,
   usesMemberApi: false,
@@ -870,9 +871,11 @@ const wireUi = () => {
   document.getElementById("manageReferenceDataBtn").addEventListener("click", openReferenceDataModal);
   document.getElementById("userForm").addEventListener("submit", handleUserFormSubmit);
   document.getElementById("resetUserFormBtn").addEventListener("click", resetUserForm);
+  document.getElementById("metricClubOpenBtn").addEventListener("click", showOpenClubPayments);
   document.getElementById("toggleOverviewGuestsBtn").addEventListener("click", toggleOverviewGuests);
   document.getElementById("togglePaymentGuestsBtn").addEventListener("click", togglePaymentGuests);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
+  document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
   document.getElementById("toggleChristmasGuestsBtn").addEventListener("click", toggleChristmasGuests);
   document.getElementById("toggleHistoricalGuestsBtn").addEventListener("click", toggleHistoricalGuests);
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
@@ -880,6 +883,7 @@ const wireUi = () => {
   updateOverviewGuestToggle();
   updatePaymentGuestToggle();
   updatePaymentComputerGroupToggle();
+  updatePaymentClubOpenToggle();
   updateChristmasGuestToggle();
   updateHistoricalGuestToggle();
   updateGlobalSearchVisibility();
@@ -1873,6 +1877,7 @@ const readMemberFromForm = () => {
 const hasExitReason = member => Boolean(austrittsgrundMap[Number(member.austrittsgrund)]);
 const isActiveMember = member => !member.austrittsdatum && !hasExitReason(member);
 const isGuestMember = member => Number(member?.clubzugehoerigkeit) !== MEMBER_CLUB_ID;
+const isOpenClubPaymentMember = member => !isGuestMember(member) && !asBoolean(member.beitragClubBezahlt);
 const normalizeGroupText = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const isComputerGroupMember = member => computerGroupPatterns.some(pattern => normalizeGroupText(member?.gruppenwahl).includes(pattern));
 
@@ -1883,14 +1888,33 @@ const toggleOverviewGuests = () => {
 };
 
 const togglePaymentGuests = () => {
+  if (state.showOnlyOpenClubPayments) state.showOnlyOpenClubPayments = false;
   state.showPaymentGuests = !state.showPaymentGuests;
   updatePaymentGuestToggle();
+  updatePaymentClubOpenToggle();
   refreshAllViews();
 };
 
 const togglePaymentComputerGroups = () => {
+  if (state.showOnlyOpenClubPayments) state.showOnlyOpenClubPayments = false;
   state.showOnlyPaymentComputerGroups = !state.showOnlyPaymentComputerGroups;
   updatePaymentComputerGroupToggle();
+  updatePaymentClubOpenToggle();
+  refreshAllViews();
+};
+
+const togglePaymentClubOpen = () => {
+  const shouldShowOpenOnly = !state.showOnlyOpenClubPayments;
+  state.showOnlyOpenClubPayments = shouldShowOpenOnly;
+  if (shouldShowOpenOnly) {
+    state.showPaymentGuests = false;
+    state.showOnlyPaymentComputerGroups = false;
+    clearGlobalSearch();
+    clearGridFilters(gridApis.payments);
+  }
+  updatePaymentGuestToggle();
+  updatePaymentComputerGroupToggle();
+  updatePaymentClubOpenToggle();
   refreshAllViews();
 };
 
@@ -1906,6 +1930,21 @@ const toggleHistoricalGuests = () => {
   refreshAllViews();
 };
 
+const showOpenClubPayments = () => {
+  state.showPaymentGuests = false;
+  state.showOnlyPaymentComputerGroups = false;
+  state.showOnlyOpenClubPayments = true;
+  clearGlobalSearch();
+  clearGridFilters(gridApis.payments);
+  updatePaymentGuestToggle();
+  updatePaymentComputerGroupToggle();
+  updatePaymentClubOpenToggle();
+  refreshAllViews();
+
+  const paymentsTab = document.getElementById("payments-tab");
+  bootstrap.Tab.getOrCreateInstance(paymentsTab).show();
+};
+
 const updateOverviewGuestToggle = () => updateGuestToggleButton("toggleOverviewGuestsBtn", state.showOverviewGuests);
 const updatePaymentGuestToggle = () => updateGuestToggleButton("togglePaymentGuestsBtn", state.showPaymentGuests);
 const updatePaymentComputerGroupToggle = () => {
@@ -1913,6 +1952,12 @@ const updatePaymentComputerGroupToggle = () => {
   button.textContent = state.showOnlyPaymentComputerGroups ? "Alle Gruppen anzeigen" : "Nur Computergruppen";
   button.setAttribute("aria-pressed", String(state.showOnlyPaymentComputerGroups));
   button.classList.toggle("active", state.showOnlyPaymentComputerGroups);
+};
+const updatePaymentClubOpenToggle = () => {
+  const button = document.getElementById("togglePaymentClubOpenBtn");
+  button.textContent = state.showOnlyOpenClubPayments ? "Alle Club-Beitraege" : "Nur Club offen";
+  button.setAttribute("aria-pressed", String(state.showOnlyOpenClubPayments));
+  button.classList.toggle("active", state.showOnlyOpenClubPayments);
 };
 const updateChristmasGuestToggle = () => updateGuestToggleButton("toggleChristmasGuestsBtn", state.showChristmasGuests);
 const updateHistoricalGuestToggle = () => updateGuestToggleButton("toggleHistoricalGuestsBtn", state.showHistoricalGuests);
@@ -1926,6 +1971,8 @@ const updateGuestToggleButton = (buttonId, showGuests) => {
 
 const filterGuests = (members, showGuests) => showGuests ? members : members.filter(member => !isGuestMember(member));
 const filterPaymentMembers = members => {
+  if (state.showOnlyOpenClubPayments) return members.filter(isOpenClubPaymentMember);
+
   const visibleMembers = filterGuests(members, state.showPaymentGuests);
   return state.showOnlyPaymentComputerGroups ? visibleMembers.filter(isComputerGroupMember) : visibleMembers;
 };
@@ -1985,6 +2032,18 @@ const setGridQuickFilter = (api, text) => {
   api.setGridOption ? api.setGridOption("quickFilterText", text) : api.setQuickFilter?.(text);
 };
 
+const clearGlobalSearch = () => {
+  const searchInput = document.getElementById("globalSearchInput");
+  if (searchInput) searchInput.value = "";
+  Object.values(gridApis).forEach(api => setGridQuickFilter(api, ""));
+};
+
+const clearGridFilters = api => {
+  if (!api) return;
+  api.setFilterModel?.(null);
+  api.onFilterChanged?.();
+};
+
 const clearInactiveQuickFilters = () => {
   const activeApi = getActiveGridApi();
   Object.values(gridApis).forEach(api => {
@@ -2002,6 +2061,7 @@ const refreshDashboard = () => {
   const total = clubMembers.length;
   const guests = activeMembers.filter(isGuestMember).length;
   const clubPaid = clubMembers.filter(member => asBoolean(member.beitragClubBezahlt)).length;
+  const openClubPayments = activeMembers.filter(isOpenClubPaymentMember);
   const computerMembers = clubMembers.filter(isComputerGroupMember);
   const computerTotal = computerMembers.length;
   const computerPaid = computerMembers.filter(member => asBoolean(member.beitragComputerBezahlt)).length;
@@ -2012,7 +2072,7 @@ const refreshDashboard = () => {
   setText("metricComputerTotal", String(computerTotal));
   setText("metricComputerPaid", `${computerPaid} (${percent(computerPaid, computerTotal)}%)`);
 
-  const clubOpen = total - clubPaid;
+  const clubOpen = openClubPayments.length;
   const computerOpen = computerTotal - computerPaid;
 
   setText("metricClubOpen", `${clubOpen} (${percent(clubOpen, total)}%)`);

@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
   <link rel="stylesheet" href="vendor/ag-theme-quartz.css">
-  <link rel="stylesheet" href="styles.css?v=20260527-actions5">
+  <link rel="stylesheet" href="styles.css?v=20260527-dashboard-links">
 </head>
 
 <body>
@@ -90,10 +90,10 @@
             </article>
           </div>
           <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
+            <button id="metricClubOpenBtn" class="metric-box metric-box--button" type="button">
               <div class="metric-label">Club offen</div>
               <div class="metric-value" id="metricClubOpen">0</div>
-            </article>
+            </button>
           </div>
         </div>
 
@@ -191,6 +191,8 @@
             aria-pressed="true">Gäste ausblenden</button>
           <button id="togglePaymentComputerGroupsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
             aria-pressed="false">Nur Computergruppen</button>
+          <button id="togglePaymentClubOpenBtn" class="btn btn-outline-secondary guest-toggle" type="button"
+            aria-pressed="false">Nur Club offen</button>
         </div>
         <div id="paymentsGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
       </div>
@@ -383,7 +385,7 @@
   <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="vendor/ag-grid-community.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
-  <script type="module" src="app.js?v=20260527-actions"></script>
+  <script type="module" src="app.js?v=20260527-open-club-filter"></script>
 </body>
 
 </html>
