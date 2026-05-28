@@ -25,16 +25,38 @@ const findUserByUsername = async username => {
   return rows[0] || null;
 };
 
+const isPasswordUnset = passwordHash => String(passwordHash || "").trim() === "";
+
+const matchesUsernameIgnoringCase = (username, password) => (
+  String(username || "").toLocaleLowerCase("de") === String(password || "").toLocaleLowerCase("de")
+);
+
+const publicUser = (user, passwordChangeRequired = false) => ({
+  id: user.id,
+  username: user.username,
+  role: user.role,
+  passwordChangeRequired
+});
+
 const authenticateUser = async (username, password) => {
   const user = await findUserByUsername(username);
   if (!user || !user.active) return null;
-  if (!await verifyPassword(password, user.password_hash)) return null;
+  const passwordValue = String(password ?? "");
+  const passwordUnset = isPasswordUnset(user.password_hash);
+  if (passwordUnset && passwordValue !== "") return null;
+  if (!passwordUnset && !await verifyPassword(passwordValue, user.password_hash)) return null;
 
-  return {
-    id: user.id,
-    username: user.username,
-    role: user.role
-  };
+  return publicUser(user, passwordUnset || matchesUsernameIgnoringCase(user.username, passwordValue));
+};
+
+const findSessionUserById = async id => {
+  const [rows] = await pool.execute(
+    "SELECT id, username, role, active FROM app_user WHERE id = ?",
+    [id]
+  );
+  const user = rows[0];
+  if (!user || !user.active) return null;
+  return publicUser(user);
 };
 
 const upsertUser = async ({ username, password, role = "admin", active = true }) => {
@@ -113,6 +135,29 @@ const updateUser = async (id, { password = "", role, active } = {}) => {
   return findUserById(id);
 };
 
+const updateUserPassword = async (id, password) => {
+  const existing = await findUserById(id);
+  if (!existing) return null;
+
+  const passwordValue = String(password || "");
+  if (!passwordValue) {
+    const error = new Error("Passwort ist erforderlich.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (matchesUsernameIgnoringCase(existing.username, passwordValue)) {
+    const error = new Error("Das neue Passwort darf nicht dem Benutzernamen entsprechen.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  await pool.execute("UPDATE app_user SET password_hash = ? WHERE id = ?", [await hashPassword(passwordValue), id]);
+  return {
+    ...existing,
+    passwordChangeRequired: false
+  };
+};
+
 const deactivateUser = async id => {
   const [result] = await pool.execute("UPDATE app_user SET active = 0 WHERE id = ?", [id]);
   return result.affectedRows > 0;
@@ -123,7 +168,9 @@ module.exports = {
   createUser,
   deactivateUser,
   findUserById,
+  findSessionUserById,
   listUsers,
   updateUser,
+  updateUserPassword,
   upsertUser
 };

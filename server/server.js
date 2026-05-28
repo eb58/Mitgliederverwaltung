@@ -11,8 +11,10 @@ const {
   authenticateUser,
   createUser,
   deactivateUser,
+  findSessionUserById,
   listUsers,
-  updateUser
+  updateUser,
+  updateUserPassword
 } = require("./user-repository");
 const {
   readJsonBody,
@@ -103,6 +105,7 @@ const isAuthenticated = request => {
     return false;
   }
   session.expiresAt = Date.now() + config.auth.sessionTtlMs;
+  request.session = session;
   request.user = session.user;
   return true;
 };
@@ -133,7 +136,15 @@ const handleSession = async (request, response) => {
 
   if (request.method === "GET") {
     if (!requireAuthentication(request, response)) return;
-    sendJson(response, 200, { user: request.user });
+    const user = await findSessionUserById(request.user.id);
+    if (!user) {
+      sessions.delete(getBearerToken(request));
+      sendJson(response, 401, { error: "Anmeldung erforderlich." });
+      return;
+    }
+    request.session.user = user;
+    request.user = user;
+    sendJson(response, 200, { user });
     return;
   }
 
@@ -144,6 +155,23 @@ const handleSession = async (request, response) => {
   }
 
   sendJson(response, 405, { error: "Methode nicht erlaubt." });
+};
+
+const handleSessionPassword = async (request, response) => {
+  if (request.method !== "POST" && request.method !== "PUT" && request.method !== "PATCH") {
+    sendJson(response, 405, { error: "Methode nicht erlaubt." });
+    return;
+  }
+
+  const body = await readJsonBody(request);
+  const user = await updateUserPassword(request.user.id, body.password ?? body.newPassword ?? "");
+  if (!user) {
+    sendJson(response, 404, { error: "Benutzer nicht gefunden." });
+    return;
+  }
+  request.session.user = user;
+  request.user = user;
+  sendJson(response, 200, { user });
 };
 
 const handleUsersCollection = async (request, response) => {
@@ -425,6 +453,12 @@ const handleRequest = async (request, response) => {
 
   if (url.pathname === "/api/session") {
     await handleSession(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/session/password") {
+    if (!requireAuthentication(request, response)) return;
+    await handleSessionPassword(request, response);
     return;
   }
 

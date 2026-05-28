@@ -158,7 +158,12 @@ function requireAuth(): array
         ->modify('+' . config()['auth']['session_ttl_seconds'] . ' seconds')
         ->format('Y-m-d H:i:s');
     db()->prepare('UPDATE app_session SET expires_at = ? WHERE token_hash = ?')->execute([$expiresAt, tokenHash($token)]);
-    return ['id' => (int) $user['id'], 'username' => $user['username'], 'role' => $user['role']];
+    return [
+        'id' => (int) $user['id'],
+        'username' => $user['username'],
+        'role' => $user['role'],
+        'passwordChangeRequired' => false,
+    ];
 }
 
 function requireAdmin(array $user): void
@@ -177,6 +182,21 @@ function normalizeUserRole(mixed $role): string
     return $value;
 }
 
+function isPasswordUnset(mixed $passwordHash): bool
+{
+    return trim((string) $passwordHash) === '';
+}
+
+function valuesMatchIgnoringCase(mixed $left, mixed $right): bool
+{
+    $leftValue = (string) $left;
+    $rightValue = (string) $right;
+    if (function_exists('mb_strtolower')) {
+        return mb_strtolower($leftValue, 'UTF-8') === mb_strtolower($rightValue, 'UTF-8');
+    }
+    return strtolower($leftValue) === strtolower($rightValue);
+}
+
 function handleSession(): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
@@ -185,10 +205,20 @@ function handleSession(): void
         $statement = db()->prepare('SELECT id, username, password_hash, role, active FROM app_user WHERE username = ?');
         $statement->execute([(string) ($body['username'] ?? '')]);
         $user = $statement->fetch();
-        if (!$user || !(bool) $user['active'] || !password_verify((string) ($body['password'] ?? ''), (string) $user['password_hash'])) {
+        $password = (string) ($body['password'] ?? '');
+        $passwordUnset = $user ? isPasswordUnset($user['password_hash'] ?? '') : false;
+        $passwordMatches = $passwordUnset
+            ? $password === ''
+            : ($user && password_verify($password, (string) $user['password_hash']));
+        if (!$user || !(bool) $user['active'] || !$passwordMatches) {
             throw new ApiError('Benutzername oder Passwort ist falsch.', 401);
         }
-        $publicUser = ['id' => (int) $user['id'], 'username' => $user['username'], 'role' => $user['role']];
+        $publicUser = [
+            'id' => (int) $user['id'],
+            'username' => $user['username'],
+            'role' => $user['role'],
+            'passwordChangeRequired' => $passwordUnset || valuesMatchIgnoringCase($user['username'], $password),
+        ];
         jsonResponse(['token' => createSession($publicUser), 'user' => $publicUser]);
     }
 
@@ -205,6 +235,34 @@ function handleSession(): void
     }
 
     throw new ApiError('Methode nicht erlaubt.', 405);
+}
+
+function handleSessionPassword(array $currentUser): void
+{
+    $method = $_SERVER['REQUEST_METHOD'];
+    if (!in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
+        throw new ApiError('Methode nicht erlaubt.', 405);
+    }
+
+    $body = readJsonBody();
+    $password = (string) ($body['password'] ?? $body['newPassword'] ?? '');
+    if ($password === '') {
+        throw new ApiError('Passwort ist erforderlich.', 400);
+    }
+    if (valuesMatchIgnoringCase($currentUser['username'] ?? '', $password)) {
+        throw new ApiError('Das neue Passwort darf nicht dem Benutzernamen entsprechen.', 400);
+    }
+
+    $statement = db()->prepare('UPDATE app_user SET password_hash = ? WHERE id = ?');
+    $statement->execute([password_hash($password, PASSWORD_DEFAULT), (int) $currentUser['id']]);
+    jsonResponse([
+        'user' => [
+            'id' => (int) $currentUser['id'],
+            'username' => $currentUser['username'],
+            'role' => $currentUser['role'],
+            'passwordChangeRequired' => false,
+        ],
+    ]);
 }
 
 function publicUser(array $user): array

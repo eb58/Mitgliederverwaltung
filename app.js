@@ -272,6 +272,7 @@ let loginModal = null;
 let userAdminModal = null;
 let referenceDataModal = null;
 let loginWaitResolve = null;
+let passwordChangeRequiredFlow = true;
 let memberApiBaseUrl = DEFAULT_MEMBER_API_BASE_URL;
 let selectedMemberPhotoFile = null;
 let referenceAdminData = {};
@@ -386,7 +387,32 @@ const wireLoginForm = () => {
   if (!loginForm || loginForm.dataset.wired === "true") return;
   loginForm.dataset.wired = "true";
   loginForm.addEventListener("submit", handleLoginSubmit);
+  document.getElementById("passwordChangeForm").addEventListener("submit", handlePasswordChangeSubmit);
+  document.getElementById("passwordChangeCancelBtn").addEventListener("click", closeManualPasswordChange);
   document.getElementById("toggleLoginPasswordBtn").addEventListener("click", toggleLoginPasswordVisibility);
+};
+
+const showLoginForm = () => {
+  document.getElementById("loginForm").hidden = false;
+  document.getElementById("passwordChangeForm").hidden = true;
+  document.getElementById("loginError").hidden = true;
+};
+
+const showPasswordChangeForm = ({ required = true } = {}) => {
+  passwordChangeRequiredFlow = required;
+  document.getElementById("loginForm").hidden = true;
+  document.getElementById("passwordChangeForm").hidden = false;
+  document.getElementById("passwordChangeCancelBtn").hidden = required;
+  document.getElementById("newPassword").value = "";
+  document.getElementById("confirmNewPassword").value = "";
+  document.getElementById("passwordChangeError").hidden = true;
+  setTimeout(() => document.getElementById("newPassword")?.focus(), 150);
+};
+
+const closeManualPasswordChange = () => {
+  loginModal.hide();
+  showLoginForm();
+  setAppShellVisible(true);
 };
 
 const toggleLoginPasswordVisibility = () => {
@@ -396,6 +422,18 @@ const toggleLoginPasswordVisibility = () => {
   passwordInput.type = nextIsVisible ? "text" : "password";
   button.setAttribute("aria-pressed", String(nextIsVisible));
   button.setAttribute("aria-label", nextIsVisible ? "Passwort verbergen" : "Passwort anzeigen");
+};
+
+const finishAuthenticatedLogin = async () => {
+  loginModal.hide();
+  showLoginForm();
+  if (loginWaitResolve) {
+    loginWaitResolve(true);
+    loginWaitResolve = null;
+  } else {
+    await reloadMembersFromApi();
+  }
+  setAppShellVisible(true);
 };
 
 const handleLoginSubmit = async event => {
@@ -408,16 +446,49 @@ const handleLoginSubmit = async event => {
     errorElement.hidden = true;
     await login(usernameInput.value.trim(), passwordInput.value);
     passwordInput.value = "";
-    loginModal.hide();
-    if (loginWaitResolve) {
-      loginWaitResolve(true);
-      loginWaitResolve = null;
-    } else {
-      await reloadMembersFromApi();
+    if (state.currentUser?.passwordChangeRequired) {
+      setAppShellVisible(false);
+      showPasswordChangeForm();
+      return;
     }
-    setAppShellVisible(true);
+    await finishAuthenticatedLogin();
   } catch (error) {
     errorElement.textContent = error.message || "Anmeldung fehlgeschlagen.";
+    errorElement.hidden = false;
+  }
+};
+
+const handlePasswordChangeSubmit = async event => {
+  event.preventDefault();
+  const passwordInput = document.getElementById("newPassword");
+  const confirmPasswordInput = document.getElementById("confirmNewPassword");
+  const errorElement = document.getElementById("passwordChangeError");
+  const password = passwordInput.value;
+  const username = state.currentUser?.username || "";
+
+  try {
+    errorElement.hidden = true;
+    if (!password) {
+      throw new Error("Bitte ein neues Passwort eingeben.");
+    }
+    if (password !== confirmPasswordInput.value) {
+      throw new Error("Die Passwoerter stimmen nicht ueberein.");
+    }
+    if (username && username.toLocaleLowerCase("de") === password.toLocaleLowerCase("de")) {
+      throw new Error("Das neue Passwort darf nicht dem Benutzernamen entsprechen.");
+    }
+    const payload = await changeOwnPasswordViaApi(password);
+    state.currentUser = payload?.user || { ...state.currentUser, passwordChangeRequired: false };
+    updateUserAdminButton();
+    passwordInput.value = "";
+    confirmPasswordInput.value = "";
+    if (passwordChangeRequiredFlow) {
+      await finishAuthenticatedLogin();
+    } else {
+      closeManualPasswordChange();
+    }
+  } catch (error) {
+    errorElement.textContent = error.message || "Passwort konnte nicht geaendert werden.";
     errorElement.hidden = false;
   }
 };
@@ -425,6 +496,7 @@ const handleLoginSubmit = async event => {
 const ensureAuthenticated = async () => {
   if (!state.authToken) {
     setAppShellVisible(false);
+    showLoginForm();
     loginModal.show();
     return new Promise(resolve => {
       loginWaitResolve = resolve;
@@ -435,11 +507,20 @@ const ensureAuthenticated = async () => {
     const payload = await requestMemberApi("/api/session");
     state.currentUser = payload.user || null;
     updateUserAdminButton();
+    if (state.currentUser?.passwordChangeRequired) {
+      setAppShellVisible(false);
+      showPasswordChangeForm();
+      loginModal.show();
+      return new Promise(resolve => {
+        loginWaitResolve = resolve;
+      });
+    }
     return true;
   } catch (error) {
     clearAuthToken();
     state.currentUser = null;
     setAppShellVisible(false);
+    showLoginForm();
     loginModal.show();
     return new Promise(resolve => {
       loginWaitResolve = resolve;
@@ -477,6 +558,7 @@ const logout = () => {
   state.nextId = 1;
   refreshAllViews();
   setAppShellVisible(false);
+  showLoginForm();
   loginModal.show();
 
   if (token) {
@@ -498,6 +580,7 @@ const loadUsersFromApi = () => requestMemberApi("/api/users");
 const createUserViaApi = user => requestMemberApi("/api/users", { method: "POST", body: user });
 const updateUserViaApi = user => requestMemberApi(`/api/users/${user.id}`, { method: "PUT", body: user });
 const deactivateUserViaApi = id => requestMemberApi(`/api/users/${id}`, { method: "DELETE" });
+const changeOwnPasswordViaApi = password => requestMemberApi("/api/session/password", { method: "PUT", body: { password } });
 const loadReferenceDataFromApi = () => requestMemberApi("/api/reference-data");
 const loadReferenceItemsFromApi = type => requestMemberApi(`/api/reference-data/${type}`);
 const createReferenceItemViaApi = (type, item) => requestMemberApi(`/api/reference-data/${type}`, { method: "POST", body: item });
@@ -607,6 +690,12 @@ const openUserAdminModal = async () => {
   userAdminModal.show();
 };
 
+const openOwnPasswordChangeModal = () => {
+  if (!state.currentUser) return;
+  showPasswordChangeForm({ required: false });
+  loginModal.show();
+};
+
 const handleUserFormSubmit = async event => {
   event.preventDefault();
   const errorElement = document.getElementById("userAdminError");
@@ -656,7 +745,9 @@ const setAppShellVisible = visible => {
 const updateUserAdminButton = () => {
   const isAdmin = String(state.currentUser?.role || "").trim().toLowerCase() === "admin";
   const adminMenu = document.getElementById("adminMenu");
+  const changePasswordButton = document.getElementById("changePasswordBtn");
   if (adminMenu) adminMenu.hidden = !isAdmin;
+  if (changePasswordButton) changePasswordButton.hidden = !state.currentUser;
   ["manageUsersMenuItem", "manageReferenceDataMenuItem"].forEach(id => {
     const item = document.getElementById(id);
     if (item) item.hidden = !isAdmin;
@@ -835,6 +926,7 @@ const toggleReferenceItem = async (type, item) => {
 const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
   document.getElementById("logoutBtn").addEventListener("click", logout);
+  document.getElementById("changePasswordBtn").addEventListener("click", openOwnPasswordChangeModal);
   document.getElementById("manageUsersBtn").addEventListener("click", openUserAdminModal);
   document.getElementById("manageReferenceDataBtn").addEventListener("click", openReferenceDataModal);
   document.getElementById("userForm").addEventListener("submit", handleUserFormSubmit);

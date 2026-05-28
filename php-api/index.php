@@ -20,6 +20,10 @@ try {
 
     $user = requireAuth();
 
+    if ($path === '/api/session/password') {
+        handleSessionPassword($user);
+    }
+
     if ($path === '/api/users') {
         handleUsersCollection($user);
     }

@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
   <link rel="stylesheet" href="vendor/ag-theme-quartz.css">
-  <link rel="stylesheet" href="styles.css?v=20260527-dashboard-links">
+  <link rel="stylesheet" href="styles.css?v=20260528-password-button">
 </head>
 
 <body>
@@ -26,6 +26,7 @@
         <input id="globalSearchInput" type="search" class="form-control search-input"
           placeholder="Suchen (Name, E-Mail, Straße, ...)">
         <button id="addMemberBtn" class="btn btn-primary">Neues Mitglied</button>
+        <button id="changePasswordBtn" class="btn btn-primary app-menu__button" type="button" hidden>Passwort &auml;ndern</button>
         <div id="adminMenu" class="dropdown app-menu" hidden>
           <button id="appMenuBtn" class="btn btn-primary app-menu__button" type="button"
             data-bs-toggle="dropdown" aria-expanded="false">Admin</button>
@@ -356,7 +357,7 @@
                     <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
                   </svg>
                 </span>
-                <input id="loginPassword" class="form-control" type="password" autocomplete="current-password" required>
+                <input id="loginPassword" class="form-control" type="password" autocomplete="current-password">
                 <button id="toggleLoginPasswordBtn" class="login-field__toggle" type="button"
                   aria-label="Passwort anzeigen" aria-pressed="false">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -378,6 +379,48 @@
             </button>
           </div>
         </form>
+        <form id="passwordChangeForm" hidden>
+          <div class="login-card__header">
+            <img class="login-card__logo" src="assets/website-logo.jpg" alt="Freizeitstaette Luebars">
+            <h2 class="login-card__title">Passwort &auml;ndern</h2>
+            <p class="login-card__subtitle">Neues Passwort setzen</p>
+          </div>
+          <div class="login-card__body">
+            <div class="login-field">
+              <label class="form-label" for="newPassword">Neues Passwort</label>
+              <div class="login-field__control">
+                <span class="login-field__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <rect x="4" y="11" width="16" height="9" rx="2"></rect>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+                  </svg>
+                </span>
+                <input id="newPassword" class="form-control" type="password" autocomplete="new-password" required>
+              </div>
+            </div>
+            <div class="login-field">
+              <label class="form-label" for="confirmNewPassword">Passwort wiederholen</label>
+              <div class="login-field__control">
+                <span class="login-field__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M20 6 9 17l-5-5"></path>
+                  </svg>
+                </span>
+                <input id="confirmNewPassword" class="form-control" type="password" autocomplete="new-password" required>
+              </div>
+            </div>
+            <div id="passwordChangeError" class="login-error" role="alert" hidden></div>
+          </div>
+          <div class="login-card__footer password-change-actions">
+            <button id="passwordChangeCancelBtn" type="button" class="btn btn-outline-secondary" hidden>Abbrechen</button>
+            <button type="submit" class="btn btn-primary login-submit">
+              <span>Passwort speichern</span>
+              <svg class="login-submit__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M20 6 9 17l-5-5"></path>
+              </svg>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -385,7 +428,7 @@
   <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="vendor/ag-grid-community.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
-  <script type="module" src="app.js?v=20260528-payment-club-paid"></script>
+  <script type="module" src="app.js?v=20260528-password-button"></script>
 </body>
 
 </html>

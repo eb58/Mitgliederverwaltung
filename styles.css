@@ -943,6 +943,15 @@ main.container-fluid {
   font-weight: 700;
 }
 
+.password-change-actions {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.password-change-actions .btn {
+  min-height: 46px;
+}
+
 .login-submit__icon {
   width: 18px;
   height: 18px;
