@@ -71,6 +71,7 @@ const funktionsMap = {
 
 
 const interestGroupOptions = [];
+const groupChoiceOptions = [];
 const austrittsgrundOptions = [];
 const funktionsOptions = [];
 const seniorenclubOptions = [];
@@ -92,7 +93,7 @@ const fieldDefinitions = [
   { key: "austrittsdatum", label: "Austrittsdatum", type: "date" },
   { key: "austrittsgrund", label: "Austrittsgrund", type: "select", options: austrittsgrundOptions, allowEmpty: true },
   { key: "interessengruppen", label: "Interessengruppen", type: "multiselect", options: interestGroupOptions },
-  { key: "gruppenwahl", label: "Gruppenwahl", type: "text" },
+  { key: "gruppenwahl", label: "Gruppenwahl", type: "select", options: groupChoiceOptions, allowEmpty: true },
   { key: "funktion", label: "Funktion", type: "multiselect", options: funktionsOptions, valueType: "textList" },
   { key: "auswahl", label: "Auswahl", type: "checkbox" },
   { key: "ausweisErteilt", label: "Ausweis erteilt", type: "checkbox" },
@@ -322,6 +323,12 @@ const refreshReferenceOptions = () => {
     [...interestGroups]
       .sort((a, b) => germanCollator.compare(a.label, b.label))
       .map(group => ({ value: group.id, label: group.label }))
+  );
+  replaceArrayContents(
+    groupChoiceOptions,
+    [...interestGroups]
+      .sort((a, b) => germanCollator.compare(a.label, b.label))
+      .map(group => ({ value: group.label, label: group.label }))
   );
   replaceArrayContents(
     austrittsgrundOptions,
@@ -1386,7 +1393,7 @@ const createMemberFormField = field => {
   }
 
   if (field.key === "gruppenwahl") {
-    input.addEventListener("input", updateConditionalMemberFormGroups);
+    input.addEventListener("change", updateConditionalMemberFormGroups);
   }
 
   col.append(label, input);
@@ -1510,6 +1517,16 @@ const resetMemberFormTabs = () => {
   }
 };
 
+const ensureSelectHasValue = (input, raw) => {
+  const value = raw === null || raw === undefined ? "" : String(raw);
+  if (!value || Array.from(input.options).some(option => option.value === value)) return;
+
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = value;
+  input.appendChild(option);
+};
+
 const fillMemberForm = (member, isNew) => {
   fieldDefinitions.forEach(field => {
     const input = document.getElementById(`field-${field.key}`);
@@ -1549,6 +1566,9 @@ const fillMemberForm = (member, isNew) => {
     }
 
     if (field.type === "select") {
+      if (field.key === "gruppenwahl") {
+        ensureSelectHasValue(input, raw);
+      }
       input.value = raw === null || raw === undefined ? "" : String(raw);
       return;
     }
