@@ -159,7 +159,6 @@ const formSections = [
         visibleWhen: "computerGroupMember",
         fieldKeys: [
           "beitragComputerBezahlt",
-          "betragComputerBar",
           "gezahlterBetragComputer",
           "einzahlungComputerAm"
         ]
@@ -1058,10 +1057,10 @@ const getPaymentColumns = () => [
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
-  { headerName: "Beitrag bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: toggleCellRenderer("beitragClubBezahlt") },
+  { headerName: "Beitrag bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: paidStatusCellRenderer },
   { headerName: "gezahlter Betrag Club", field: "gezahlterBetragClub", valueFormatter: currencyFormatter, minWidth: 190 },
-  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: computerGroupToggleCellRenderer("beitragComputerBezahlt") },
-  { headerName: "Beitrag Computer bar", field: "betragComputerBar", valueFormatter: computerGroupCurrencyFormatter, minWidth: 170 },
+  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: computerGroupPaidStatusCellRenderer },
+  { headerName: "gezahlter Betrag Computer", field: "gezahlterBetragComputer", valueFormatter: computerGroupCurrencyFormatter, minWidth: 220 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
 
@@ -1071,7 +1070,7 @@ const getChristmasColumns = () => [
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
   { headerName: "Weihnachtsessen", field: "weihnachtsessen", valueFormatter: christmasFormatter, minWidth: 150 },
-  { headerName: "bezahlt", field: "wnEssenBezahlt", minWidth: 145, filter: false, cellRenderer: toggleCellRenderer("wnEssenBezahlt") },
+  { headerName: "bezahlt", field: "wnEssenBezahlt", minWidth: 145, filter: false, cellRenderer: paidStatusCellRenderer },
   { headerName: "Preis Weihnachten", field: "preisWeihnachten", valueFormatter: currencyFormatter, minWidth: 150 },
   { headerName: "gezahlter Betrag Weihnachten", field: "gezahlterBetragWeihnachten", valueFormatter: currencyFormatter, minWidth: 210 },
   { headerName: "Tischnummer", field: "tischnummer", minWidth: 120 },
@@ -1107,40 +1106,17 @@ const getEditColumn = () => ({
   }
 });
 
-const toggleCellRenderer = fieldName => params => {
-  const toggle = document.createElement("input");
-  toggle.type = "checkbox";
-  toggle.className = "form-check-input table-toggle";
-  toggle.checked = asBoolean(params.value);
-  toggle.title = "Status umschalten";
-
-  toggle.addEventListener("change", async () => {
-    const previousValue = asBoolean(params.data[fieldName]);
-    params.data[fieldName] = toggle.checked;
-    params.node.setDataValue(fieldName, toggle.checked);
-
-    try {
-      toggle.disabled = true;
-      const savedMember = await persistMemberImmediate(params.data, true);
-      if (savedMember) {
-        replaceMemberInState(savedMember);
-      }
-      refreshDashboard();
-      refreshAllGridCells();
-    } catch (error) {
-      console.warn("Status konnte nicht gespeichert werden.", error);
-      params.data[fieldName] = previousValue;
-      toggle.checked = previousValue;
-      params.node.setDataValue(fieldName, previousValue);
-      window.alert("Speichern in der Datenbank fehlgeschlagen.");
-    } finally {
-      toggle.disabled = false;
-    }
-  });
-  return toggle;
+const paidStatusCellRenderer = params => {
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.className = "form-check-input table-toggle";
+  checkbox.checked = asBoolean(params.value);
+  checkbox.disabled = true;
+  checkbox.title = checkbox.checked ? "Bezahlt" : "Nicht bezahlt";
+  checkbox.setAttribute("aria-label", checkbox.title);
+  return checkbox;
 };
-
-const computerGroupToggleCellRenderer = fieldName => params => isComputerGroupMember(params.data) ? toggleCellRenderer(fieldName)(params) : "";
+const computerGroupPaidStatusCellRenderer = params => isComputerGroupMember(params.data) ? paidStatusCellRenderer(params) : "";
 const computerGroupCurrencyFormatter = params => isComputerGroupMember(params.data) ? currencyFormatter(params) : "";
 
 const buildMemberForm = () => {
@@ -2542,25 +2518,6 @@ const updateMemberViaApi = async member => {
 };
 
 const deleteMemberViaApi = id => requestMemberApi(`/api/members/${id}`, { method: "DELETE" });
-
-const replaceMemberInState = member => {
-  const index = state.members.findIndex(item => item.id === member.id);
-  if (index >= 0) {
-    state.members[index] = member;
-  }
-  state.members.sort((a, b) => a.name.localeCompare(b.name, "de") || a.vorname.localeCompare(b.vorname, "de"));
-};
-
-const persistMemberImmediate = async (member, silent = false) => {
-  try {
-    return updateMemberViaApi(member);
-  } catch (error) {
-    if (!silent) {
-      window.alert("Speichern in der Datenbank fehlgeschlagen.");
-    }
-    throw error;
-  }
-};
 
 const normalizeMember = raw => {
   const clone = { ...raw };
