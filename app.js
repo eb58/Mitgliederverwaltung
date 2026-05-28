@@ -150,7 +150,6 @@ const formSections = [
         label: "Club",
         fieldKeys: [
           "beitragClubBezahlt",
-          "betragClubBar",
           "gezahlterBetragClub",
           "einzahlungClubAm"
         ]
@@ -194,7 +193,6 @@ const state = {
   showOnlyOpenClubPayments: false,
   showChristmasGuests: false,
   showHistoricalGuests: true,
-  usesMemberApi: false,
   currentUser: null,
   authToken: localStorage.getItem("mitgliederverwaltung:authToken") || ""
 };
@@ -209,15 +207,11 @@ const gridApis = {
 let ageHistogramChart = null;
 let interestGroupChart = null;
 
-const CONFIG_FILE_NAME = "config.json";
-const STORAGE_FILE_NAME = "members.json";
-const CSV_STORAGE_FILE_NAME = "members.csv";
 const MEMBER_API_BROWSER_CONFIG_FILE_NAME = "member-api.config.json";
 const DEFAULT_MEMBER_API_BASE_URL = globalThis.location.protocol.startsWith("http") ? globalThis.location.origin : "http://127.0.0.1:3001";
 const PHP_MEMBER_API_BASE_PATH = "/mitgliederverwaltung/php-api/index.php";
 const MEMBER_API_PAGE_SIZE = 500;
 const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
-const SAVE_DEBOUNCE_MS = 450;
 const GRID_COLUMN_STATE_PREFIX = "mitgliederverwaltung:gridColumnState:";
 const searchableTabTargets = new Set([
   "#overview-pane",
@@ -264,22 +258,6 @@ const gridLocaleText = {
   cancelFilter: "Abbrechen"
 };
 
-const csvHeaderAliases = new Map([
-  ["zuname", "name"],
-  ["eintritt", "eintrittsdatum"],
-  ["austritt", "austrittsdatum"],
-  ["beitragclubbezahlt", "beitragClubBezahlt"],
-  ["betragclubbar", "betragClubBar"],
-  ["beitragcomputerbezahlt", "beitragComputerBezahlt"],
-  ["betragcomputerbar", "betragComputerBar"],
-  ["wnessenbezahlt", "wnEssenBezahlt"],
-  ["bezahlt", "wnEssenBezahlt"],
-  ["email", "email"],
-  ["e-mail", "email"],
-  ["strasse", "strasse"],
-  ["straße", "strasse"]
-]);
-
 const computerGroupPatterns = [
   "computer",
   "excel",
@@ -299,14 +277,7 @@ let memberApiBaseUrl = DEFAULT_MEMBER_API_BASE_URL;
 let selectedMemberPhotoFile = null;
 let referenceAdminData = {};
 let selectedMemberPhotoObjectUrl = null;
-let storageFilePathPromise = null;
-let persistTimerId = null;
-let persistQueue = Promise.resolve();
 const restoringGridStateKeys = new Set();
-const photoPathCache = {
-  passbilderDirectoryPathPromise: null,
-  photoFileNamesPromise: null
-};
 
 const replaceObjectContents = (target, entries) => {
   Object.keys(target).forEach(key => delete target[key]);
@@ -503,7 +474,6 @@ const logout = () => {
   const token = state.authToken;
   clearAuthToken();
   state.currentUser = null;
-  state.usesMemberApi = false;
   state.members = [];
   state.nextId = 1;
   refreshAllViews();
@@ -519,7 +489,6 @@ const logout = () => {
 
 const reloadMembersFromApi = async () => {
   const members = await loadMembersFromApi();
-  state.usesMemberApi = true;
   state.members = members;
   state.nextId = getNextId(state.members);
   setAppShellVisible(true);
@@ -897,11 +866,6 @@ const wireUi = () => {
     });
   });
 
-  window.addEventListener("beforeunload", () => {
-    persistMembersImmediate(true).catch(() => {
-      // no-op
-    });
-  });
 };
 
 const updateGlobalSearchVisibility = activeTarget => {
@@ -1095,7 +1059,7 @@ const getPaymentColumns = () => [
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
   { headerName: "Beitrag bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: toggleCellRenderer("beitragClubBezahlt") },
-  { headerName: "Betrag bar", field: "betragClubBar", valueFormatter: currencyFormatter, minWidth: 150 },
+  { headerName: "gezahlter Betrag Club", field: "gezahlterBetragClub", valueFormatter: currencyFormatter, minWidth: 190 },
   { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: computerGroupToggleCellRenderer("beitragComputerBezahlt") },
   { headerName: "Beitrag Computer bar", field: "betragComputerBar", valueFormatter: computerGroupCurrencyFormatter, minWidth: 170 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
@@ -1709,14 +1673,12 @@ const handleMemberSubmit = async event => {
       window.alert(`Die ID ${formData.id} existiert bereits. Bitte eine andere ID wählen.`);
       return;
     }
-    if (state.usesMemberApi) {
-      try {
-        formData = await createMemberViaApi(formData);
-      } catch (error) {
-        console.warn("Mitglied konnte nicht angelegt werden.", error);
-        window.alert("Speichern in der Datenbank fehlgeschlagen.");
-        return;
-      }
+    try {
+      formData = await createMemberViaApi(formData);
+    } catch (error) {
+      console.warn("Mitglied konnte nicht angelegt werden.", error);
+      window.alert("Speichern in der Datenbank fehlgeschlagen.");
+      return;
     }
     try {
       formData = await uploadSelectedMemberPhotoIfNeeded(formData);
@@ -1733,14 +1695,12 @@ const handleMemberSubmit = async event => {
     }
     formData.id = state.editingId;
     formData.passbild = state.members[index].passbild || "";
-    if (state.usesMemberApi) {
-      try {
-        formData = await updateMemberViaApi(formData);
-      } catch (error) {
-        console.warn("Mitglied konnte nicht gespeichert werden.", error);
-        window.alert("Speichern in der Datenbank fehlgeschlagen.");
-        return;
-      }
+    try {
+      formData = await updateMemberViaApi(formData);
+    } catch (error) {
+      console.warn("Mitglied konnte nicht gespeichert werden.", error);
+      window.alert("Speichern in der Datenbank fehlgeschlagen.");
+      return;
     }
     try {
       formData = await uploadSelectedMemberPhotoIfNeeded(formData);
@@ -1757,9 +1717,6 @@ const handleMemberSubmit = async event => {
     }
     return a.vorname.localeCompare(b.vorname, "de");
   });
-  if (!state.usesMemberApi) {
-    await persistMembersImmediate(false);
-  }
   clearSelectedMemberPhoto();
   memberModal.hide();
   refreshAllViews();
@@ -1767,10 +1724,6 @@ const handleMemberSubmit = async event => {
 
 const uploadSelectedMemberPhotoIfNeeded = async member => {
   if (!selectedMemberPhotoFile) return member;
-  if (!state.usesMemberApi) {
-    window.alert("Passfotos können nur bei aktiver Datenbankverbindung hochgeladen werden.");
-    return member;
-  }
 
   try {
     const photo = await uploadMemberPhotoViaApi(member.id, selectedMemberPhotoFile);
@@ -1800,13 +1753,8 @@ const handleMemberDelete = async () => {
   }
 
   try {
-    if (state.usesMemberApi) {
-      await deleteMemberViaApi(member.id);
-    }
+    await deleteMemberViaApi(member.id);
     state.members = state.members.filter(item => item.id !== member.id);
-    if (!state.usesMemberApi) {
-      await persistMembersImmediate(false);
-    }
     state.editingId = null;
     memberModal.hide();
     refreshAllViews();
@@ -2428,453 +2376,22 @@ const roundCurrency = value => Math.round(Number(value) * 100) / 100;
 const formatMemberName = member => `${member?.vorname || ""} ${member?.name || ""}`.trim() || "Mitglied";
 
 const resolveMemberPhotoDataUrl = async member => {
-  if (state.usesMemberApi && member?.id && member.hasPassbildInDb) {
+  if (member?.id && member.hasPassbildInDb) {
     return fetchMemberPhotoObjectUrl(member.id);
   }
-
-  const bridge = getElectronBridge();
-  if (!bridge) return null;
-
-  if (bridge.photos && typeof bridge.photos.findDataUrl === "function") {
-    return bridge.photos.findDataUrl(await getStorageFilePath(), getMemberPhotoFileNames(member));
-  }
-
-  const photoPath = await resolveMemberPhotoPath(member);
-  if (!photoPath) return null;
-  if (typeof bridge.fs.readFileBase64 !== "function") {
-    return filePathToFileUrl(photoPath);
-  }
-
-  const base64 = await bridge.fs.readFileBase64(photoPath);
-  return `data:${getImageMimeType(photoPath)};base64,${base64}`;
-};
-
-const resolveMemberPhotoPath = async member => {
-  const bridge = getElectronBridge();
-  if (!bridge) return null;
-
-  const fileNames = getMemberPhotoFileNames(member);
-  if (fileNames.length === 0) return null;
-
-  const passbilderDirectoryPath = await getPassbilderDirectoryPath();
-  const matchedFileName = await findExistingPhotoFileName(fileNames);
-  if (matchedFileName) {
-    return bridge.path.join(passbilderDirectoryPath, matchedFileName);
-  }
-
-  for (const fileName of fileNames) {
-    const photoPath = isAbsoluteFilePath(fileName)
-      ? fileName
-      : await bridge.path.join(passbilderDirectoryPath, fileName);
-    if (await bridge.fs.existsSync(photoPath)) return photoPath;
-  }
-
   return null;
 };
-
-const getMemberPhotoFileNames = member => {
-  const configuredFile = normalizePhotoFileName(member?.passbild);
-  const name = String(member?.name || "").trim();
-  const vorname = String(member?.vorname || "").trim();
-  const fallbackBaseNames = [
-    `${name} ${vorname}`.trim(),
-    `${vorname} ${name}`.trim()
-  ].filter(Boolean);
-  const fallbackFiles = fallbackBaseNames.flatMap(baseName => [".jpg", ".jpeg", ".png"].map(extension => `${baseName}${extension}`));
-
-  return [...new Set([configuredFile, ...fallbackFiles].filter(Boolean))];
-};
-
-const findExistingPhotoFileName = async fileNames => {
-  const availableFileNames = await getAvailablePhotoFileNames();
-  if (availableFileNames.length === 0) return null;
-
-  const fileNameByLowerName = new Map(availableFileNames.map(fileName => [fileName.toLowerCase(), fileName]));
-  return fileNames.map(fileName => fileNameByLowerName.get(fileName.toLowerCase())).find(Boolean) || null;
-};
-
-const getAvailablePhotoFileNames = async () => {
-  if (photoPathCache.photoFileNamesPromise) {
-    return photoPathCache.photoFileNamesPromise;
-  }
-
-  const bridge = getElectronBridge();
-  if (!bridge || typeof bridge.fs.readDir !== "function") return [];
-
-  photoPathCache.photoFileNamesPromise = (async () => {
-    const passbilderDirectoryPath = await getPassbilderDirectoryPath();
-    const fileNames = await bridge.fs.readDir(passbilderDirectoryPath);
-    return fileNames.filter(fileName => /\.(jpe?g|png)$/i.test(fileName));
-  })();
-
-  return photoPathCache.photoFileNamesPromise;
-};
-
-const getPassbilderDirectoryPath = async () => {
-  if (photoPathCache.passbilderDirectoryPathPromise) {
-    return photoPathCache.passbilderDirectoryPathPromise;
-  }
-
-  const bridge = getElectronBridge();
-  if (!bridge) {
-    throw new Error("Electron bridge nicht verfuegbar.");
-  }
-
-  photoPathCache.passbilderDirectoryPathPromise = (async () => {
-    const storageFilePath = await getStorageFilePath();
-    const storageDirectory = await bridge.path.dirname(storageFilePath);
-    return bridge.path.join(storageDirectory, "Passbilder");
-  })();
-
-  return photoPathCache.passbilderDirectoryPathPromise;
-};
-
-const isAbsoluteFilePath = filePath => /^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith("\\\\");
 
 const normalizePhotoFileName = value => {
   const fileName = String(value || "").trim().split(/[\\/]/).filter(Boolean).pop() || "";
   return /\.(jpe?g|png)$/i.test(fileName) ? fileName : "";
 };
 
-const filePathToFileUrl = filePath => {
-  const normalized = String(filePath || "").replace(/\\/g, "/");
-  if (normalized.startsWith("//")) {
-    return `file:${normalized.split("/").map(encodeURIComponent).join("/")}`;
-  }
-
-  const parts = normalized.split("/");
-  const encoded = parts
-    .map((part, index) => index === 0 && /^[a-zA-Z]:$/.test(part) ? part : encodeURIComponent(part))
-    .join("/");
-  return `file:///${encoded}`;
-};
-
-const getImageMimeType = filePath => {
-  const extension = String(filePath || "").split(".").pop().toLowerCase();
-  const mimeTypes = {
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png"
-  };
-  return mimeTypes[extension] || "image/jpeg";
-};
-
-const getElectronBridge = () => {
-  const bridge = window.electron;
-  if (!bridge || !bridge.fs || !bridge.path || typeof bridge.getUserDataPath !== "function" || typeof bridge.getPortableDataPath !== "function") {
-    return null;
-  }
-  return bridge;
-};
-
-const getStorageFilePath = async () => {
-  if (storageFilePathPromise) {
-    return storageFilePathPromise;
-  }
-
-  const bridge = getElectronBridge();
-  if (!bridge) {
-    throw new Error("Electron bridge nicht verfuegbar.");
-  }
-
-  storageFilePathPromise = (async () => {
-    const config = await readStorageConfig(bridge);
-    return config.membersFilePath;
-  })();
-
-  return storageFilePathPromise;
-};
-
-const getDefaultStorageConfig = async bridge => {
-  const portableDataPath = await bridge.getPortableDataPath();
-  const membersFilePath = await bridge.path.join(portableDataPath, STORAGE_FILE_NAME);
-  return { membersFilePath };
-};
-
-const getLegacyStorageFilePath = async bridge => {
-  const userDataPath = await bridge.getUserDataPath();
-  return bridge.path.join(userDataPath, STORAGE_FILE_NAME);
-};
-
-const normalizeComparableFilePath = filePath => String(filePath || "").replace(/\//g, "\\").toLowerCase();
-
-const getStorageConfigPath = async bridge => {
-  const userDataPath = await bridge.getUserDataPath();
-  return bridge.path.join(userDataPath, CONFIG_FILE_NAME);
-};
-
-const writeStorageConfig = async (bridge, configPath, config) => {
-  await bridge.fs.writeFile(configPath, JSON.stringify(config, null, 2));
-};
-
-const readStorageConfig = async bridge => {
-  const configPath = await getStorageConfigPath(bridge);
-  const defaultConfig = await getDefaultStorageConfig(bridge);
-  const exists = await bridge.fs.existsSync(configPath);
-
-  if (!exists) {
-    await writeStorageConfig(bridge, configPath, defaultConfig);
-    return defaultConfig;
-  }
-
-  try {
-    const raw = await bridge.fs.readFile(configPath);
-    const text = String(raw || "").replace(/^\uFEFF/, "");
-    const parsed = text.trim() ? JSON.parse(text) : {};
-    const legacyMembersFilePath = await getLegacyStorageFilePath(bridge);
-    const membersFilePath = typeof parsed.membersFilePath === "string" && parsed.membersFilePath.trim()
-      ? parsed.membersFilePath.trim()
-      : defaultConfig.membersFilePath;
-
-    if (normalizeComparableFilePath(membersFilePath) === normalizeComparableFilePath(legacyMembersFilePath)) {
-      await writeStorageConfig(bridge, configPath, defaultConfig);
-      return defaultConfig;
-    }
-
-    return { ...defaultConfig, ...parsed, membersFilePath };
-  } catch (error) {
-    console.warn("Konfiguration konnte nicht gelesen werden. Standardpfad wird verwendet.", error);
-    await writeStorageConfig(bridge, configPath, defaultConfig);
-    return defaultConfig;
-  }
-};
-
-const ensureStorageFile = async () => {
-  const bridge = getElectronBridge();
-  if (!bridge) {
-    throw new Error("Electron bridge nicht verfuegbar.");
-  }
-
-  if (typeof bridge.migratePortableData === "function") {
-    try {
-      await bridge.migratePortableData();
-    } catch (error) {
-      console.warn("Portable Datenmigration konnte nicht ausgefuehrt werden.", error);
-    }
-  }
-
-  const storageFilePath = await getStorageFilePath();
-  const exists = await bridge.fs.existsSync(storageFilePath);
-  if (!exists) {
-    const imported = await importMembersFromCsv(bridge, storageFilePath);
-    if (imported) {
-      return storageFilePath;
-    }
-
-    await bridge.fs.writeFile(storageFilePath, JSON.stringify({ members: [] }, null, 2));
-  }
-
-  return storageFilePath;
-};
-
-const importMembersFromCsv = async (bridge, storageFilePath) => {
-  const csvFilePath = await bridge.path.join(await bridge.path.dirname(storageFilePath), CSV_STORAGE_FILE_NAME);
-  const exists = await bridge.fs.existsSync(csvFilePath);
-  if (!exists) {
-    return false;
-  }
-
-  const raw = await bridge.fs.readFile(csvFilePath);
-  const members = parseMembersCsv(raw);
-  if (members.length === 0) {
-    return false;
-  }
-
-  await bridge.fs.writeFile(storageFilePath, JSON.stringify({
-    importedAt: new Date().toISOString(),
-    sourceFile: csvFilePath,
-    members
-  }, null, 2));
-  return true;
-};
-
-const parseMembersCsv = raw => {
-  const text = String(raw || "").replace(/^\uFEFF/, "");
-  const delimiter = detectCsvDelimiter(text);
-  const rows = parseCsvRows(text, delimiter).filter(row => row.some(value => String(value).trim()));
-
-  if (rows.length === 0) {
-    return [];
-  }
-
-  const headerRowIndex = findCsvHeaderRowIndex(rows);
-  const headers = headerRowIndex >= 0 ? rows[headerRowIndex].map(resolveCsvHeaderKey) : fieldDefinitions.map(field => field.key);
-  const dataRows = headerRowIndex >= 0 ? rows.slice(headerRowIndex + 1) : rows;
-
-  return dataRows
-    .map((row, index) => createMemberFromCsvRow(headers, row, index + 1))
-    .map(normalizeMember);
-};
-
-const findCsvHeaderRowIndex = rows => rows.findIndex(row => {
-  const headers = row.map(resolveCsvHeaderKey);
-  const filledColumns = row.filter(value => String(value).trim()).length;
-  return headers.filter(Boolean).length >= Math.min(3, filledColumns);
-});
-
-const detectCsvDelimiter = text => {
-  const sample = text.split(/\r?\n/).find(line => line.trim()) || "";
-  const candidates = [";", ",", "\t"];
-  return candidates
-    .map(delimiter => ({ delimiter, count: countUnquotedDelimiter(sample, delimiter) }))
-    .sort((a, b) => b.count - a.count)[0].delimiter;
-};
-
-const countUnquotedDelimiter = (line, delimiter) => {
-  let count = 0;
-  let inQuotes = false;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const nextChar = line[index + 1];
-    if (char === '"' && inQuotes && nextChar === '"') {
-      index += 1;
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (!inQuotes && char === delimiter) {
-      count += 1;
-    }
-  }
-
-  return count;
-};
-
-const parseCsvRows = (text, delimiter) => {
-  const rows = [];
-  let row = [];
-  let value = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    const nextChar = text[index + 1];
-
-    if (char === '"' && inQuotes && nextChar === '"') {
-      value += '"';
-      index += 1;
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (!inQuotes && char === delimiter) {
-      row.push(value);
-      value = "";
-    } else if (!inQuotes && (char === "\n" || char === "\r")) {
-      row.push(value);
-      rows.push(row);
-      row = [];
-      value = "";
-      if (char === "\r" && nextChar === "\n") {
-        index += 1;
-      }
-    } else {
-      value += char;
-    }
-  }
-
-  row.push(value);
-  rows.push(row);
-  return rows;
-};
-
-const normalizeCsvHeader = value => String(value || "")
-  .trim()
-  .normalize("NFD")
-  .replace(/[\u0300-\u036f]/g, "")
-  .replace(/[^a-zA-Z0-9-]/g, "")
-  .toLowerCase();
-
-const resolveCsvHeaderKey = header => {
-  const normalized = normalizeCsvHeader(header);
-  const directField = fieldDefinitions.find(field => normalizeCsvHeader(field.key) === normalized);
-  if (directField) {
-    return directField.key;
-  }
-
-  const labelField = fieldDefinitions.find(field => normalizeCsvHeader(field.label) === normalized);
-  return labelField?.key || csvHeaderAliases.get(normalized) || null;
-};
-
-const createMemberFromCsvRow = (headers, row, fallbackId) => {
-  const member = {};
-  headers.forEach((key, index) => {
-    if (key) {
-      member[key] = row[index] === undefined ? "" : String(row[index]).trim();
-    }
-  });
-
-  if (!Number.isFinite(Number(member.id)) || Number(member.id) <= 0) {
-    member.id = fallbackId;
-  }
-
-  if (typeof member.interessengruppen === "string") {
-    member.interessengruppen = member.interessengruppen
-      .split(/[|,;]/)
-      .map(value => value.trim())
-      .filter(Boolean);
-  }
-
-  return member;
-};
-
-const readStorageDocument = async () => {
-  const bridge = getElectronBridge();
-  const storageFilePath = await ensureStorageFile();
-  const raw = await bridge.fs.readFile(storageFilePath);
-  const text = String(raw || "").replace(/^\uFEFF/, "");
-
-  if (!text.trim()) {
-    return { members: [] };
-  }
-
-  const parsed = JSON.parse(text);
-  if (Array.isArray(parsed)) {
-    return { members: parsed };
-  }
-  if (parsed && Array.isArray(parsed.members)) {
-    if (await shouldRepairCsvImport(bridge, parsed, storageFilePath)) {
-      await importMembersFromCsv(bridge, storageFilePath);
-      const repairedRaw = await bridge.fs.readFile(storageFilePath);
-      return JSON.parse(repairedRaw);
-    }
-
-    return parsed;
-  }
-  return { members: [] };
-};
-
-const shouldRepairCsvImport = async (bridge, data, storageFilePath) => {
-  if (!Array.isArray(data.members) || data.members.length === 0) {
-    return false;
-  }
-
-  const fallbackCsvFilePath = await bridge.path.join(await bridge.path.dirname(storageFilePath), CSV_STORAGE_FILE_NAME);
-  const csvFilePath = data.sourceFile || fallbackCsvFilePath;
-  const hasCsv = await bridge.fs.existsSync(csvFilePath);
-  if (!hasCsv) {
-    return false;
-  }
-
-  const namedMembers = data.members.filter(member => String(member.name || "").trim() || String(member.vorname || "").trim());
-  return namedMembers.length === 0;
-};
-
 const loadStoredMembers = async () => {
   try {
-    const members = await loadMembersFromApi();
-    state.usesMemberApi = true;
-    return members;
+    return await loadMembersFromApi();
   } catch (error) {
-    state.usesMemberApi = false;
-    console.warn("Mitgliederdaten konnten nicht ueber die API geladen werden. Dateifallback wird verwendet.", error);
-  }
-
-  try {
-    const data = await readStorageDocument();
-    if (!Array.isArray(data.members) || data.members.length === 0) {
-      return null;
-    }
-    return data.members.map(normalizeMember);
-  } catch (error) {
-    console.warn("Gespeicherte Mitgliederdaten konnten nicht gelesen werden.", error);
+    console.warn("Mitgliederdaten konnten nicht ueber die API geladen werden.", error);
     return null;
   }
 };
@@ -3034,67 +2551,12 @@ const replaceMemberInState = member => {
   state.members.sort((a, b) => a.name.localeCompare(b.name, "de") || a.vorname.localeCompare(b.vorname, "de"));
 };
 
-const persistMembers = () => {
-  if (state.usesMemberApi) {
-    return;
-  }
-
-  if (persistTimerId) {
-    clearTimeout(persistTimerId);
-  }
-
-  persistTimerId = setTimeout(() => {
-    persistTimerId = null;
-    persistQueue = persistQueue
-      .then(() => persistMembersImmediate(true))
-      .catch(error => {
-        console.warn("Mitgliederdaten konnten nicht gespeichert werden.", error);
-      });
-  }, SAVE_DEBOUNCE_MS);
-};
-
 const persistMemberImmediate = async (member, silent = false) => {
-  if (!state.usesMemberApi) {
-    await persistMembersImmediate(silent);
-    return member;
-  }
-
   try {
     return updateMemberViaApi(member);
   } catch (error) {
     if (!silent) {
       window.alert("Speichern in der Datenbank fehlgeschlagen.");
-    }
-    throw error;
-  }
-};
-
-const persistMembersImmediate = async (silent = false) => {
-  try {
-    if (state.usesMemberApi) {
-      return true;
-    }
-
-    const bridge = getElectronBridge();
-    if (!bridge) {
-      throw new Error("Electron bridge nicht verfuegbar.");
-    }
-
-    if (persistTimerId) {
-      clearTimeout(persistTimerId);
-      persistTimerId = null;
-    }
-
-    const storageFilePath = await ensureStorageFile();
-    const payload = {
-      updatedAt: new Date().toISOString(),
-      members: state.members
-    };
-    await bridge.fs.writeFile(storageFilePath, JSON.stringify(payload, null, 2));
-    return true;
-  } catch (error) {
-    if (!silent) {
-      window.alert("Speichern auf Dateisystem fehlgeschlagen.");
     }
     throw error;
   }
