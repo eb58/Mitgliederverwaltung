@@ -2,9 +2,6 @@
   "name": "mitgliederverwaltung",
   "version": "1.0.0",
   "description": "Webbasierte Mitgliederverwaltung Senioren Lübars",
-  "scripts": {
-    "db:export": "node scripts/create-mysql-data-changelog.js"
-  },
   "dependencies": {
     "bootstrap": "^5.3.8",
     "ag-grid-community": "^35.3.0",
