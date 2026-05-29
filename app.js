@@ -748,8 +748,21 @@ const updateUserAdminButton = () => {
   const isAdmin = String(state.currentUser?.role || "").trim().toLowerCase() === "admin";
   const adminMenu = document.getElementById("adminMenu");
   const changePasswordButton = document.getElementById("changePasswordBtn");
+  const currentUserBadge = document.getElementById("currentUserBadge");
+  const currentUserName = document.getElementById("currentUserName");
+  const passwordChangeUser = document.getElementById("passwordChangeUser");
+  const username = String(state.currentUser?.username || "").trim();
   if (adminMenu) adminMenu.hidden = !isAdmin;
   if (changePasswordButton) changePasswordButton.hidden = !state.currentUser;
+  if (currentUserBadge) {
+    currentUserBadge.hidden = !username;
+    currentUserBadge.title = username ? `Angemeldet als ${username}` : "";
+  }
+  if (currentUserName) currentUserName.textContent = username;
+  if (passwordChangeUser) {
+    passwordChangeUser.hidden = !username;
+    passwordChangeUser.textContent = username ? `Benutzer: ${username}` : "";
+  }
   ["manageUsersMenuItem", "manageReferenceDataMenuItem"].forEach(id => {
     const item = document.getElementById(id);
     if (item) item.hidden = !isAdmin;

@@ -9,16 +9,17 @@
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
   <link rel="stylesheet" href="vendor/ag-theme-quartz.css">
-  <link rel="stylesheet" href="styles.css?v=20260528-password-button">
+  <link rel="stylesheet" href="styles.css?v=20260529-user-status">
 </head>
 
 <body>
   <main id="appShell" class="container-fluid py-3" hidden>
-    <header class="app-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+    <header class="app-header d-flex flex-column gap-2 mb-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
       <div class="app-header__brand">
         <img class="app-header__image" src="assets/website-logo.jpg" alt="Freizeitstätte Lübars">
         <div class="app-header__title">
-          <h1>Mitgliederverwaltung</h1>
+          <h4>Mitgliederverwaltung</h4>
           <span>Senioren Lübars</span>
         </div>
       </div>
@@ -41,6 +42,13 @@
             <path fill="currentColor" d="M15.85 8.35a.5.5 0 0 0 0-.7l-3-3a.5.5 0 0 0-.7.7L14.29 7.5H6.5a.5.5 0 0 0 0 1h7.79l-2.14 2.15a.5.5 0 0 0 .7.7l3-3z"></path>
           </svg>
         </button>
+      </div>
+      </div>
+      <div class="app-header__meta">
+        <span id="currentUserBadge" class="current-user-badge" hidden>
+          <span class="current-user-badge__label">Angemeldet als</span>
+          <span id="currentUserName" class="current-user-badge__name"></span>
+        </span>
       </div>
     </header>
 
@@ -384,6 +392,7 @@
             <img class="login-card__logo" src="assets/website-logo.jpg" alt="Freizeitstaette Luebars">
             <h2 class="login-card__title">Passwort &auml;ndern</h2>
             <p class="login-card__subtitle">Neues Passwort setzen</p>
+            <p id="passwordChangeUser" class="password-change-user" hidden></p>
           </div>
           <div class="login-card__body">
             <div class="login-field">
@@ -428,7 +437,7 @@
   <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="vendor/ag-grid-community.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
-  <script type="module" src="app.js?v=20260528-password-button"></script>
+  <script type="module" src="app.js?v=20260529-user-status"></script>
 </body>
 
 </html>
