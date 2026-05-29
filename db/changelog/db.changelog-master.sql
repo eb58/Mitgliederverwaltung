@@ -199,7 +199,7 @@ CREATE TABLE app_user (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO app_user (username, password_hash, role, active) VALUES
-  ('admin', 'scrypt$16384$8$1$sVf0NClmMTJ5VxIeYZKnqA$b0FRpmWonziJEgTJzQdDsSnQGnAZ6F4x6GQ9lcbwA9s', 'admin', 1);
+  ('admin', '$2y$12$YkkU2/LjJREX65IJuOv./uJOtLmDnXjrE9lxEZ/jBqvHV66PU5rVq', 'admin', 1);
 
 --rollback DROP TABLE app_user;
 

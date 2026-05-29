@@ -1,6 +1,6 @@
 # PHP-API fuer die Mitgliederverwaltung
 
-Diese API stellt dieselben Endpunkte wie der Node-Server bereit:
+Diese API stellt die Backend-Endpunkte der Mitgliederverwaltung bereit:
 
 ```text
 POST   /api/session
@@ -31,7 +31,7 @@ Voraussetzungen: PHP 8.0 oder neuer, PDO MySQL und Apache `mod_rewrite`.
 php mitgliederverwaltung/php-api/create-user.php admin dein-passwort
 ```
 
-Die PHP-API verwendet `password_hash()`/`password_verify()`. Bereits mit dem Node-Server erzeugte `scrypt$...`-Passworthashes funktionieren in PHP nicht. Wenn du spaeter wieder Node verwendest, den User dort erneut mit `npm run user:set -- admin dein-passwort` setzen.
+Die PHP-API verwendet `password_hash()`/`password_verify()`.
 
 Wenn die Datenbank bereits ohne Liquibase beim Hoster existiert, neue Schemaerweiterungen per phpMyAdmin einspielen. Fuer inaktive Stammdaten liegt die Datei `db/005-reference-data-active.phpmyadmin.sql` bereit.
 

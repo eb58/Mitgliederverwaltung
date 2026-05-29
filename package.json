@@ -3,13 +3,9 @@
   "version": "1.0.0",
   "description": "Webbasierte Mitgliederverwaltung Senioren Lübars",
   "scripts": {
-    "start": "node server/server.js",
-    "server": "node server/server.js",
-    "db:export": "node scripts/create-mysql-data-changelog.js",
-    "user:set": "node scripts/set-api-user.js"
+    "db:export": "node scripts/create-mysql-data-changelog.js"
   },
   "dependencies": {
-    "mysql2": "^3.11.5",
     "bootstrap": "^5.3.8",
     "ag-grid-community": "^35.3.0",
     "chart.js": "^4.5.1"

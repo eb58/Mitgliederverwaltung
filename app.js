@@ -207,8 +207,10 @@ let ageHistogramChart = null;
 let interestGroupChart = null;
 
 const MEMBER_API_BROWSER_CONFIG_FILE_NAME = "member-api.config.json";
-const DEFAULT_MEMBER_API_BASE_URL = globalThis.location.protocol.startsWith("http") ? globalThis.location.origin : "http://127.0.0.1:3001";
 const PHP_MEMBER_API_BASE_PATH = "/mitgliederverwaltung/php-api/index.php";
+const DEFAULT_MEMBER_API_BASE_URL = globalThis.location.protocol.startsWith("http")
+  ? new URL(PHP_MEMBER_API_BASE_PATH, globalThis.location.origin).toString()
+  : "https://senioren-luebars.berlin/mitgliederverwaltung/php-api/index.php";
 const MEMBER_API_PAGE_SIZE = 500;
 const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
 const GRID_COLUMN_STATE_PREFIX = "mitgliederverwaltung:gridColumnState:";
@@ -2472,13 +2474,6 @@ const getMemberApiBaseUrlCandidates = () => {
   const candidates = [memberApiBaseUrl, DEFAULT_MEMBER_API_BASE_URL];
   if (window.location.protocol.startsWith("http")) {
     candidates.push(new URL(PHP_MEMBER_API_BASE_PATH, window.location.origin).toString());
-    candidates.push(`${window.location.protocol}//${window.location.hostname}:3001`);
-    if (window.location.protocol === "http:") {
-      candidates.push("http://localhost:3001");
-      candidates.push("http://127.0.0.1:3001");
-    }
-  } else {
-    candidates.push("http://127.0.0.1:3001");
   }
   return [...new Set(candidates)];
 };
