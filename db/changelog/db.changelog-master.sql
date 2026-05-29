@@ -228,3 +228,8 @@ ALTER TABLE funktion ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
 --rollback ALTER TABLE interessengruppe DROP COLUMN active;
 --rollback ALTER TABLE austrittsgrund DROP COLUMN active;
 --rollback ALTER TABLE seniorenclub DROP COLUMN active;
+
+--changeset codex:006-add-session-password-change-flag dbms:mysql
+ALTER TABLE app_session ADD COLUMN password_change_required TINYINT(1) NOT NULL DEFAULT 0 AFTER user_id;
+
+--rollback ALTER TABLE app_session DROP COLUMN password_change_required;

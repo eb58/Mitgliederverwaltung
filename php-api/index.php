@@ -24,6 +24,10 @@ try {
         handleSessionPassword($user);
     }
 
+    if ((bool) ($user['passwordChangeRequired'] ?? false)) {
+        throw new ApiError('Bitte zuerst das Passwort aendern.', 403);
+    }
+
     if ($path === '/api/users') {
         handleUsersCollection($user);
     }

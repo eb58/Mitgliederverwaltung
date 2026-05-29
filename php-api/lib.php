@@ -130,6 +130,14 @@ function createSession(array $user): string
     $expiresAt = (new DateTimeImmutable())
         ->modify('+' . config()['auth']['session_ttl_seconds'] . ' seconds')
         ->format('Y-m-d H:i:s');
+    if (tableHasColumn('app_session', 'password_change_required')) {
+        $statement = db()->prepare(
+            'INSERT INTO app_session (token_hash, user_id, password_change_required, expires_at) VALUES (?, ?, ?, ?)'
+        );
+        $statement->execute([tokenHash($token), $user['id'], !empty($user['passwordChangeRequired']) ? 1 : 0, $expiresAt]);
+        return $token;
+    }
+
     $statement = db()->prepare('INSERT INTO app_session (token_hash, user_id, expires_at) VALUES (?, ?, ?)');
     $statement->execute([tokenHash($token), $user['id'], $expiresAt]);
     return $token;
@@ -142,8 +150,10 @@ function requireAuth(): array
         throw new ApiError('Anmeldung erforderlich.', 401);
     }
 
+    $hasSessionPasswordChangeFlag = tableHasColumn('app_session', 'password_change_required');
+    $sessionFlagSelect = $hasSessionPasswordChangeFlag ? ', s.password_change_required' : '';
     $statement = db()->prepare(
-        "SELECT u.id, u.username, u.role
+        "SELECT u.id, u.username, u.password_hash, u.role{$sessionFlagSelect}
          FROM app_session s
          JOIN app_user u ON u.id = s.user_id
          WHERE s.token_hash = ? AND s.expires_at > NOW() AND u.active = 1"
@@ -162,7 +172,8 @@ function requireAuth(): array
         'id' => (int) $user['id'],
         'username' => $user['username'],
         'role' => $user['role'],
-        'passwordChangeRequired' => false,
+        'passwordChangeRequired' => ($hasSessionPasswordChangeFlag && (bool) $user['password_change_required'])
+            || isPasswordChangeRequiredForUser($user),
     ];
 }
 
@@ -197,6 +208,36 @@ function valuesMatchIgnoringCase(mixed $left, mixed $right): bool
     return strtolower($leftValue) === strtolower($rightValue);
 }
 
+function stringCaseVariants(string $value): array
+{
+    $variants = [$value, strtolower($value), strtoupper($value)];
+    if (function_exists('mb_strtolower')) {
+        $variants[] = mb_strtolower($value, 'UTF-8');
+        $variants[] = mb_strtoupper($value, 'UTF-8');
+    }
+    return array_values(array_unique($variants));
+}
+
+function isPasswordChangeRequiredForUser(array $user, ?string $password = null): bool
+{
+    $passwordHash = (string) ($user['password_hash'] ?? '');
+    if (isPasswordUnset($passwordHash)) {
+        return true;
+    }
+
+    $username = (string) ($user['username'] ?? '');
+    if ($password !== null) {
+        return valuesMatchIgnoringCase($username, $password);
+    }
+
+    foreach (stringCaseVariants($username) as $candidate) {
+        if ($candidate !== '' && password_verify($candidate, $passwordHash)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function handleSession(): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
@@ -217,7 +258,7 @@ function handleSession(): void
             'id' => (int) $user['id'],
             'username' => $user['username'],
             'role' => $user['role'],
-            'passwordChangeRequired' => $passwordUnset || valuesMatchIgnoringCase($user['username'], $password),
+            'passwordChangeRequired' => isPasswordChangeRequiredForUser($user, $password),
         ];
         jsonResponse(['token' => createSession($publicUser), 'user' => $publicUser]);
     }
@@ -255,6 +296,10 @@ function handleSessionPassword(array $currentUser): void
 
     $statement = db()->prepare('UPDATE app_user SET password_hash = ? WHERE id = ?');
     $statement->execute([password_hash($password, PASSWORD_DEFAULT), (int) $currentUser['id']]);
+    $token = bearerToken();
+    if ($token !== '' && tableHasColumn('app_session', 'password_change_required')) {
+        db()->prepare('UPDATE app_session SET password_change_required = 0 WHERE token_hash = ?')->execute([tokenHash($token)]);
+    }
     jsonResponse([
         'user' => [
             'id' => (int) $currentUser['id'],

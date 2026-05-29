@@ -390,28 +390,57 @@ const wireLoginForm = () => {
   loginForm.dataset.wired = "true";
   loginForm.addEventListener("submit", handleLoginSubmit);
   document.getElementById("passwordChangeForm").addEventListener("submit", handlePasswordChangeSubmit);
-  document.getElementById("passwordChangeCancelBtn").addEventListener("click", closeManualPasswordChange);
+  document.getElementById("passwordChangeCancelBtn").addEventListener("click", handlePasswordChangeCancel);
   document.getElementById("toggleLoginPasswordBtn").addEventListener("click", toggleLoginPasswordVisibility);
+};
+
+const clearPasswordChangeForm = () => {
+  document.getElementById("newPassword").value = "";
+  document.getElementById("confirmNewPassword").value = "";
+  document.getElementById("passwordChangeError").hidden = true;
 };
 
 const showLoginForm = () => {
   document.getElementById("loginForm").hidden = false;
   document.getElementById("passwordChangeForm").hidden = true;
   document.getElementById("loginError").hidden = true;
+  clearPasswordChangeForm();
 };
 
 const showPasswordChangeForm = ({ required = true } = {}) => {
   passwordChangeRequiredFlow = required;
   document.getElementById("loginForm").hidden = true;
   document.getElementById("passwordChangeForm").hidden = false;
-  document.getElementById("passwordChangeCancelBtn").hidden = required;
-  document.getElementById("newPassword").value = "";
-  document.getElementById("confirmNewPassword").value = "";
-  document.getElementById("passwordChangeError").hidden = true;
+  document.getElementById("passwordChangeCancelBtn").hidden = false;
+  clearPasswordChangeForm();
   setTimeout(() => document.getElementById("newPassword")?.focus(), 150);
 };
 
-const closeManualPasswordChange = () => {
+const abortRequiredPasswordChange = async () => {
+  const token = state.authToken;
+  clearAuthToken();
+  state.currentUser = null;
+  state.members = [];
+  state.nextId = 1;
+  refreshAllViews();
+  setAppShellVisible(false);
+  showLoginForm();
+  loginModal.show();
+
+  if (token) {
+    try {
+      await requestMemberApi("/api/session", { method: "DELETE", authToken: token });
+    } catch (error) {
+      console.warn("Server-Logout nach abgebrochenem Passwortwechsel fehlgeschlagen.", error);
+    }
+  }
+};
+
+const handlePasswordChangeCancel = async () => {
+  if (passwordChangeRequiredFlow) {
+    await abortRequiredPasswordChange();
+    return;
+  }
   loginModal.hide();
   showLoginForm();
   setAppShellVisible(true);
@@ -481,13 +510,14 @@ const handlePasswordChangeSubmit = async event => {
     }
     const payload = await changeOwnPasswordViaApi(password);
     state.currentUser = payload?.user || { ...state.currentUser, passwordChangeRequired: false };
+    if (state.authToken) setAuthToken(state.authToken);
     updateUserAdminButton();
     passwordInput.value = "";
     confirmPasswordInput.value = "";
     if (passwordChangeRequiredFlow) {
       await finishAuthenticatedLogin();
     } else {
-      closeManualPasswordChange();
+      await handlePasswordChangeCancel();
     }
   } catch (error) {
     errorElement.textContent = error.message || "Passwort konnte nicht geaendert werden.";
@@ -510,6 +540,7 @@ const ensureAuthenticated = async () => {
     state.currentUser = payload.user || null;
     updateUserAdminButton();
     if (state.currentUser?.passwordChangeRequired) {
+      setAuthToken(state.authToken, { persist: false });
       setAppShellVisible(false);
       showPasswordChangeForm();
       loginModal.show();
@@ -538,12 +569,12 @@ const login = async (username, password) => {
   });
   state.currentUser = payload.user || null;
   updateUserAdminButton();
-  setAuthToken(payload.token);
+  setAuthToken(payload.token, { persist: !state.currentUser?.passwordChangeRequired });
 };
 
-const setAuthToken = token => {
+const setAuthToken = (token, { persist = true } = {}) => {
   state.authToken = token || "";
-  if (state.authToken) {
+  if (state.authToken && persist) {
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, state.authToken);
   } else {
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
