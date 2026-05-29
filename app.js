@@ -1514,11 +1514,6 @@ const createMemberPhotoPreview = () => {
   title.className = "member-photo-preview__title";
   title.textContent = "Passbild";
 
-  const fileName = document.createElement("div");
-  fileName.className = "member-photo-preview__file";
-  fileName.id = "memberPhotoPreviewFile";
-  fileName.textContent = "Kein Passfoto vorhanden";
-
   const fileInput = document.createElement("input");
   fileInput.className = "member-photo-preview__input";
   fileInput.id = "memberPhotoUploadInput";
@@ -1531,7 +1526,7 @@ const createMemberPhotoPreview = () => {
   uploadLabel.setAttribute("for", fileInput.id);
   uploadLabel.textContent = "Passfoto wählen";
 
-  text.append(title, fileName, uploadLabel, fileInput);
+  text.append(title, uploadLabel, fileInput);
   preview.append(photo, text);
   return preview;
 };
@@ -1650,12 +1645,10 @@ const fillMemberForm = (member, isNew) => {
 
 const updateMemberPhotoPreview = member => {
   const previewImage = document.getElementById("memberPhotoPreviewImage");
-  const previewFile = document.getElementById("memberPhotoPreviewFile");
-  if (!previewImage || !previewFile) return;
+  if (!previewImage) return;
 
   setFallbackPhoto(previewImage);
   previewImage.className = "member-photo-preview__image member-photo member-photo--fallback";
-  previewFile.textContent = "Kein Passfoto vorhanden";
 
   if (selectedMemberPhotoFile && selectedMemberPhotoObjectUrl) {
     const image = document.createElement("img");
@@ -1665,7 +1658,6 @@ const updateMemberPhotoPreview = member => {
     previewImage.title = image.alt;
     previewImage.setAttribute("aria-label", image.alt);
     previewImage.replaceChildren(image);
-    previewFile.textContent = selectedMemberPhotoFile.name;
     image.src = selectedMemberPhotoObjectUrl;
     return;
   }
@@ -1679,14 +1671,12 @@ const updateMemberPhotoPreview = member => {
     image.addEventListener("error", () => {
       setFallbackPhoto(previewImage);
       previewImage.classList.add("member-photo-preview__image");
-      previewFile.textContent = "Kein Passfoto vorhanden";
     }, { once: true });
 
     previewImage.className = "member-photo-preview__image member-photo";
     previewImage.title = image.alt;
     previewImage.setAttribute("aria-label", image.alt);
     previewImage.replaceChildren(image);
-    previewFile.textContent = normalizePhotoFileName(member.passbild) || "Automatisch gefunden";
     image.src = photoDataUrl;
   }).catch(() => {
     // Fallback remains visible.

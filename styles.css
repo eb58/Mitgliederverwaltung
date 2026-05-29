@@ -474,8 +474,8 @@ main.container-fluid {
 }
 
 .member-photo-preview__image {
-  width: 144px;
-  height: 176px;
+  width: 168px;
+  height: 208px;
   flex: 0 0 auto;
 }
 
@@ -488,12 +488,6 @@ main.container-fluid {
 .member-photo-preview__title {
   color: var(--accent-dark);
   font-weight: 750;
-}
-
-.member-photo-preview__file {
-  color: var(--muted);
-  font-size: 0.9rem;
-  word-break: break-word;
 }
 
 .member-photo-preview__input {
