@@ -432,9 +432,7 @@ const togglePasswordVisibility = event => {
   if (!nextIsVisible) return;
 
   clearPasswordVisibilityTimer(inputId);
-  passwordVisibilityTimers.set(inputId, setTimeout(() => {
-    setPasswordVisibility(inputId, false);
-  }, PASSWORD_VISIBILITY_MS));
+  passwordVisibilityTimers.set(inputId, setTimeout(() => setPasswordVisibility(inputId, false), PASSWORD_VISIBILITY_MS));
 };
 
 const clearPasswordChangeForm = () => {
@@ -2173,10 +2171,10 @@ const refreshDashboard = () => {
   };
   const ages = [];
   const ageBuckets = [
-    { label: "55-64", min: 55, max: 64, count: 0 },
-    { label: "65-74", min: 65, max: 74, count: 0 },
-    { label: "75-84", min: 75, max: 84, count: 0 },
-    { label: "85-94", min: 85, max: 94, count: 0 },
+    ...Array.from({ length: 8 }, (_, index) => {
+      const min = 55 + index * 5;
+      return { label: `${min}-${min + 4}`, min, max: min + 4, count: 0 };
+    }),
     { label: "95+", min: 95, max: Infinity, count: 0 }
   ];
   const today = new Date();
