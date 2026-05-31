@@ -53,6 +53,19 @@ function tableHasColumn(string $table, string $column): bool
     return $cache[$key];
 }
 
+function tableExists(string $table): bool
+{
+    static $cache = [];
+    if (array_key_exists($table, $cache)) return $cache[$table];
+
+    $statement = db()->prepare(
+        'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+    );
+    $statement->execute([$table]);
+    $cache[$table] = (int) $statement->fetchColumn() > 0;
+    return $cache[$table];
+}
+
 function sendCorsHeaders(): void
 {
     header('Access-Control-Allow-Origin: ' . config()['cors_origin']);
@@ -698,7 +711,171 @@ function findMemberById(int $id): ?array
     return $row ? rowToMember($row) : null;
 }
 
-function handleMembersCollection(): void
+function memberAuditLabels(): array
+{
+    return [
+        'name' => 'Name',
+        'vorname' => 'Vorname',
+        'geschlecht' => 'Geschlecht',
+        'strasse' => 'Strasse',
+        'plz' => 'PLZ',
+        'ort' => 'Ort',
+        'telefon' => 'Telefon',
+        'handy' => 'Handy',
+        'email' => 'Email',
+        'geburtstag' => 'Geburtstag',
+        'eintrittsdatum' => 'Eintrittsdatum',
+        'austrittsdatum' => 'Austrittsdatum',
+        'austrittsgrund' => 'Austrittsgrund',
+        'gruppenwahl' => 'Gruppenwahl',
+        'funktion' => 'Funktion',
+        'auswahl' => 'Auswahl',
+        'ausweisErteilt' => 'Ausweis erteilt',
+        'clubzugehoerigkeit' => 'Clubzugehoerigkeit',
+        'weihnachtsessen' => 'Weihnachtsessen',
+        'wnEssenBezahlt' => 'Weihnachtsessen bezahlt',
+        'beitragClubBezahlt' => 'Beitrag Club bezahlt',
+        'betragClubBar' => 'Betrag Club bar',
+        'beitragComputerBezahlt' => 'Beitrag Computer bezahlt',
+        'betragComputerBar' => 'Beitrag Computer bar',
+        'preisClub' => 'Preis Club',
+        'gezahlterBetragClub' => 'Gezahlter Betrag Club',
+        'einzahlungClubAm' => 'Einzahlung Club am',
+        'preisComputer' => 'Preis Computer',
+        'gezahlterBetragComputer' => 'Gezahlter Betrag Computer',
+        'einzahlungComputerAm' => 'Einzahlung Computer am',
+        'preisWeihnachten' => 'Preis Weihnachten',
+        'gezahlterBetragWeihnachten' => 'Gezahlter Betrag Weihnachten',
+        'bemerkung' => 'Bemerkung',
+        'tischnummer' => 'Tischnummer',
+        'interessengruppen' => 'Interessengruppen',
+        'funktionen' => 'Funktionen',
+        'passbild' => 'Passbild',
+    ];
+}
+
+function referenceNameMap(string $table): array
+{
+    $labelColumn = $table === 'seniorenclub' ? 'name' : 'bezeichnung';
+    $statement = db()->query("SELECT id, {$labelColumn} AS label FROM {$table}");
+    $rows = $statement->fetchAll();
+    $map = [];
+    foreach ($rows as $row) {
+        $map[(int) $row['id']] = (string) $row['label'];
+    }
+    return $map;
+}
+
+function formatReferenceValue(mixed $value, array $map): string
+{
+    $id = (int) $value;
+    return $id > 0 ? ($map[$id] ?? (string) $id) : '';
+}
+
+function formatReferenceListValue(mixed $value, array $map): string
+{
+    $ids = is_array($value) ? $value : [];
+    $labels = array_map(static fn(mixed $id): string => $map[(int) $id] ?? (string) $id, $ids);
+    return implode(', ', $labels);
+}
+
+function formatAuditValue(string $field, mixed $value): string
+{
+    if ($value === null || $value === '') return '';
+    if (in_array($field, booleanFields(), true)) return $value ? 'Ja' : 'Nein';
+    if ($field === 'geschlecht') return $value === 'm' ? 'maennlich' : ($value === 'w' ? 'weiblich' : (string) $value);
+    if ($field === 'austrittsgrund') return formatReferenceValue($value, referenceNameMap('austrittsgrund'));
+    if ($field === 'clubzugehoerigkeit') return formatReferenceValue($value, referenceNameMap('seniorenclub'));
+    if ($field === 'weihnachtsessen') {
+        $labels = [0 => 'Nein', 1 => 'Ja', 2 => 'Ja + Gast'];
+        return $labels[(int) $value] ?? (string) $value;
+    }
+    if ($field === 'interessengruppen') return formatReferenceListValue($value, referenceNameMap('interessengruppe'));
+    if ($field === 'funktionen') return formatReferenceListValue($value, referenceNameMap('funktion'));
+    return (string) $value;
+}
+
+function normalizedAuditValue(string $field, mixed $value): mixed
+{
+    if (is_array($value)) {
+        $ids = array_map('intval', $value);
+        sort($ids);
+        return $ids;
+    }
+    if (in_array($field, booleanFields(), true)) return (bool) $value;
+    if (in_array($field, numberFields(), true)) return $value === null || $value === '' ? null : (float) $value;
+    return $value === null ? '' : (string) $value;
+}
+
+function buildMemberAuditChanges(array $before, array $after): array
+{
+    $labels = memberAuditLabels();
+    $fields = array_merge(array_keys(memberFields()), ['interessengruppen', 'funktionen']);
+    $changes = [];
+    foreach ($fields as $field) {
+        if (in_array($field, ['id', 'funktion', 'passbild'], true)) continue;
+        $oldRaw = $before[$field] ?? null;
+        $newRaw = $after[$field] ?? null;
+        if (normalizedAuditValue($field, $oldRaw) === normalizedAuditValue($field, $newRaw)) continue;
+        $changes[] = [
+            'field' => $field,
+            'label' => $labels[$field] ?? $field,
+            'old' => formatAuditValue($field, $oldRaw),
+            'new' => formatAuditValue($field, $newRaw),
+        ];
+    }
+    return $changes;
+}
+
+function auditMemberChange(int $memberId, string $action, array $changes, array $user): void
+{
+    if (!tableExists('mitglied_aenderung')) return;
+    $statement = db()->prepare(
+        'INSERT INTO mitglied_aenderung (mitglied_id, aktion, geaendert_von_user_id, geaendert_von_name, aenderungen_json)
+         VALUES (?, ?, ?, ?, ?)'
+    );
+    $statement->execute([
+        $memberId,
+        $action,
+        (int) ($user['id'] ?? 0) ?: null,
+        (string) ($user['username'] ?? ''),
+        json_encode($changes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ]);
+}
+
+function handleMemberChanges(int $id): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        throw new ApiError('Methode nicht erlaubt.', 405);
+    }
+    if (!findMemberById($id)) throw new ApiError('Mitglied nicht gefunden.', 404);
+    if (!tableExists('mitglied_aenderung')) {
+        jsonResponse(['changes' => []]);
+    }
+
+    $statement = db()->prepare(
+        'SELECT id, mitglied_id, aktion, geaendert_am, geaendert_von_user_id, geaendert_von_name, aenderungen_json
+         FROM mitglied_aenderung
+         WHERE mitglied_id = ?
+         ORDER BY geaendert_am DESC, id DESC
+         LIMIT 100'
+    );
+    $statement->execute([$id]);
+    $changes = array_map(static function (array $row): array {
+        return [
+            'id' => (int) $row['id'],
+            'memberId' => (int) $row['mitglied_id'],
+            'action' => $row['aktion'],
+            'changedAt' => $row['geaendert_am'],
+            'changedByUserId' => $row['geaendert_von_user_id'] === null ? null : (int) $row['geaendert_von_user_id'],
+            'changedByName' => $row['geaendert_von_name'],
+            'changes' => json_decode((string) $row['aenderungen_json'], true) ?: [],
+        ];
+    }, $statement->fetchAll());
+    jsonResponse(['changes' => $changes]);
+}
+
+function handleMembersCollection(array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     if ($method === 'GET') {
@@ -730,6 +907,7 @@ function handleMembersCollection(): void
             insertMember($member);
             syncJoinTable('mitglied_interessengruppe', 'interessengruppe_id', (int) $member['id'], $member['interessengruppen']);
             syncJoinTable('mitglied_funktion', 'funktion_id', (int) $member['id'], $member['funktionen']);
+            auditMemberChange((int) $member['id'], 'created', [], $currentUser);
             db()->commit();
         } catch (Throwable $error) {
             db()->rollBack();
@@ -741,7 +919,7 @@ function handleMembersCollection(): void
     throw new ApiError('Methode nicht erlaubt.', 405);
 }
 
-function handleMemberResource(int $id): void
+function handleMemberResource(int $id, array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     if ($method === 'GET') {
@@ -767,6 +945,11 @@ function handleMemberResource(int $id): void
             if (array_key_exists('funktionen', $patch)) {
                 syncJoinTable('mitglied_funktion', 'funktion_id', $id, $patch['funktionen']);
             }
+            $updated = findMemberById($id);
+            $changes = $updated ? buildMemberAuditChanges($existing, $updated) : [];
+            if ($changes) {
+                auditMemberChange($id, 'updated', $changes, $currentUser);
+            }
             db()->commit();
         } catch (Throwable $error) {
             db()->rollBack();
@@ -776,9 +959,18 @@ function handleMemberResource(int $id): void
     }
 
     if ($method === 'DELETE') {
-        $statement = db()->prepare('DELETE FROM mitglied WHERE id = ?');
-        $statement->execute([$id]);
-        if ($statement->rowCount() === 0) throw new ApiError('Mitglied nicht gefunden.', 404);
+        $existing = findMemberById($id);
+        if (!$existing) throw new ApiError('Mitglied nicht gefunden.', 404);
+        db()->beginTransaction();
+        try {
+            auditMemberChange($id, 'deleted', [], $currentUser);
+            $statement = db()->prepare('DELETE FROM mitglied WHERE id = ?');
+            $statement->execute([$id]);
+            db()->commit();
+        } catch (Throwable $error) {
+            db()->rollBack();
+            throw $error;
+        }
         noContent();
     }
 
@@ -824,7 +1016,7 @@ function syncJoinTable(string $table, string $idColumn, int $memberId, array $id
     db()->prepare("INSERT INTO {$table} (mitglied_id, {$idColumn}) VALUES {$placeholders}")->execute($values);
 }
 
-function handleMemberPhoto(int $id): void
+function handleMemberPhoto(int $id, array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     if ($method === 'GET') {
@@ -840,6 +1032,9 @@ function handleMemberPhoto(int $id): void
 
     if ($method === 'PUT') {
         if (!findMemberById($id)) throw new ApiError('Mitglied nicht gefunden.', 404);
+        $photoStatement = db()->prepare('SELECT 1 FROM mitglied_passbild WHERE mitglied_id = ?');
+        $photoStatement->execute([$id]);
+        $hadPhoto = (bool) $photoStatement->fetchColumn();
         $contentType = $_SERVER['CONTENT_TYPE'] ?? 'application/octet-stream';
         if (str_starts_with($contentType, 'application/json')) {
             $body = readJsonBody();
@@ -864,6 +1059,12 @@ function handleMemberPhoto(int $id): void
                inhalt = VALUES(inhalt)"
         )->execute([$id, $fileName, $mimeType, strlen($content), $sha, $content]);
         db()->prepare('UPDATE mitglied SET passbild = ? WHERE id = ?')->execute([$fileName, $id]);
+        auditMemberChange($id, 'photo_updated', [[
+            'field' => 'passbild',
+            'label' => memberAuditLabels()['passbild'],
+            'old' => $hadPhoto ? 'vorhanden' : '',
+            'new' => 'aktualisiert',
+        ]], $currentUser);
         jsonResponse(['photo' => ['id' => $id, 'fileName' => $fileName, 'mimeType' => $mimeType, 'size' => strlen($content), 'sha256' => $sha]]);
     }
 
@@ -871,6 +1072,12 @@ function handleMemberPhoto(int $id): void
         $statement = db()->prepare('DELETE FROM mitglied_passbild WHERE mitglied_id = ?');
         $statement->execute([$id]);
         if ($statement->rowCount() === 0) throw new ApiError('Passbild nicht gefunden.', 404);
+        auditMemberChange($id, 'photo_deleted', [[
+            'field' => 'passbild',
+            'label' => memberAuditLabels()['passbild'],
+            'old' => 'vorhanden',
+            'new' => '',
+        ]], $currentUser);
         noContent();
     }
 

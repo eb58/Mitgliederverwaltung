@@ -1363,6 +1363,37 @@ const buildMemberForm = () => {
     tabContent.appendChild(pane);
   });
 
+  const changesTabItem = document.createElement("li");
+  changesTabItem.className = "nav-item";
+  changesTabItem.role = "presentation";
+
+  const changesTabButton = document.createElement("button");
+  changesTabButton.className = "nav-link";
+  changesTabButton.id = "member-form-changes-tab";
+  changesTabButton.type = "button";
+  changesTabButton.role = "tab";
+  changesTabButton.dataset.bsToggle = "tab";
+  changesTabButton.dataset.bsTarget = "#member-form-changes-pane";
+  changesTabButton.setAttribute("aria-controls", "member-form-changes-pane");
+  changesTabButton.setAttribute("aria-selected", "false");
+  changesTabButton.textContent = "Änderungen";
+
+  const changesPane = document.createElement("div");
+  changesPane.className = "tab-pane fade";
+  changesPane.id = "member-form-changes-pane";
+  changesPane.role = "tabpanel";
+  changesPane.setAttribute("aria-labelledby", changesTabButton.id);
+  changesPane.tabIndex = 0;
+
+  const changesContainer = document.createElement("div");
+  changesContainer.className = "member-change-history";
+  changesContainer.id = "memberChangeHistory";
+  changesPane.appendChild(changesContainer);
+
+  changesTabItem.appendChild(changesTabButton);
+  tabs.appendChild(changesTabItem);
+  tabContent.appendChild(changesPane);
+
   container.append(hiddenIdInput, tabs, tabContent);
 };
 
@@ -1610,8 +1641,80 @@ const openMemberModal = memberId => {
   clearSelectedMemberPhoto();
   fillMemberForm(member, isNew);
   updateMemberDeleteButton(isNew);
+  loadMemberChangeHistory(member.id, isNew);
   resetMemberFormTabs();
   memberModal.show();
+};
+
+const loadMemberChangeHistory = async (memberId, isNew) => {
+  if (isNew) {
+    renderMemberChangeHistory([], { message: "Änderungen werden nach dem ersten Speichern protokolliert." });
+    return;
+  }
+
+  renderMemberChangeHistory([], { message: "Änderungsverlauf wird geladen..." });
+  try {
+    renderMemberChangeHistory(await loadMemberChangesViaApi(memberId));
+  } catch (error) {
+    console.warn("Änderungsverlauf konnte nicht geladen werden.", error);
+    renderMemberChangeHistory([], { message: "Änderungsverlauf konnte nicht geladen werden." });
+  }
+};
+
+const memberChangeActionLabel = action => ({
+  created: "Mitglied angelegt",
+  updated: "Mitglied geändert",
+  deleted: "Mitglied gelöscht",
+  photo_updated: "Passbild geändert",
+  photo_deleted: "Passbild entfernt"
+}[action] || "Änderung");
+
+const renderMemberChangeHistory = (items, { message = "" } = {}) => {
+  const container = document.getElementById("memberChangeHistory");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (message || !items.length) {
+    const empty = document.createElement("div");
+    empty.className = "member-change-history__empty";
+    empty.textContent = message || "Noch keine Änderungen protokolliert.";
+    container.appendChild(empty);
+    return;
+  }
+
+  items.forEach(item => {
+    const entry = document.createElement("article");
+    entry.className = "member-change-entry";
+
+    const header = document.createElement("div");
+    header.className = "member-change-entry__header";
+
+    const title = document.createElement("strong");
+    title.textContent = memberChangeActionLabel(item.action);
+
+    const meta = document.createElement("span");
+    const changedBy = item.changedByName ? ` · ${item.changedByName}` : "";
+    meta.textContent = `${formatDateTimeDE(item.changedAt)}${changedBy}`;
+
+    header.append(title, meta);
+    entry.appendChild(header);
+
+    const changes = Array.isArray(item.changes) ? item.changes : [];
+    if (changes.length) {
+      const list = document.createElement("ul");
+      list.className = "member-change-entry__list";
+      changes.forEach(change => {
+        const listItem = document.createElement("li");
+        const oldValue = change.old || "leer";
+        const newValue = change.new || "leer";
+        listItem.textContent = `${change.label || change.field}: ${oldValue} -> ${newValue}`;
+        list.appendChild(listItem);
+      });
+      entry.appendChild(list);
+    }
+
+    container.appendChild(entry);
+  });
 };
 
 const updateMemberDeleteButton = isNew => {
@@ -2441,6 +2544,19 @@ const formatDateDE = isoDate => {
   return parts.length !== 3 ? isoDate : `${parts[2]}.${parts[1]}.${parts[0]}`;
 };
 
+const formatDateTimeDE = value => {
+  if (!value) return "";
+  const date = new Date(String(value).replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+};
+
 const formatCurrency = value => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "";
   return Number(value).toLocaleString("de-DE", { style: "currency", currency: "EUR" });
@@ -2638,6 +2754,11 @@ const toMemberApiPayload = member => {
 const createMemberViaApi = async member => {
   const payload = await requestMemberApi("/api/members", { method: "POST", body: toMemberApiPayload(member) });
   return normalizeMember(payload.member);
+};
+
+const loadMemberChangesViaApi = async memberId => {
+  const payload = await requestMemberApi(`/api/members/${memberId}/changes`);
+  return Array.isArray(payload?.changes) ? payload.changes : [];
 };
 
 const fetchMemberPhotoObjectUrl = async memberId => {

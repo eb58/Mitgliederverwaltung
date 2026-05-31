@@ -49,15 +49,19 @@ try {
     }
 
     if ($path === '/api/members') {
-        handleMembersCollection();
+        handleMembersCollection($user);
+    }
+
+    if (preg_match('#^/api/members/(\d+)/changes$#', $path, $matches)) {
+        handleMemberChanges((int) $matches[1]);
     }
 
     if (preg_match('#^/api/members/(\d+)/photo$#', $path, $matches)) {
-        handleMemberPhoto((int) $matches[1]);
+        handleMemberPhoto((int) $matches[1], $user);
     }
 
     if (preg_match('#^/api/members/(\d+)$#', $path, $matches)) {
-        handleMemberResource((int) $matches[1]);
+        handleMemberResource((int) $matches[1], $user);
     }
 
     jsonResponse(['error' => 'Route nicht gefunden.'], 404);
