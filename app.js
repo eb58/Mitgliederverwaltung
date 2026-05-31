@@ -214,7 +214,7 @@ const DEFAULT_MEMBER_API_BASE_URL = globalThis.location.protocol.startsWith("htt
 const MEMBER_API_PAGE_SIZE = 500;
 const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
 const GRID_COLUMN_STATE_PREFIX = "mitgliederverwaltung:gridColumnState:";
-const PASSWORD_VISIBILITY_MS = 3000;
+const PASSWORD_VISIBILITY_MS = 1000;
 const searchableTabTargets = new Set([
   "#overview-pane",
   "#payments-pane",
