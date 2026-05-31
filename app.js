@@ -1,55 +1,13 @@
 "use strict";
 
-const interestGroups = [
-  { id: 1, label: "Allgemein" },
-  { id: 2, label: "Gymnastik" },
-  { id: 3, label: "Kreativ" },
-  { id: 4, label: "Computer" },
-  { id: 5, label: "Kartenspiel" },
-  { id: 6, label: "Englisch" },
-  { id: 7, label: "Zeitlosen" },
-  { id: 8, label: "Tischtennis 1" },
-  { id: 9, label: "Schach" },
-  { id: 10, label: "Smartphone Apple" },
-  { id: 11, label: "Laufgruppe" },
-  { id: 15, label: "Tischtennis 2" },
-  { id: 16, label: "Excel" },
-  { id: 17, label: "WinSoft" },
-  { id: 18, label: "Smartphone Android" },
-  { id: 19, label: "Video" },
-  { id: 20, label: "Publisher" },
-  { id: 21, label: "PC im Alltag" },
-  { id: 22, label: "Grundlagen" },
-  { id: 23, label: "Senioren-Skat" },
-  { id: 24, label: "Gesprächskreis Aktuelles" },
-  { id: 26, label: "Tischtennis 3" }
-];
+const interestGroups = [];
 
 const germanCollator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
 const interestGroupMap = {};
 
-const seniorenclubsMap = [
-  { id: 1, name: "FZST Heiligensee" },
-  { id: 2, name: "FZST Tegel" },
-  { id: 3, name: "FZST Hermsdorf" },
-  { id: 4, name: "FZST Schäfersee" },
-  { id: 5, name: "FZST Märkischer Seniorentreff" },
-  { id: 6, name: "FZST Club der Lebensfrohen" },
-  { id: 7, name: "FZST Adelheidallee" },
-  { id: 8, name: "Gäste" },
-  { id: 9, name: "Lübars" }
-];
+const seniorenclubsMap = [];
 
-const austrittsgrundMap = {
-  1: "",
-  2: "Tod",
-  3: "Kündigung",
-  4: "Umzug",
-  5: "Altenheim",
-  6: "anderer Club",
-  7: "ohne",
-  8: "Gesundheit"
-};
+const austrittsgrundMap = {};
 
 const christmasChoiceMap = {
   0: "Nein",
@@ -59,15 +17,7 @@ const christmasChoiceMap = {
 
 const MEMBER_CLUB_ID = 9;
 
-const funktionsMap = {
-  1: "Vorstand",
-  2: "Kassierer",
-  3: "Gruppenleiter",
-  4: "Gruppenleiter stellv.",
-  5: "Ersthelfer",
-  6: "Brandschutzbeauftragter",
-  7: "Rote Karte"
-};
+const funktionsMap = {};
 
 
 const interestGroupOptions = [];
@@ -681,7 +631,7 @@ const loadReferenceData = async () => {
   try {
     applyReferenceData(await loadReferenceDataFromApi());
   } catch (error) {
-    console.warn("Stammdaten konnten nicht ueber die API geladen werden. Feste Werte werden verwendet.", error);
+    console.warn("Stammdaten konnten nicht ueber die API geladen werden.", error);
   }
 };
 
