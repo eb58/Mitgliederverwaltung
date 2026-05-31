@@ -214,6 +214,7 @@ const DEFAULT_MEMBER_API_BASE_URL = globalThis.location.protocol.startsWith("htt
 const MEMBER_API_PAGE_SIZE = 500;
 const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
 const GRID_COLUMN_STATE_PREFIX = "mitgliederverwaltung:gridColumnState:";
+const PASSWORD_VISIBILITY_MS = 3000;
 const searchableTabTargets = new Set([
   "#overview-pane",
   "#payments-pane",
@@ -280,6 +281,7 @@ let selectedMemberPhotoFile = null;
 let referenceAdminData = {};
 let selectedMemberPhotoObjectUrl = null;
 const restoringGridStateKeys = new Set();
+const passwordVisibilityTimers = new Map();
 
 const replaceObjectContents = (target, entries) => {
   Object.keys(target).forEach(key => delete target[key]);
@@ -391,19 +393,62 @@ const wireLoginForm = () => {
   loginForm.addEventListener("submit", handleLoginSubmit);
   document.getElementById("passwordChangeForm").addEventListener("submit", handlePasswordChangeSubmit);
   document.getElementById("passwordChangeCancelBtn").addEventListener("click", handlePasswordChangeCancel);
-  document.getElementById("toggleLoginPasswordBtn").addEventListener("click", toggleLoginPasswordVisibility);
+  document.querySelectorAll("[data-password-target]").forEach(button => {
+    button.addEventListener("click", togglePasswordVisibility);
+  });
+};
+
+const clearPasswordVisibilityTimer = inputId => {
+  const timer = passwordVisibilityTimers.get(inputId);
+  if (!timer) return;
+  clearTimeout(timer);
+  passwordVisibilityTimers.delete(inputId);
+};
+
+const setPasswordVisibility = (inputId, visible) => {
+  const passwordInput = document.getElementById(inputId);
+  const button = document.querySelector(`[data-password-target="${inputId}"]`);
+  if (!passwordInput || !button) return;
+
+  passwordInput.type = visible ? "text" : "password";
+  button.setAttribute("aria-pressed", String(visible));
+  button.setAttribute("aria-label", visible ? "Passwort verbergen" : "Passwort anzeigen");
+  if (!visible) clearPasswordVisibilityTimer(inputId);
+};
+
+const hidePasswordFields = (...inputIds) => {
+  inputIds.forEach(inputId => setPasswordVisibility(inputId, false));
+};
+
+const togglePasswordVisibility = event => {
+  const inputId = event.currentTarget.dataset.passwordTarget;
+  if (!inputId) return;
+
+  const passwordInput = document.getElementById(inputId);
+  if (!passwordInput) return;
+
+  const nextIsVisible = passwordInput.type === "password";
+  setPasswordVisibility(inputId, nextIsVisible);
+  if (!nextIsVisible) return;
+
+  clearPasswordVisibilityTimer(inputId);
+  passwordVisibilityTimers.set(inputId, setTimeout(() => {
+    setPasswordVisibility(inputId, false);
+  }, PASSWORD_VISIBILITY_MS));
 };
 
 const clearPasswordChangeForm = () => {
   document.getElementById("newPassword").value = "";
   document.getElementById("confirmNewPassword").value = "";
   document.getElementById("passwordChangeError").hidden = true;
+  hidePasswordFields("newPassword", "confirmNewPassword");
 };
 
 const showLoginForm = () => {
   document.getElementById("loginForm").hidden = false;
   document.getElementById("passwordChangeForm").hidden = true;
   document.getElementById("loginError").hidden = true;
+  hidePasswordFields("loginPassword");
   clearPasswordChangeForm();
 };
 
@@ -444,15 +489,6 @@ const handlePasswordChangeCancel = async () => {
   loginModal.hide();
   showLoginForm();
   setAppShellVisible(true);
-};
-
-const toggleLoginPasswordVisibility = () => {
-  const passwordInput = document.getElementById("loginPassword");
-  const button = document.getElementById("toggleLoginPasswordBtn");
-  const nextIsVisible = passwordInput.type === "password";
-  passwordInput.type = nextIsVisible ? "text" : "password";
-  button.setAttribute("aria-pressed", String(nextIsVisible));
-  button.setAttribute("aria-label", nextIsVisible ? "Passwort verbergen" : "Passwort anzeigen");
 };
 
 const finishAuthenticatedLogin = async () => {

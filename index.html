@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
   <link rel="stylesheet" href="vendor/ag-theme-quartz.css">
-  <link rel="stylesheet" href="styles.css?v=20260529-photo-preview">
+  <link rel="stylesheet" href="styles.css?v=20260531-password-eye">
 </head>
 
 <body>
@@ -369,6 +369,7 @@
                 </span>
                 <input id="loginPassword" class="form-control" type="password" autocomplete="current-password">
                 <button id="toggleLoginPasswordBtn" class="login-field__toggle" type="button"
+                  data-password-target="loginPassword"
                   aria-label="Passwort anzeigen" aria-pressed="false">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path>
@@ -393,7 +394,6 @@
           <div class="login-card__header">
             <img class="login-card__logo" src="assets/website-logo.jpg" alt="Freizeitstaette Luebars">
             <h2 class="login-card__title">Passwort &auml;ndern</h2>
-            <p class="login-card__subtitle">Neues Passwort setzen</p>
             <p id="passwordChangeUser" class="password-change-user" hidden></p>
           </div>
           <div class="login-card__body">
@@ -407,6 +407,14 @@
                   </svg>
                 </span>
                 <input id="newPassword" class="form-control" type="password" autocomplete="new-password" required>
+                <button id="toggleNewPasswordBtn" class="login-field__toggle" type="button"
+                  data-password-target="newPassword"
+                  aria-label="Passwort anzeigen" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
               </div>
             </div>
             <div class="login-field">
@@ -418,6 +426,14 @@
                   </svg>
                 </span>
                 <input id="confirmNewPassword" class="form-control" type="password" autocomplete="new-password" required>
+                <button id="toggleConfirmNewPasswordBtn" class="login-field__toggle" type="button"
+                  data-password-target="confirmNewPassword"
+                  aria-label="Passwort anzeigen" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
               </div>
             </div>
             <div id="passwordChangeError" class="login-error" role="alert" hidden></div>
@@ -439,7 +455,7 @@
   <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="vendor/ag-grid-community.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
-  <script type="module" src="app.js?v=20260529-user-status"></script>
+  <script type="module" src="app.js?v=20260531-password-eye"></script>
 </body>
 
 </html>
