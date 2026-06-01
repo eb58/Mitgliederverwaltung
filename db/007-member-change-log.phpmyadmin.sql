@@ -9,7 +9,5 @@ CREATE TABLE mitglied_aenderung (
   PRIMARY KEY (id),
   INDEX idx_mitglied_aenderung_mitglied_id (mitglied_id),
   INDEX idx_mitglied_aenderung_geaendert_am (geaendert_am),
-  CONSTRAINT fk_mitglied_aenderung_user
-    FOREIGN KEY (geaendert_von_user_id) REFERENCES app_user (id)
-    ON DELETE SET NULL
+  CONSTRAINT fk_mitglied_aenderung_user FOREIGN KEY (geaendert_von_user_id) REFERENCES app_user (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

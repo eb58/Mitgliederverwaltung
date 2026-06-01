@@ -65,34 +65,25 @@ CREATE TABLE mitglied (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  CONSTRAINT fk_mitglied_austrittsgrund
-    FOREIGN KEY (austrittsgrund_id) REFERENCES austrittsgrund (id),
-  CONSTRAINT fk_mitglied_seniorenclub
-    FOREIGN KEY (clubzugehoerigkeit_id) REFERENCES seniorenclub (id),
-  CONSTRAINT chk_mitglied_weihnachtsessen
-    CHECK (weihnachtsessen IN (0, 1, 2))
+  CONSTRAINT fk_mitglied_austrittsgrund FOREIGN KEY (austrittsgrund_id) REFERENCES austrittsgrund (id),
+  CONSTRAINT fk_mitglied_seniorenclub FOREIGN KEY (clubzugehoerigkeit_id) REFERENCES seniorenclub (id),
+  CONSTRAINT chk_mitglied_weihnachtsessen CHECK (weihnachtsessen IN (0, 1, 2))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE mitglied_interessengruppe (
   mitglied_id INT NOT NULL,
   interessengruppe_id INT NOT NULL,
   PRIMARY KEY (mitglied_id, interessengruppe_id),
-  CONSTRAINT fk_mitglied_interessengruppe_mitglied
-    FOREIGN KEY (mitglied_id) REFERENCES mitglied (id)
-    ON DELETE CASCADE,
-  CONSTRAINT fk_mitglied_interessengruppe_gruppe
-    FOREIGN KEY (interessengruppe_id) REFERENCES interessengruppe (id)
+  CONSTRAINT fk_mitglied_interessengruppe_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE CASCADE,
+  CONSTRAINT fk_mitglied_interessengruppe_gruppe FOREIGN KEY (interessengruppe_id) REFERENCES interessengruppe (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE mitglied_funktion (
   mitglied_id INT NOT NULL,
   funktion_id INT NOT NULL,
   PRIMARY KEY (mitglied_id, funktion_id),
-  CONSTRAINT fk_mitglied_funktion_mitglied
-    FOREIGN KEY (mitglied_id) REFERENCES mitglied (id)
-    ON DELETE CASCADE,
-  CONSTRAINT fk_mitglied_funktion_funktion
-    FOREIGN KEY (funktion_id) REFERENCES funktion (id)
+  CONSTRAINT fk_mitglied_funktion_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE CASCADE,
+  CONSTRAINT fk_mitglied_funktion_funktion FOREIGN KEY (funktion_id) REFERENCES funktion (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE mitglied_passbild (
@@ -105,9 +96,7 @@ CREATE TABLE mitglied_passbild (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (mitglied_id),
-  CONSTRAINT fk_mitglied_passbild_mitglied
-    FOREIGN KEY (mitglied_id) REFERENCES mitglied (id)
-    ON DELETE CASCADE
+  CONSTRAINT fk_mitglied_passbild_mitglied  FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_mitglied_name ON mitglied (name, vorname);
@@ -211,9 +200,7 @@ CREATE TABLE app_session (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (token_hash),
   INDEX idx_app_session_expires_at (expires_at),
-  CONSTRAINT fk_app_session_user
-    FOREIGN KEY (user_id) REFERENCES app_user (id)
-    ON DELETE CASCADE
+  CONSTRAINT fk_app_session_user FOREIGN KEY (user_id) REFERENCES app_user (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --rollback DROP TABLE app_session;
@@ -246,9 +233,7 @@ CREATE TABLE mitglied_aenderung (
   PRIMARY KEY (id),
   INDEX idx_mitglied_aenderung_mitglied_id (mitglied_id),
   INDEX idx_mitglied_aenderung_geaendert_am (geaendert_am),
-  CONSTRAINT fk_mitglied_aenderung_user
-    FOREIGN KEY (geaendert_von_user_id) REFERENCES app_user (id)
-    ON DELETE SET NULL
+  CONSTRAINT fk_mitglied_aenderung_user FOREIGN KEY (geaendert_von_user_id) REFERENCES app_user (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --rollback DROP TABLE mitglied_aenderung;
