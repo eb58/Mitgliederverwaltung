@@ -52,6 +52,10 @@ try {
         handleMembersCollection($user);
     }
 
+    if ($path === '/api/member-changes') {
+        handleRecentMemberChanges();
+    }
+
     if (preg_match('#^/api/members/(\d+)/changes$#', $path, $matches)) {
         handleMemberChanges((int) $matches[1]);
     }

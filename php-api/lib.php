@@ -875,6 +875,45 @@ function handleMemberChanges(int $id): void
     jsonResponse(['changes' => $changes]);
 }
 
+function memberChangeRowToApi(array $row): array
+{
+    $memberName = trim((string) ($row['vorname'] ?? '') . ' ' . (string) ($row['name'] ?? ''));
+    return [
+        'id' => (int) $row['id'],
+        'memberId' => (int) $row['mitglied_id'],
+        'memberName' => $memberName,
+        'memberExists' => $row['mitglied_existiert'] !== null,
+        'action' => $row['aktion'],
+        'changedAt' => $row['geaendert_am'],
+        'changedByUserId' => $row['geaendert_von_user_id'] === null ? null : (int) $row['geaendert_von_user_id'],
+        'changedByName' => $row['geaendert_von_name'],
+        'changes' => json_decode((string) $row['aenderungen_json'], true) ?: [],
+    ];
+}
+
+function handleRecentMemberChanges(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        throw new ApiError('Methode nicht erlaubt.', 405);
+    }
+    if (!tableExists('mitglied_aenderung')) {
+        jsonResponse(['changes' => []]);
+    }
+
+    $limit = min(max((int) ($_GET['limit'] ?? 100), 1), 200);
+    $statement = db()->prepare(
+        'SELECT a.id, a.mitglied_id, a.aktion, a.geaendert_am, a.geaendert_von_user_id, a.geaendert_von_name,
+                a.aenderungen_json, m.id AS mitglied_existiert, m.name, m.vorname
+         FROM mitglied_aenderung a
+         LEFT JOIN mitglied m ON m.id = a.mitglied_id
+         ORDER BY a.geaendert_am DESC, a.id DESC
+         LIMIT ?'
+    );
+    $statement->bindValue(1, $limit, PDO::PARAM_INT);
+    $statement->execute();
+    jsonResponse(['changes' => array_map('memberChangeRowToApi', $statement->fetchAll())]);
+}
+
 function handleMembersCollection(array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];

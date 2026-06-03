@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
   <link rel="stylesheet" href="vendor/ag-theme-quartz.css">
-  <link rel="stylesheet" href="styles.css?v=20260531-member-changes">
+  <link rel="stylesheet" href="styles.css?v=20260603-recent-changes">
 </head>
 
 <body>
@@ -74,6 +74,10 @@
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="historical-tab" data-bs-toggle="tab" data-bs-target="#historical-pane"
           type="button" role="tab" aria-controls="historical-pane" aria-selected="false">Historisch</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="changes-tab" data-bs-toggle="tab" data-bs-target="#changes-pane"
+          type="button" role="tab" aria-controls="changes-pane" aria-selected="false">&Auml;nderungen</button>
       </li>
     </ul>
 
@@ -220,6 +224,14 @@
             aria-pressed="true">Gäste ausblenden</button>
         </div>
         <div id="historicalGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
+      </div>
+      <div class="tab-pane fade" id="changes-pane" role="tabpanel" aria-labelledby="changes-tab" tabindex="0">
+        <div class="grid-toolbar">
+          <button id="refreshRecentChangesBtn" class="btn btn-outline-secondary guest-toggle" type="button">
+            Aktualisieren
+          </button>
+        </div>
+        <div id="recentChangesList" class="recent-change-list" aria-live="polite"></div>
       </div>
     </section>
   </main>
@@ -454,7 +466,7 @@
   <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="vendor/ag-grid-community.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
-  <script type="module" src="app.js?v=20260531-member-changes"></script>
+  <script type="module" src="app.js?v=20260603-recent-changes"></script>
 </body>
 
 </html>

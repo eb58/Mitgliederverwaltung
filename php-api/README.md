@@ -8,9 +8,11 @@ GET    /api/session
 DELETE /api/session
 GET    /api/members
 POST   /api/members
+GET    /api/member-changes
 GET    /api/members/{id}
 PUT    /api/members/{id}
 DELETE /api/members/{id}
+GET    /api/members/{id}/changes
 GET    /api/members/{id}/photo
 PUT    /api/members/{id}/photo
 DELETE /api/members/{id}/photo

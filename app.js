@@ -142,6 +142,7 @@ const state = {
   showOnlyOpenClubPayments: false,
   showChristmasGuests: false,
   showHistoricalGuests: true,
+  recentChanges: [],
   currentUser: null,
   authToken: localStorage.getItem("mitgliederverwaltung:authToken") || ""
 };
@@ -312,6 +313,7 @@ const initApp = async () => {
   initGrids();
   wireUi();
   refreshAllViews();
+  refreshRecentChanges();
   setAppShellVisible(true);
 };
 
@@ -333,6 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initGrids();
     wireUi();
     refreshAllViews();
+    renderRecentChanges([], { message: "\u00c4nderungen konnten nicht geladen werden." });
   });
 });
 
@@ -603,6 +606,7 @@ const loadReferenceItemsFromApi = type => requestMemberApi(`/api/reference-data/
 const createReferenceItemViaApi = (type, item) => requestMemberApi(`/api/reference-data/${type}`, { method: "POST", body: item });
 const updateReferenceItemViaApi = (type, item) => requestMemberApi(`/api/reference-data/${type}/${item.id}`, { method: "PUT", body: item });
 const deleteReferenceItemViaApi = (type, id) => requestMemberApi(`/api/reference-data/${type}/${id}`, { method: "DELETE" });
+const loadRecentMemberChangesViaApi = () => requestMemberApi("/api/member-changes", { params: { limit: 100 } });
 
 const referenceSections = [
   { type: "interest-groups", title: "Interessengruppen", labelName: "Bezeichnung" },
@@ -968,6 +972,7 @@ const wireUi = () => {
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
   document.getElementById("toggleChristmasGuestsBtn").addEventListener("click", toggleChristmasGuests);
   document.getElementById("toggleHistoricalGuestsBtn").addEventListener("click", toggleHistoricalGuests);
+  document.getElementById("refreshRecentChangesBtn").addEventListener("click", refreshRecentChanges);
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
   updateOverviewGuestToggle();
@@ -981,6 +986,9 @@ const wireUi = () => {
   document.querySelectorAll('#mainTabs button[data-bs-toggle="tab"]').forEach(tabButton => {
     tabButton.addEventListener("shown.bs.tab", event => {
       updateGlobalSearchVisibility(event.target.dataset.bsTarget);
+      if (event.target.dataset.bsTarget === "#changes-pane") {
+        refreshRecentChanges();
+      }
       setTimeout(() => {
         Object.entries(gridApis).forEach(([gridKey, api]) => fitGridColumnsIfNeeded(gridKey, api));
       }, 10);
@@ -1667,6 +1675,91 @@ const renderMemberChangeHistory = (items, { message = "" } = {}) => {
   });
 };
 
+const refreshRecentChanges = async () => {
+  const button = document.getElementById("refreshRecentChangesBtn");
+  if (button) button.disabled = true;
+  renderRecentChanges(state.recentChanges, { message: state.recentChanges.length ? "" : "\u00c4nderungen werden geladen..." });
+  try {
+    const payload = await loadRecentMemberChangesViaApi();
+    state.recentChanges = Array.isArray(payload?.changes) ? payload.changes : [];
+    renderRecentChanges(state.recentChanges);
+  } catch (error) {
+    console.warn("Letzte Aenderungen konnten nicht geladen werden.", error);
+    renderRecentChanges(state.recentChanges, { message: state.recentChanges.length ? "" : "Letzte \u00c4nderungen konnten nicht geladen werden." });
+  } finally {
+    if (button) button.disabled = false;
+  }
+};
+
+const getRecentChangeMemberLabel = item => {
+  const apiName = String(item.memberName || "").trim();
+  if (apiName) return apiName;
+  const member = findMemberById(Number(item.memberId));
+  return member ? formatMemberName(member) : `Mitglied ${item.memberId}`;
+};
+
+const renderRecentChanges = (items, { message = "" } = {}) => {
+  const container = document.getElementById("recentChangesList");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (message || !items.length) {
+    const empty = document.createElement("div");
+    empty.className = "recent-change-list__empty";
+    empty.textContent = message || "Noch keine \u00c4nderungen protokolliert.";
+    container.appendChild(empty);
+    return;
+  }
+
+  container.replaceChildren(...items.map(createRecentChangeEntry));
+};
+
+const createRecentChangeEntry = item => {
+  const entry = document.createElement("article");
+  entry.className = "recent-change-entry";
+
+  const header = document.createElement("div");
+  header.className = "recent-change-entry__header";
+
+  const titleWrap = document.createElement("div");
+  titleWrap.className = "recent-change-entry__title";
+
+  const action = document.createElement("strong");
+  action.textContent = memberChangeActionLabel(item.action);
+
+  const memberButton = document.createElement("button");
+  memberButton.className = "recent-change-entry__member";
+  memberButton.type = "button";
+  memberButton.textContent = getRecentChangeMemberLabel(item);
+  memberButton.disabled = item.memberExists === false || !findMemberById(Number(item.memberId));
+  memberButton.title = memberButton.disabled ? "Mitglied ist nicht mehr vorhanden" : "Mitglied \u00f6ffnen";
+  memberButton.addEventListener("click", () => openMemberModal(Number(item.memberId)));
+
+  const meta = document.createElement("span");
+  const changedBy = item.changedByName ? ` - ${item.changedByName}` : "";
+  meta.textContent = `${formatDateTimeDE(item.changedAt)}${changedBy}`;
+
+  titleWrap.append(action, memberButton);
+  header.append(titleWrap, meta);
+  entry.appendChild(header);
+
+  const changes = Array.isArray(item.changes) ? item.changes : [];
+  if (changes.length) {
+    const list = document.createElement("ul");
+    list.className = "recent-change-entry__list";
+    changes.forEach(change => {
+      const listItem = document.createElement("li");
+      const oldValue = change.old || "leer";
+      const newValue = change.new || "leer";
+      listItem.textContent = `${change.label || change.field}: ${oldValue} -> ${newValue}`;
+      list.appendChild(listItem);
+    });
+    entry.appendChild(list);
+  }
+
+  return entry;
+};
+
 const updateMemberDeleteButton = isNew => {
   const deleteButton = document.getElementById("deleteMemberBtn");
   if (deleteButton) {
@@ -1911,6 +2004,7 @@ const handleMemberSubmit = async event => {
   clearSelectedMemberPhoto();
   memberModal.hide();
   refreshAllViews();
+  refreshRecentChanges();
 };
 
 const uploadSelectedMemberPhotoIfNeeded = async member => {
@@ -1949,6 +2043,7 @@ const handleMemberDelete = async () => {
     state.editingId = null;
     memberModal.hide();
     refreshAllViews();
+    refreshRecentChanges();
   } catch (error) {
     console.warn("Mitglied konnte nicht geloescht werden.", error);
     window.alert("Loeschen in der Datenbank fehlgeschlagen.");
