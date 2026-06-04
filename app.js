@@ -1627,6 +1627,9 @@ const memberChangeActionLabel = action => ({
   photo_deleted: "Passbild entfernt"
 }[action] || "Änderung");
 
+const hiddenMemberChangeFields = new Set(["preisClub", "preisComputer", "preisWeihnachten"]);
+const visibleMemberChanges = changes => Array.isArray(changes) ? changes.filter(change => !hiddenMemberChangeFields.has(change.field)) : [];
+
 const renderMemberChangeHistory = (items, { message = "" } = {}) => {
   const container = document.getElementById("memberChangeHistory");
   if (!container) return;
@@ -1657,7 +1660,7 @@ const renderMemberChangeHistory = (items, { message = "" } = {}) => {
     header.append(title, meta);
     entry.appendChild(header);
 
-    const changes = Array.isArray(item.changes) ? item.changes : [];
+    const changes = visibleMemberChanges(item.changes);
     if (changes.length) {
       const list = document.createElement("ul");
       list.className = "member-change-entry__list";
@@ -1743,7 +1746,7 @@ const createRecentChangeEntry = item => {
   header.append(titleWrap, meta);
   entry.appendChild(header);
 
-  const changes = Array.isArray(item.changes) ? item.changes : [];
+  const changes = visibleMemberChanges(item.changes);
   if (changes.length) {
     const list = document.createElement("ul");
     list.className = "recent-change-entry__list";
@@ -2571,6 +2574,8 @@ const createEmptyMember = () => {
       member[field.key] = "";
     }
   });
+  member.ort = "Berlin";
+  member.clubzugehoerigkeit = MEMBER_CLUB_ID;
   return member;
 };
 

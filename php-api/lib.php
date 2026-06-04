@@ -754,6 +754,11 @@ function memberAuditLabels(): array
     ];
 }
 
+function hiddenMemberAuditFields(): array
+{
+    return ['preisClub', 'preisComputer', 'preisWeihnachten'];
+}
+
 function referenceNameMap(string $table): array
 {
     $labelColumn = $table === 'seniorenclub' ? 'name' : 'bezeichnung';
@@ -813,7 +818,7 @@ function buildMemberAuditChanges(array $before, array $after): array
     $fields = array_merge(array_keys(memberFields()), ['interessengruppen', 'funktionen']);
     $changes = [];
     foreach ($fields as $field) {
-        if (in_array($field, ['id', 'funktion', 'passbild'], true)) continue;
+        if (in_array($field, array_merge(['id', 'funktion', 'passbild'], hiddenMemberAuditFields()), true)) continue;
         $oldRaw = $before[$field] ?? null;
         $newRaw = $after[$field] ?? null;
         if (normalizedAuditValue($field, $oldRaw) === normalizedAuditValue($field, $newRaw)) continue;
