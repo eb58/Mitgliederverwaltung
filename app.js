@@ -1064,7 +1064,7 @@ const getOverviewColumns = () => [
   { headerName: "Email", field: "email", minWidth: 220 },
   { headerName: "Handy", field: "handy", minWidth: 150 },
   { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, minWidth: 140 },
-  { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, minWidth: 220, flex: 1 },
+  { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, filterValueGetter: params => formatInterestGroups(params.data?.interessengruppen), minWidth: 220, flex: 1 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
 
@@ -2302,6 +2302,30 @@ const clearAllFilters = () => {
   refreshAllViews();
 };
 
+const showOverviewForInterestGroup = group => {
+  if (!group?.label) return;
+  clearGlobalSearch();
+  state.showOverviewGuests = true;
+  updateOverviewGuestToggle();
+  refreshAllViews();
+
+  const overviewApi = gridApis.overview;
+  clearGridFilters(overviewApi);
+  overviewApi?.setFilterModel?.({
+    interessengruppen: {
+      filterType: "text",
+      type: "contains",
+      filter: group.label
+    }
+  });
+  overviewApi?.onFilterChanged?.();
+
+  const overviewTab = document.getElementById("overview-tab");
+  if (overviewTab && window.bootstrap) {
+    bootstrap.Tab.getOrCreateInstance(overviewTab).show();
+  }
+};
+
 const clearInactiveQuickFilters = () => {
   const activeApi = getActiveGridApi();
   Object.values(gridApis).forEach(api => {
@@ -2553,6 +2577,13 @@ const renderInterestGroupChart = (groups, total) => {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 600, easing: "easeOutQuart" },
+      onClick: (_event, elements) => {
+        const index = elements?.[0]?.index;
+        if (Number.isInteger(index)) showOverviewForInterestGroup(groups[index]);
+      },
+      onHover: (event, elements) => {
+        if (event?.native?.target) event.native.target.style.cursor = elements?.length ? "pointer" : "default";
+      },
       layout: { padding: { top: 10, right: 6, bottom: 4, left: 4 } },
       plugins: {
         legend: { display: false },
