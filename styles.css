@@ -388,15 +388,20 @@ main.container-fluid {
 }
 
 .ag-theme-quartz .ag-row.guest-row {
-  background-color: #fdfbf8;
+  background-color: #fff3e4;
+  border-color: #efd5ad;
 }
 
 .ag-theme-quartz .ag-row.guest-row.ag-row-hover {
-  background-color: #f8f3eb;
+  background-color: #ffecd2;
 }
 
 .ag-theme-quartz .ag-row.guest-row .ag-cell {
-  color: #4f5f67;
+  color: #4b5660;
+}
+
+.ag-theme-quartz .ag-row.guest-row .ag-cell:first-child {
+  box-shadow: inset 5px 0 0 #c56a3d;
 }
 
 .ag-theme-quartz .ag-cell {
