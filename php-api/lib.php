@@ -566,13 +566,10 @@ function memberFields(): array
         'betragClubBar' => 'betrag_club_bar',
         'beitragComputerBezahlt' => 'beitrag_computer_bezahlt',
         'betragComputerBar' => 'betrag_computer_bar',
-        'preisClub' => 'preis_club',
         'gezahlterBetragClub' => 'gezahlter_betrag_club',
         'einzahlungClubAm' => 'einzahlung_club_am',
-        'preisComputer' => 'preis_computer',
         'gezahlterBetragComputer' => 'gezahlter_betrag_computer',
         'einzahlungComputerAm' => 'einzahlung_computer_am',
-        'preisWeihnachten' => 'preis_weihnachten',
         'gezahlterBetragWeihnachten' => 'gezahlter_betrag_weihnachten',
         'bemerkung' => 'bemerkung',
         'tischnummer' => 'tischnummer',
@@ -598,11 +595,8 @@ function numberFields(): array
         'weihnachtsessen',
         'betragClubBar',
         'betragComputerBar',
-        'preisClub',
         'gezahlterBetragClub',
-        'preisComputer',
         'gezahlterBetragComputer',
-        'preisWeihnachten',
         'gezahlterBetragWeihnachten',
         'tischnummer',
     ];
@@ -738,13 +732,10 @@ function memberAuditLabels(): array
         'betragClubBar' => 'Betrag Club bar',
         'beitragComputerBezahlt' => 'Beitrag Computer bezahlt',
         'betragComputerBar' => 'Beitrag Computer bar',
-        'preisClub' => 'Preis Club',
         'gezahlterBetragClub' => 'Gezahlter Betrag Club',
         'einzahlungClubAm' => 'Einzahlung Club am',
-        'preisComputer' => 'Preis Computer',
         'gezahlterBetragComputer' => 'Gezahlter Betrag Computer',
         'einzahlungComputerAm' => 'Einzahlung Computer am',
-        'preisWeihnachten' => 'Preis Weihnachten',
         'gezahlterBetragWeihnachten' => 'Gezahlter Betrag Weihnachten',
         'bemerkung' => 'Bemerkung',
         'tischnummer' => 'Tischnummer',
@@ -752,11 +743,6 @@ function memberAuditLabels(): array
         'funktionen' => 'Funktionen',
         'passbild' => 'Passbild',
     ];
-}
-
-function hiddenMemberAuditFields(): array
-{
-    return ['preisClub', 'preisComputer', 'preisWeihnachten'];
 }
 
 function referenceNameMap(string $table): array
@@ -818,7 +804,7 @@ function buildMemberAuditChanges(array $before, array $after): array
     $fields = array_merge(array_keys(memberFields()), ['interessengruppen', 'funktionen']);
     $changes = [];
     foreach ($fields as $field) {
-        if (in_array($field, array_merge(['id', 'funktion', 'passbild'], hiddenMemberAuditFields()), true)) continue;
+        if (in_array($field, ['id', 'funktion', 'passbild'], true)) continue;
         $oldRaw = $before[$field] ?? null;
         $newRaw = $after[$field] ?? null;
         if (normalizedAuditValue($field, $oldRaw) === normalizedAuditValue($field, $newRaw)) continue;

@@ -54,13 +54,10 @@ const fieldDefinitions = [
   { key: "betragClubBar", label: "Betrag bar", type: "currency" },
   { key: "beitragComputerBezahlt", label: "Beitrag Computer bezahlt", type: "checkbox" },
   { key: "betragComputerBar", label: "Beitrag Computer bar", type: "currency" },
-  { key: "preisClub", label: "Preis Club", type: "currency" },
   { key: "gezahlterBetragClub", label: "gezahlter Betrag Club", type: "currency" },
   { key: "einzahlungClubAm", label: "Einzahlung Club am", type: "date" },
-  { key: "preisComputer", label: "Preis Computer", type: "currency" },
   { key: "gezahlterBetragComputer", label: "gezahlter Betrag Computer", type: "currency" },
   { key: "einzahlungComputerAm", label: "Einzahlung Computer am", type: "date" },
-  { key: "preisWeihnachten", label: "Preis Weihnachten", type: "currency" },
   { key: "gezahlterBetragWeihnachten", label: "gezahlter Betrag Weihnachten", type: "currency" },
   { key: "bemerkung", label: "Bemerkung", type: "textarea" },
   { key: "tischnummer", label: "Tischnummer", type: "number" }
@@ -975,6 +972,7 @@ const wireUi = () => {
   document.getElementById("refreshRecentChangesBtn").addEventListener("click", refreshRecentChanges);
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
+  document.getElementById("clearAllFiltersBtn").addEventListener("click", clearAllFilters);
   updateOverviewGuestToggle();
   updatePaymentGuestToggle();
   updatePaymentComputerGroupToggle();
@@ -1201,7 +1199,6 @@ const getChristmasColumns = () => [
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
   { headerName: "Weihnachtsessen", field: "weihnachtsessen", valueFormatter: christmasFormatter, minWidth: 150 },
   { headerName: "bezahlt", field: "wnEssenBezahlt", minWidth: 145, filter: false, cellRenderer: paidStatusCellRenderer },
-  { headerName: "Preis Weihnachten", field: "preisWeihnachten", valueFormatter: currencyFormatter, minWidth: 150 },
   { headerName: "gezahlter Betrag Weihnachten", field: "gezahlterBetragWeihnachten", valueFormatter: currencyFormatter, minWidth: 210 },
   { headerName: "Tischnummer", field: "tischnummer", minWidth: 120 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
@@ -1627,9 +1624,6 @@ const memberChangeActionLabel = action => ({
   photo_deleted: "Passbild entfernt"
 }[action] || "Änderung");
 
-const hiddenMemberChangeFields = new Set(["preisClub", "preisComputer", "preisWeihnachten"]);
-const visibleMemberChanges = changes => Array.isArray(changes) ? changes.filter(change => !hiddenMemberChangeFields.has(change.field)) : [];
-
 const renderMemberChangeHistory = (items, { message = "" } = {}) => {
   const container = document.getElementById("memberChangeHistory");
   if (!container) return;
@@ -1660,7 +1654,7 @@ const renderMemberChangeHistory = (items, { message = "" } = {}) => {
     header.append(title, meta);
     entry.appendChild(header);
 
-    const changes = visibleMemberChanges(item.changes);
+    const changes = Array.isArray(item.changes) ? item.changes : [];
     if (changes.length) {
       const list = document.createElement("ul");
       list.className = "member-change-entry__list";
@@ -1746,7 +1740,7 @@ const createRecentChangeEntry = item => {
   header.append(titleWrap, meta);
   entry.appendChild(header);
 
-  const changes = visibleMemberChanges(item.changes);
+  const changes = Array.isArray(item.changes) ? item.changes : [];
   if (changes.length) {
     const list = document.createElement("ul");
     list.className = "recent-change-entry__list";
@@ -2279,6 +2273,24 @@ const clearGridFilters = api => {
   if (!api) return;
   api.setFilterModel?.(null);
   api.onFilterChanged?.();
+};
+
+const clearAllFilters = () => {
+  clearGlobalSearch();
+  Object.values(gridApis).forEach(clearGridFilters);
+  state.showOverviewGuests = true;
+  state.showPaymentGuests = true;
+  state.showOnlyPaymentComputerGroups = false;
+  state.showOnlyOpenClubPayments = false;
+  state.showChristmasGuests = true;
+  state.showHistoricalGuests = true;
+  updateOverviewGuestToggle();
+  updatePaymentGuestToggle();
+  updatePaymentComputerGroupToggle();
+  updatePaymentClubOpenToggle();
+  updateChristmasGuestToggle();
+  updateHistoricalGuestToggle();
+  refreshAllViews();
 };
 
 const clearInactiveQuickFilters = () => {
@@ -2884,13 +2896,10 @@ const normalizeMember = raw => {
   clone.betragClubBar = parseLegacyCashAmount(clone.betragClubBar, clone.gezahlterBetragClub);
   clone.beitragComputerBezahlt = asBoolean(clone.beitragComputerBezahlt);
   clone.betragComputerBar = parseLegacyCashAmount(clone.betragComputerBar, clone.gezahlterBetragComputer);
-  clone.preisClub = parseLegacyCurrency(clone.preisClub);
   clone.gezahlterBetragClub = parseLegacyCurrency(clone.gezahlterBetragClub);
   clone.einzahlungClubAm = parseLegacyDate(clone.einzahlungClubAm);
-  clone.preisComputer = parseLegacyCurrency(clone.preisComputer);
   clone.gezahlterBetragComputer = parseLegacyCurrency(clone.gezahlterBetragComputer);
   clone.einzahlungComputerAm = parseLegacyDate(clone.einzahlungComputerAm);
-  clone.preisWeihnachten = parseLegacyCurrency(clone.preisWeihnachten);
   clone.gezahlterBetragWeihnachten = parseLegacyCurrency(clone.gezahlterBetragWeihnachten);
   clone.bemerkung = clone.bemerkung || "";
   clone.tischnummer = Number(clone.tischnummer) || 0;
