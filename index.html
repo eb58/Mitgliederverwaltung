@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
   <link rel="stylesheet" href="vendor/ag-theme-quartz.css">
-  <link rel="stylesheet" href="styles.css?v=20260603-recent-changes">
+  <link rel="stylesheet" href="styles.css?v=20260605-filter-button">
 </head>
 
 <body>
@@ -26,7 +26,7 @@
       <div class="app-header__actions d-flex flex-wrap align-items-center gap-2">
         <input id="globalSearchInput" type="search" class="form-control search-input"
           placeholder="Suchen (Name, E-Mail, Straße, ...)">
-        <button id="clearAllFiltersBtn" class="btn btn-outline-secondary" type="button">Filter l&ouml;schen</button>
+        <button id="clearAllFiltersBtn" class="btn filter-clear-btn" type="button">Filter l&ouml;schen</button>
         <button id="addMemberBtn" class="btn btn-primary">Neues Mitglied</button>
         <button id="changePasswordBtn" class="btn btn-primary app-menu__button" type="button" hidden>Passwort &auml;ndern</button>
         <div id="adminMenu" class="dropdown app-menu" hidden>
@@ -467,7 +467,7 @@
   <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="vendor/ag-grid-community.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
-  <script type="module" src="app.js?v=20260605-clear-filters"></script>
+  <script type="module" src="app.js?v=20260605-audit-filter"></script>
 </body>
 
 </html>

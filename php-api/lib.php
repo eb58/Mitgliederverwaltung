@@ -794,6 +794,10 @@ function normalizedAuditValue(string $field, mixed $value): mixed
         return $ids;
     }
     if (in_array($field, booleanFields(), true)) return (bool) $value;
+    if (in_array($field, ['austrittsgrund', 'clubzugehoerigkeit'], true)) {
+        $id = (int) $value;
+        return $id > 0 ? $id : null;
+    }
     if (in_array($field, numberFields(), true)) return $value === null || $value === '' ? null : (float) $value;
     return $value === null ? '' : (string) $value;
 }
@@ -808,11 +812,14 @@ function buildMemberAuditChanges(array $before, array $after): array
         $oldRaw = $before[$field] ?? null;
         $newRaw = $after[$field] ?? null;
         if (normalizedAuditValue($field, $oldRaw) === normalizedAuditValue($field, $newRaw)) continue;
+        $old = formatAuditValue($field, $oldRaw);
+        $new = formatAuditValue($field, $newRaw);
+        if ($old === $new) continue;
         $changes[] = [
             'field' => $field,
             'label' => $labels[$field] ?? $field,
-            'old' => formatAuditValue($field, $oldRaw),
-            'new' => formatAuditValue($field, $newRaw),
+            'old' => $old,
+            'new' => $new,
         ];
     }
     return $changes;

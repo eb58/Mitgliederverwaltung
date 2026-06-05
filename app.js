@@ -1624,6 +1624,15 @@ const memberChangeActionLabel = action => ({
   photo_deleted: "Passbild entfernt"
 }[action] || "Änderung");
 
+const legacyHiddenMemberChangeFields = new Set(["preisClub", "preisComputer", "preisWeihnachten"]);
+const legacyHiddenMemberChangeLabels = new Set(["Preis Club", "Preis Computer", "Preis Weihnachten"]);
+const isVisibleMemberChange = change => !legacyHiddenMemberChangeFields.has(change.field)
+  && !legacyHiddenMemberChangeLabels.has(change.label)
+  && String(change.old ?? "").trim() !== String(change.new ?? "").trim();
+const visibleMemberChanges = changes => Array.isArray(changes)
+  ? changes.filter(isVisibleMemberChange)
+  : [];
+
 const renderMemberChangeHistory = (items, { message = "" } = {}) => {
   const container = document.getElementById("memberChangeHistory");
   if (!container) return;
@@ -1654,7 +1663,7 @@ const renderMemberChangeHistory = (items, { message = "" } = {}) => {
     header.append(title, meta);
     entry.appendChild(header);
 
-    const changes = Array.isArray(item.changes) ? item.changes : [];
+    const changes = visibleMemberChanges(item.changes);
     if (changes.length) {
       const list = document.createElement("ul");
       list.className = "member-change-entry__list";
@@ -1740,7 +1749,7 @@ const createRecentChangeEntry = item => {
   header.append(titleWrap, meta);
   entry.appendChild(header);
 
-  const changes = Array.isArray(item.changes) ? item.changes : [];
+  const changes = visibleMemberChanges(item.changes);
   if (changes.length) {
     const list = document.createElement("ul");
     list.className = "recent-change-entry__list";
