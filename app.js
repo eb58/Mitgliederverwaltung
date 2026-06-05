@@ -63,6 +63,11 @@ const fieldDefinitions = [
   { key: "tischnummer", label: "Tischnummer", type: "number" }
 ];
 
+const paidAmountDefaults = {
+  beitragClubBezahlt: { amountField: "gezahlterBetragClub", amount: 30 },
+  beitragComputerBezahlt: { amountField: "gezahlterBetragComputer", amount: 20 }
+};
+
 const formSections = [
   {
     id: "basis",
@@ -1401,6 +1406,9 @@ const createMemberFormField = field => {
     input.className = "form-check-input";
     input.id = `field-${field.key}`;
     input.dataset.fieldKey = field.key;
+    if (paidAmountDefaults[field.key]) {
+      input.addEventListener("change", () => applyPaidAmountDefault(field.key));
+    }
 
     const label = document.createElement("label");
     label.className = "form-check-label";
@@ -1790,6 +1798,13 @@ const ensureSelectHasValue = (input, raw) => {
   option.value = value;
   option.textContent = value;
   input.appendChild(option);
+};
+
+const applyPaidAmountDefault = checkboxKey => {
+  const config = paidAmountDefaults[checkboxKey];
+  const checkbox = document.getElementById(`field-${checkboxKey}`);
+  const amountInput = config ? document.getElementById(`field-${config.amountField}`) : null;
+  if (checkbox?.checked && amountInput) amountInput.value = String(config.amount);
 };
 
 const fillMemberForm = (member, isNew) => {
