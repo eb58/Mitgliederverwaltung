@@ -997,10 +997,12 @@ const wireUi = () => {
 
 const updateGlobalSearchVisibility = activeTarget => {
   const searchInput = document.getElementById("globalSearchInput");
+  const clearFiltersButton = document.getElementById("clearAllFiltersBtn");
   const target = activeTarget || document.querySelector("#mainTabs .nav-link.active")?.dataset.bsTarget;
   const isSearchable = searchableTabTargets.has(target);
 
   searchInput.hidden = !isSearchable;
+  if (clearFiltersButton) clearFiltersButton.hidden = !isSearchable;
   if (isSearchable) {
     applyQuickFilter(searchInput.value.trim());
   } else {
@@ -1063,7 +1065,7 @@ const getOverviewColumns = () => [
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
   { headerName: "Email", field: "email", minWidth: 220 },
   { headerName: "Handy", field: "handy", minWidth: 150 },
-  { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, minWidth: 140 },
+  { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 140 },
   { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, filterValueGetter: params => formatInterestGroups(params.data?.interessengruppen), minWidth: 220, flex: 1 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
@@ -2302,28 +2304,45 @@ const clearAllFilters = () => {
   refreshAllViews();
 };
 
-const showOverviewForInterestGroup = group => {
-  if (!group?.label) return;
+const showOverviewWithFilter = filterModel => {
   clearGlobalSearch();
-  state.showOverviewGuests = true;
+  state.showOverviewGuests = false;
   updateOverviewGuestToggle();
   refreshAllViews();
 
   const overviewApi = gridApis.overview;
   clearGridFilters(overviewApi);
-  overviewApi?.setFilterModel?.({
-    interessengruppen: {
-      filterType: "text",
-      type: "contains",
-      filter: group.label
-    }
-  });
+  overviewApi?.setFilterModel?.(filterModel);
   overviewApi?.onFilterChanged?.();
 
   const overviewTab = document.getElementById("overview-tab");
   if (overviewTab && window.bootstrap) {
     bootstrap.Tab.getOrCreateInstance(overviewTab).show();
   }
+};
+
+const showOverviewForInterestGroup = group => {
+  if (!group?.label) return;
+  showOverviewWithFilter({
+    interessengruppen: {
+      filterType: "text",
+      type: "contains",
+      filter: group.label
+    }
+  });
+};
+
+const showOverviewForAgeBucket = bucket => {
+  if (!bucket) return;
+  const range = getBirthDateRangeForAgeBucket(bucket);
+  showOverviewWithFilter({
+    geburtstag: {
+      filterType: "date",
+      type: "inRange",
+      dateFrom: range.from,
+      dateTo: range.to
+    }
+  });
 };
 
 const clearInactiveQuickFilters = () => {
@@ -2536,6 +2555,13 @@ const renderAgeChart = (buckets, total) => {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 600, easing: "easeOutQuart" },
+      onClick: (_event, elements) => {
+        const index = elements?.[0]?.index;
+        if (Number.isInteger(index)) showOverviewForAgeBucket(buckets[index]);
+      },
+      onHover: (event, elements) => {
+        if (event?.native?.target) event.native.target.style.cursor = elements?.length ? "pointer" : "default";
+      },
       layout: { padding: { top: 10, right: 6, bottom: 4, left: 4 } },
       plugins: {
         legend: { display: false },
@@ -2636,6 +2662,15 @@ const currencyFormatter = params => formatCurrency(params.value);
 const interestGroupFormatter = params => formatInterestGroups(params.value);
 const christmasFormatter = params => christmasChoiceMap[Number(params.value)] || christmasChoiceMap[0];
 
+const compareIsoDateToFilterDate = (filterDate, cellValue) => {
+  const cellDate = parseIsoDate(cellValue);
+  if (!cellDate) return -1;
+  const filter = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate());
+  if (cellDate < filter) return -1;
+  if (cellDate > filter) return 1;
+  return 0;
+};
+
 const formatInterestGroups = groupIds => !groupIds || groupIds.length === 0 ? "" : groupIds.map(id => interestGroupMap[id] || `ID ${id}`).join(", ");
 
 const formatFunctions = functionIds => !functionIds || functionIds.length === 0 ? "" : functionIds.map(id => funktionsMap[id] || `ID ${id}`).join(", ");
@@ -2700,18 +2735,36 @@ const asBoolean = value => {
   return false;
 };
 
-const calculateAge = (isoDate, today = new Date()) => {
+const parseIsoDate = isoDate => {
   if (!isoDate || typeof isoDate !== "string") return null;
   const parts = isoDate.split("-");
   if (parts.length !== 3) return null;
   const [year, month, day] = parts.map(Number);
   if (![year, month, day].every(Number.isFinite)) return null;
-  const birthDate = new Date(year, month - 1, day);
-  if (Number.isNaN(birthDate.getTime())) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatIsoDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const calculateAge = (isoDate, today = new Date()) => {
+  const birthDate = parseIsoDate(isoDate);
+  if (!birthDate) return null;
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age -= 1;
   return age >= 0 ? age : null;
+};
+
+const getBirthDateRangeForAgeBucket = (bucket, today = new Date()) => {
+  const currentDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const to = new Date(currentDay.getFullYear() - bucket.min, currentDay.getMonth(), currentDay.getDate());
+  if (!Number.isFinite(bucket.max)) {
+    return { from: "1900-01-01", to: formatIsoDate(to) };
+  }
+
+  const from = new Date(currentDay.getFullYear() - bucket.max - 1, currentDay.getMonth(), currentDay.getDate() + 1);
+  return { from: formatIsoDate(from), to: formatIsoDate(to) };
 };
 
 const ensureMinimumAge = (isoDate, minAge = 55, today = new Date()) => {
