@@ -64,8 +64,8 @@ const fieldDefinitions = [
 ];
 
 const paidAmountDefaults = {
-  beitragClubBezahlt: { amountField: "gezahlterBetragClub", amount: 30 },
-  beitragComputerBezahlt: { amountField: "gezahlterBetragComputer", amount: 20 }
+  beitragClubBezahlt: { amountField: "gezahlterBetragClub", amount: 30, dateField: "einzahlungClubAm" },
+  beitragComputerBezahlt: { amountField: "gezahlterBetragComputer", amount: 20, dateField: "einzahlungComputerAm" }
 };
 
 const formSections = [
@@ -1804,7 +1804,10 @@ const applyPaidAmountDefault = checkboxKey => {
   const config = paidAmountDefaults[checkboxKey];
   const checkbox = document.getElementById(`field-${checkboxKey}`);
   const amountInput = config ? document.getElementById(`field-${config.amountField}`) : null;
-  if (checkbox?.checked && amountInput) amountInput.value = String(config.amount);
+  const dateInput = config?.dateField ? document.getElementById(`field-${config.dateField}`) : null;
+  if (!checkbox?.checked) return;
+  if (amountInput) amountInput.value = String(config.amount);
+  if (dateInput && !dateInput.value) dateInput.value = formatIsoDate(new Date());
 };
 
 const fillMemberForm = (member, isNew) => {
