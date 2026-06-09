@@ -2038,6 +2038,7 @@ const uploadSelectedMemberPhotoIfNeeded = async member => {
 
   try {
     const photo = await uploadMemberPhotoViaApi(member.id, selectedMemberPhotoFile);
+    invalidateMemberPhotoCache(member.id);
     return {
       ...member,
       passbild: photo.fileName || member.passbild,
@@ -2934,12 +2935,22 @@ const loadMemberChangesViaApi = async memberId => {
   return Array.isArray(payload?.changes) ? payload.changes : [];
 };
 
-const fetchMemberPhotoObjectUrl = async memberId => {
-  const response = await fetch(createMemberApiUrl(`/api/members/${memberId}/photo`), {
+const memberPhotoCache = new Map();
+
+const fetchMemberPhotoObjectUrl = memberId => {
+  if (memberPhotoCache.has(memberId)) return memberPhotoCache.get(memberId);
+  const promise = fetch(createMemberApiUrl(`/api/members/${memberId}/photo`), {
     headers: { Authorization: `Bearer ${state.authToken}` }
-  });
-  if (!response.ok) return null;
-  return URL.createObjectURL(await response.blob());
+  }).then(response => {
+    if (!response.ok) return null;
+    return response.blob().then(blob => URL.createObjectURL(blob));
+  }).catch(() => null);
+  memberPhotoCache.set(memberId, promise);
+  return promise;
+};
+
+const invalidateMemberPhotoCache = memberId => {
+  memberPhotoCache.delete(memberId);
 };
 
 const uploadMemberPhotoViaApi = async (memberId, file) => {

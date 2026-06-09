@@ -1084,6 +1084,10 @@ function handleMemberPhoto(int $id, array $currentUser): void
             $mimeType = explode(';', $contentType)[0] ?: 'application/octet-stream';
             $content = file_get_contents('php://input') ?: '';
         }
+        $maxBytes = 5 * 1024 * 1024;
+        if (strlen($content) > $maxBytes) {
+            throw new ApiError('Passbild darf maximal 5 MB gross sein.', 400);
+        }
         $sha = hash('sha256', $content);
         db()->prepare(
             "INSERT INTO mitglied_passbild (mitglied_id, dateiname, mime_type, groesse_bytes, sha256, inhalt)
