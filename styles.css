@@ -795,19 +795,6 @@ main.container-fluid {
   --bs-btn-hover-border-color: var(--accent-2);
 }
 
-.member-delete-confirm {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.45rem 0.6rem;
-}
-
-.member-delete-confirm__msg {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #9f2d20;
-}
-
 .modal-content {
   border: 1px solid var(--border);
   border-radius: 8px;

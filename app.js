@@ -961,10 +961,6 @@ const toggleReferenceItem = async (type, item) => {
 
 const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => openMemberModal(null));
-  document.getElementById("deleteMemberBtn").addEventListener("click", showMemberDeleteConfirm);
-  document.getElementById("memberDeleteConfirmCancelBtn").addEventListener("click", resetMemberDeleteConfirm);
-  document.getElementById("memberDeleteConfirmOkBtn").addEventListener("click", handleMemberDelete);
-  document.getElementById("memberModal").addEventListener("hidden.bs.modal", resetMemberDeleteConfirm);
   document.getElementById("logoutBtn").addEventListener("click", logout);
   document.getElementById("changePasswordBtn").addEventListener("click", openOwnPasswordChangeModal);
   document.getElementById("manageUsersBtn").addEventListener("click", openUserAdminModal);
@@ -1609,7 +1605,7 @@ const openMemberModal = memberId => {
   state.editingId = isNew ? null : member.id;
   clearSelectedMemberPhoto();
   fillMemberForm(member, isNew);
-  resetMemberDeleteConfirm();
+  updateMemberDeleteButton(isNew);
   loadMemberChangeHistory(member.id, isNew);
   resetMemberFormTabs();
   memberModal.show();
@@ -1780,19 +1776,11 @@ const createRecentChangeEntry = item => {
   return entry;
 };
 
-const showMemberDeleteConfirm = () => {
-  const member = findMemberById(state.editingId);
-  if (!member) return;
-  document.getElementById("deleteMemberBtn").hidden = true;
-  document.getElementById("memberDeleteConfirmMsg").textContent = `${formatMemberName(member)} wirklich löschen?`;
-  document.getElementById("memberDeleteConfirm").hidden = false;
-};
-
-const resetMemberDeleteConfirm = () => {
-  const confirmArea = document.getElementById("memberDeleteConfirm");
-  if (confirmArea) confirmArea.hidden = true;
+const updateMemberDeleteButton = isNew => {
   const deleteButton = document.getElementById("deleteMemberBtn");
-  if (deleteButton) deleteButton.hidden = state.editingId === null;
+  if (deleteButton) {
+    deleteButton.hidden = isNew;
+  }
 };
 
 const resetMemberFormTabs = () => {
@@ -2069,6 +2057,10 @@ const handleMemberDelete = async () => {
   const member = findMemberById(state.editingId);
   if (!member) {
     window.alert("Der Datensatz wurde nicht gefunden.");
+    return;
+  }
+
+  if (!window.confirm(`${formatMemberName(member)} wirklich loeschen?`)) {
     return;
   }
 
