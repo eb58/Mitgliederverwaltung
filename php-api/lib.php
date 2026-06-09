@@ -1057,12 +1057,19 @@ function handleMemberPhoto(int $id, array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     if ($method === 'GET') {
-        $statement = db()->prepare('SELECT dateiname, mime_type, inhalt FROM mitglied_passbild WHERE mitglied_id = ?');
+        $statement = db()->prepare('SELECT dateiname, mime_type, sha256, inhalt FROM mitglied_passbild WHERE mitglied_id = ?');
         $statement->execute([$id]);
         $photo = $statement->fetch();
         if (!$photo) throw new ApiError('Passbild nicht gefunden.', 404);
+        $etag = '"' . $photo['sha256'] . '"';
         header('Content-Type: ' . $photo['mime_type']);
         header('Content-Disposition: inline; filename="' . addslashes($photo['dateiname']) . '"');
+        header('Cache-Control: private, max-age=3600');
+        header('ETag: ' . $etag);
+        if (($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
+            http_response_code(304);
+            exit;
+        }
         echo $photo['inhalt'];
         exit;
     }
