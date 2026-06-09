@@ -1605,7 +1605,6 @@ const openMemberModal = memberId => {
   state.editingId = isNew ? null : member.id;
   clearSelectedMemberPhoto();
   fillMemberForm(member, isNew);
-  updateMemberDeleteButton(isNew);
   loadMemberChangeHistory(member.id, isNew);
   resetMemberFormTabs();
   memberModal.show();
@@ -1774,13 +1773,6 @@ const createRecentChangeEntry = item => {
   }
 
   return entry;
-};
-
-const updateMemberDeleteButton = isNew => {
-  const deleteButton = document.getElementById("deleteMemberBtn");
-  if (deleteButton) {
-    deleteButton.hidden = isNew;
-  }
 };
 
 const resetMemberFormTabs = () => {
@@ -2048,32 +2040,6 @@ const uploadSelectedMemberPhotoIfNeeded = async member => {
     console.warn("Passfoto konnte nicht hochgeladen werden.", error);
     window.alert("Passfoto konnte nicht hochgeladen werden.");
     throw error;
-  }
-};
-
-const handleMemberDelete = async () => {
-  if (state.editingId === null) return;
-
-  const member = findMemberById(state.editingId);
-  if (!member) {
-    window.alert("Der Datensatz wurde nicht gefunden.");
-    return;
-  }
-
-  if (!window.confirm(`${formatMemberName(member)} wirklich loeschen?`)) {
-    return;
-  }
-
-  try {
-    await deleteMemberViaApi(member.id);
-    state.members = state.members.filter(item => item.id !== member.id);
-    state.editingId = null;
-    memberModal.hide();
-    refreshAllViews();
-    refreshRecentChanges();
-  } catch (error) {
-    console.warn("Mitglied konnte nicht geloescht werden.", error);
-    window.alert("Loeschen in der Datenbank fehlgeschlagen.");
   }
 };
 
@@ -2976,8 +2942,6 @@ const updateMemberViaApi = async member => {
   const payload = await requestMemberApi(`/api/members/${member.id}`, { method: "PUT", body: toMemberApiPayload(member) });
   return normalizeMember(payload.member);
 };
-
-const deleteMemberViaApi = id => requestMemberApi(`/api/members/${id}`, { method: "DELETE" });
 
 const normalizeMember = raw => {
   const clone = { ...raw };
