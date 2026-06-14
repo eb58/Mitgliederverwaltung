@@ -999,6 +999,15 @@ const wireUi = () => {
     });
   });
 
+  const sidebar = document.getElementById("sidebar");
+  const sidebarToggle = document.getElementById("sidebarToggle");
+  if (localStorage.getItem("sidebar-collapsed") === "true") sidebar.classList.add("sidebar--collapsed");
+  sidebarToggle.addEventListener("click", () => {
+    sidebar.classList.toggle("sidebar--collapsed");
+    localStorage.setItem("sidebar-collapsed", sidebar.classList.contains("sidebar--collapsed"));
+    setTimeout(() => Object.entries(gridApis).forEach(([k, api]) => fitGridColumnsIfNeeded(k, api)), 230);
+  });
+
 };
 
 const updateGlobalSearchVisibility = activeTarget => {

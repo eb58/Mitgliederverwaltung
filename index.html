@@ -9,21 +9,70 @@
   <link rel="stylesheet" href="vendor/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/ag-grid.css">
   <link rel="stylesheet" href="vendor/ag-theme-quartz.css">
-  <link rel="stylesheet" href="styles.css?v=20260605-guest-rows-soft">
+  <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-  <main id="appShell" class="container-fluid py-3" hidden>
-    <header class="app-header d-flex flex-column gap-2 mb-3">
-      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-      <div class="app-header__brand">
-        <img class="app-header__image" src="assets/website-logo.jpg" alt="Freizeitstätte Lübars">
-        <div class="app-header__title">
-          <h4>Mitgliederverwaltung</h4>
-          <span>Senioren Lübars</span>
-        </div>
+  <main id="appShell" class="app-layout" hidden>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar__header">
+        <img class="sidebar__logo" src="assets/website-logo.jpg" alt="Freizeitstätte Lübars">
+        <img class="sidebar__icon" src="assets/app-icon.png" alt="Senioren Lübars">
+        <button class="sidebar__toggle" id="sidebarToggle" type="button" aria-label="Navigation einklappen">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
       </div>
-      <div class="app-header__actions d-flex flex-wrap align-items-center gap-2">
+
+      <nav class="sidebar__nav" id="mainTabs" role="tablist">
+        <button class="nav-link sidebar__nav-item active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard-pane" type="button" role="tab" aria-controls="dashboard-pane" aria-selected="true">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span class="sidebar__nav-label">Dashboard</span>
+        </button>
+        <button class="nav-link sidebar__nav-item" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane" type="button" role="tab" aria-controls="overview-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          <span class="sidebar__nav-label">Übersicht</span>
+        </button>
+        <button class="nav-link sidebar__nav-item" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-pane" type="button" role="tab" aria-controls="payments-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          <span class="sidebar__nav-label">Bezahlungsdaten</span>
+        </button>
+        <button class="nav-link sidebar__nav-item" id="christmas-tab" data-bs-toggle="tab" data-bs-target="#christmas-pane" type="button" role="tab" aria-controls="christmas-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+          <span class="sidebar__nav-label">Weihnachtsessen</span>
+        </button>
+        <button class="nav-link sidebar__nav-item" id="historical-tab" data-bs-toggle="tab" data-bs-target="#historical-pane" type="button" role="tab" aria-controls="historical-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="sidebar__nav-label">Historisch</span>
+        </button>
+        <button class="nav-link sidebar__nav-item" id="changes-tab" data-bs-toggle="tab" data-bs-target="#changes-pane" type="button" role="tab" aria-controls="changes-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span class="sidebar__nav-label">Änderungen</span>
+        </button>
+      </nav>
+
+      <div class="sidebar__footer">
+        <span id="currentUserBadge" class="current-user-badge" hidden>
+          <svg class="current-user-badge__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
+            <path fill="currentColor" d="M4.5 20a7.5 7.5 0 0 1 15 0 .75.75 0 0 1-.75.75H5.25A.75.75 0 0 1 4.5 20z"></path>
+          </svg>
+          <span class="current-user-badge__label">Angemeldet als</span>
+          <span id="currentUserName" class="current-user-badge__name"></span>
+        </span>
+        <button id="logoutBtn" class="btn logout-icon-btn" type="button" aria-label="Abmelden" title="Abmelden">
+          <svg class="logout-icon-btn__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M10 12.5a.5.5 0 0 1-.5.5h-7A1.5 1.5 0 0 1 1 11.5v-7A1.5 1.5 0 0 1 2.5 3h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h7a.5.5 0 0 1 .5.5z"></path>
+            <path fill="currentColor" d="M15.85 8.35a.5.5 0 0 0 0-.7l-3-3a.5.5 0 0 0-.7.7L14.29 7.5H6.5a.5.5 0 0 0 0 1h7.79l-2.14 2.15a.5.5 0 0 0 .7.7l3-3z"></path>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="app-header d-flex flex-wrap align-items-center gap-2">
         <input id="globalSearchInput" type="search" class="form-control search-input"
           placeholder="Suchen (Name, E-Mail, Straße, ...)">
         <button id="clearAllFiltersBtn" class="btn filter-clear-btn" type="button">Filter l&ouml;schen</button>
@@ -37,204 +86,164 @@
             <li id="manageReferenceDataMenuItem"><button id="manageReferenceDataBtn" class="dropdown-item" type="button">Stammdaten</button></li>
           </ul>
         </div>
-        <button id="logoutBtn" class="btn logout-icon-btn" type="button" aria-label="Abmelden" title="Abmelden">
-          <svg class="logout-icon-btn__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-            <path fill="currentColor" d="M10 12.5a.5.5 0 0 1-.5.5h-7A1.5 1.5 0 0 1 1 11.5v-7A1.5 1.5 0 0 1 2.5 3h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h7a.5.5 0 0 1 .5.5z"></path>
-            <path fill="currentColor" d="M15.85 8.35a.5.5 0 0 0 0-.7l-3-3a.5.5 0 0 0-.7.7L14.29 7.5H6.5a.5.5 0 0 0 0 1h7.79l-2.14 2.15a.5.5 0 0 0 .7.7l3-3z"></path>
-          </svg>
-        </button>
-        <span id="currentUserBadge" class="current-user-badge" hidden>
-          <svg class="current-user-badge__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path fill="currentColor" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
-            <path fill="currentColor" d="M4.5 20a7.5 7.5 0 0 1 15 0 .75.75 0 0 1-.75.75H5.25A.75.75 0 0 1 4.5 20z"></path>
-          </svg>
-          <span class="current-user-badge__label">Angemeldet als</span>
-          <span id="currentUserName" class="current-user-badge__name"></span>
-        </span>
-      </div>
-      </div>
-    </header>
+      </header>
 
-    <ul class="nav nav-tabs" id="mainTabs" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard-pane"
-          type="button" role="tab" aria-controls="dashboard-pane" aria-selected="true">Dashboard</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane" type="button"
-          role="tab" aria-controls="overview-pane" aria-selected="false">Übersicht</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-pane" type="button"
-          role="tab" aria-controls="payments-pane" aria-selected="false">Bezahlungsdaten</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="christmas-tab" data-bs-toggle="tab" data-bs-target="#christmas-pane" type="button"
-          role="tab" aria-controls="christmas-pane" aria-selected="false">Weihnachtsessen</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="historical-tab" data-bs-toggle="tab" data-bs-target="#historical-pane"
-          type="button" role="tab" aria-controls="historical-pane" aria-selected="false">Historisch</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="changes-tab" data-bs-toggle="tab" data-bs-target="#changes-pane"
-          type="button" role="tab" aria-controls="changes-pane" aria-selected="false">&Auml;nderungen</button>
-      </li>
-    </ul>
+      <section class="tab-content">
+        <div class="tab-pane fade show active" id="dashboard-pane" role="tabpanel" aria-labelledby="dashboard-tab"
+          tabindex="0">
 
-    <section class="tab-content pt-3">
-      <div class="tab-pane fade show active" id="dashboard-pane" role="tabpanel" aria-labelledby="dashboard-tab"
-        tabindex="0">
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-xl-3">
+              <article class="metric-box">
+                <div class="metric-label">Mitglieder</div>
+                <div class="metric-value" id="metricTotal">0</div>
+              </article>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <article class="metric-box">
+                <div class="metric-label">Gäste</div>
+                <div class="metric-value" id="metricGuestCount">0</div>
+              </article>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <article class="metric-box">
+                <div class="metric-label">Club bezahlt</div>
+                <div class="metric-value" id="metricClubPaid">0</div>
+              </article>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <button id="metricClubOpenBtn" class="metric-box metric-box--button" type="button">
+                <div class="metric-label">Club offen</div>
+                <div class="metric-value" id="metricClubOpen">0</div>
+              </button>
+            </div>
+          </div>
 
-        <div class="row g-3 mb-3">
-          <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
-              <div class="metric-label">Mitglieder</div>
-              <div class="metric-value" id="metricTotal">0</div>
-            </article>
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-xl-3">
+              <article class="metric-box">
+                <div class="metric-label">Mitglieder in Computergruppen</div>
+                <div class="metric-value" id="metricComputerTotal">0</div>
+              </article>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <article class="metric-box">
+                <div class="metric-label">Computergruppe Bezahlt</div>
+                <div class="metric-value" id="metricComputerPaid">0</div>
+              </article>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <article class="metric-box">
+                <div class="metric-label">Computergruppe nicht bezahlt</div>
+                <div class="metric-value" id="metricComputerOpen">0</div>
+              </article>
+            </div>
           </div>
-          <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
-              <div class="metric-label">Gäste</div>
-              <div class="metric-value" id="metricGuestCount">0</div>
-            </article>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-xl-3">
+              <article class="metric-box">
+                <div class="metric-label">Männer</div>
+                <div class="metric-value" id="metricMaleCount">0</div>
+              </article>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <article class="metric-box">
+                <div class="metric-label">Frauen</div>
+                <div class="metric-value" id="metricFemaleCount">0</div>
+              </article>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <article class="metric-box">
+                <div class="metric-label">Durchschnittsalter</div>
+                <div class="metric-value" id="metricAverageAge">0</div>
+              </article>
+            </div>
           </div>
-          <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
-              <div class="metric-label">Club bezahlt</div>
-              <div class="metric-value" id="metricClubPaid">0</div>
-            </article>
+
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <div class="stat-panel birthday-panel">
+                <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                  <h2 class="h6 mb-0">Geburtstagskinder der Woche</h2>
+                  <span class="text-muted small">nächste 7 Tage</span>
+                </div>
+                <div id="birthdayList" class="birthday-list"></div>
+              </div>
+            </div>
           </div>
-          <div class="col-sm-6 col-xl-3">
-            <button id="metricClubOpenBtn" class="metric-box metric-box--button" type="button">
-              <div class="metric-label">Club offen</div>
-              <div class="metric-value" id="metricClubOpen">0</div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-lg-6">
+              <div class="stat-panel age-panel">
+                <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                  <h2 class="h6 mb-0">Altersverteilung</h2>
+                </div>
+                <div class="age-chart">
+                  <canvas id="ageChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="stat-panel group-panel">
+                <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                  <h2 class="h6 mb-0">Interessengruppen</h2>
+                </div>
+                <div class="group-chart">
+                  <canvas id="groupChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="tab-pane fade" id="overview-pane" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
+          <div class="grid-toolbar">
+            <button id="toggleOverviewGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
+              aria-pressed="true">Gäste ausblenden</button>
+          </div>
+          <div id="overviewGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
+        </div>
+
+        <div class="tab-pane fade" id="payments-pane" role="tabpanel" aria-labelledby="payments-tab" tabindex="0">
+          <div class="grid-toolbar">
+            <button id="togglePaymentGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
+              aria-pressed="true">Gäste ausblenden</button>
+            <button id="togglePaymentComputerGroupsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
+              aria-pressed="false">Nur Computergruppen</button>
+            <button id="togglePaymentClubOpenBtn" class="btn btn-outline-secondary guest-toggle" type="button"
+              aria-pressed="false">Nur Club offen</button>
+          </div>
+          <div id="paymentsGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
+        </div>
+
+        <div class="tab-pane fade" id="christmas-pane" role="tabpanel" aria-labelledby="christmas-tab" tabindex="0">
+          <div class="grid-toolbar">
+            <button id="toggleChristmasGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
+              aria-pressed="true">Gäste ausblenden</button>
+          </div>
+          <div id="christmasGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
+        </div>
+
+        <div class="tab-pane fade" id="historical-pane" role="tabpanel" aria-labelledby="historical-tab" tabindex="0">
+          <div class="grid-toolbar">
+            <button id="toggleHistoricalGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
+              aria-pressed="true">Gäste ausblenden</button>
+          </div>
+          <div id="historicalGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
+        </div>
+
+        <div class="tab-pane fade" id="changes-pane" role="tabpanel" aria-labelledby="changes-tab" tabindex="0">
+          <div class="grid-toolbar">
+            <button id="refreshRecentChangesBtn" class="btn btn-outline-secondary guest-toggle" type="button">
+              Aktualisieren
             </button>
           </div>
+          <div id="recentChangesList" class="recent-change-list" aria-live="polite"></div>
         </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
-              <div class="metric-label">Mitglieder in Computergruppen</div>
-              <div class="metric-value" id="metricComputerTotal">0</div>
-            </article>
-          </div>
-          <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
-              <div class="metric-label">Computergruppe Bezahlt</div>
-              <div class="metric-value" id="metricComputerPaid">0</div>
-            </article>
-          </div>
-          <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
-              <div class="metric-label">Computergruppe nicht bezahlt</div>
-              <div class="metric-value" id="metricComputerOpen">0</div>
-            </article>
-          </div>
-        </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
-              <div class="metric-label">Männer</div>
-              <div class="metric-value" id="metricMaleCount">0</div>
-            </article>
-          </div>
-          <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
-              <div class="metric-label">Frauen</div>
-              <div class="metric-value" id="metricFemaleCount">0</div>
-            </article>
-          </div>
-          <div class="col-sm-6 col-xl-3">
-            <article class="metric-box">
-              <div class="metric-label">Durchschnittsalter</div>
-              <div class="metric-value" id="metricAverageAge">0</div>
-            </article>
-          </div>
-        </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-12">
-            <div class="stat-panel birthday-panel">
-              <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
-                <h2 class="h6 mb-0">Geburtstagskinder der Woche</h2>
-                <span class="text-muted small">nächste 7 Tage</span>
-              </div>
-              <div id="birthdayList" class="birthday-list"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-lg-6">
-            <div class="stat-panel age-panel">
-              <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
-                <h2 class="h6 mb-0">Altersverteilung</h2>
-              </div>
-              <div class="age-chart">
-                <canvas id="ageChart"></canvas>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-6">
-            <div class="stat-panel group-panel">
-              <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
-                <h2 class="h6 mb-0">Interessengruppen</h2>
-              </div>
-              <div class="group-chart">
-                <canvas id="groupChart"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <div class="tab-pane fade" id="overview-pane" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
-        <div class="grid-toolbar">
-          <button id="toggleOverviewGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-            aria-pressed="true">Gäste ausblenden</button>
-        </div>
-        <div id="overviewGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
-      </div>
-
-      <div class="tab-pane fade" id="payments-pane" role="tabpanel" aria-labelledby="payments-tab" tabindex="0">
-        <div class="grid-toolbar">
-          <button id="togglePaymentGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-            aria-pressed="true">Gäste ausblenden</button>
-          <button id="togglePaymentComputerGroupsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-            aria-pressed="false">Nur Computergruppen</button>
-          <button id="togglePaymentClubOpenBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-            aria-pressed="false">Nur Club offen</button>
-        </div>
-        <div id="paymentsGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
-      </div>
-
-      <div class="tab-pane fade" id="christmas-pane" role="tabpanel" aria-labelledby="christmas-tab" tabindex="0">
-        <div class="grid-toolbar">
-          <button id="toggleChristmasGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-            aria-pressed="true">Gäste ausblenden</button>
-        </div>
-        <div id="christmasGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
-      </div>
-      <div class="tab-pane fade" id="historical-pane" role="tabpanel" aria-labelledby="historical-tab" tabindex="0">
-        <div class="grid-toolbar">
-          <button id="toggleHistoricalGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-            aria-pressed="true">Gäste ausblenden</button>
-        </div>
-        <div id="historicalGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
-      </div>
-      <div class="tab-pane fade" id="changes-pane" role="tabpanel" aria-labelledby="changes-tab" tabindex="0">
-        <div class="grid-toolbar">
-          <button id="refreshRecentChangesBtn" class="btn btn-outline-secondary guest-toggle" type="button">
-            Aktualisieren
-          </button>
-        </div>
-        <div id="recentChangesList" class="recent-change-list" aria-live="polite"></div>
-      </div>
-    </section>
+      </section>
+    </div>
   </main>
 
   <div class="modal fade" id="memberModal" tabindex="-1" aria-labelledby="memberModalLabel" aria-hidden="true">
@@ -467,7 +476,7 @@
   <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="vendor/ag-grid-community.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
-  <script type="module" src="app.js?v=20260608-paid-date-defaults"></script>
+  <script type="module" src="app.js"></script>
 </body>
 
 </html>
