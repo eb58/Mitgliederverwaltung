@@ -35,6 +35,10 @@
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
           <span class="sidebar__nav-label">Übersicht</span>
         </button>
+        <button class="nav-link sidebar__nav-item" id="guests-tab" data-bs-toggle="tab" data-bs-target="#guests-pane" type="button" role="tab" aria-controls="guests-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="sidebar__nav-label">Gäste</span>
+        </button>
         <button class="nav-link sidebar__nav-item" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-pane" type="button" role="tab" aria-controls="payments-pane" aria-selected="false">
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           <span class="sidebar__nav-label">Bezahlungsdaten</span>
@@ -214,17 +218,15 @@
         </div>
 
         <div class="tab-pane fade" id="overview-pane" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
-          <div class="grid-toolbar">
-            <button id="toggleOverviewGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-              aria-pressed="true">Gäste ausblenden</button>
-          </div>
-          <div id="overviewGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
+          <div id="overviewGrid" class="ag-theme-quartz grid-host"></div>
+        </div>
+
+        <div class="tab-pane fade" id="guests-pane" role="tabpanel" aria-labelledby="guests-tab" tabindex="0">
+          <div id="guestsGrid" class="ag-theme-quartz grid-host"></div>
         </div>
 
         <div class="tab-pane fade" id="payments-pane" role="tabpanel" aria-labelledby="payments-tab" tabindex="0">
           <div class="grid-toolbar">
-            <button id="togglePaymentGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-              aria-pressed="true">Gäste ausblenden</button>
             <button id="togglePaymentComputerGroupsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
               aria-pressed="false">Nur Computergruppen</button>
             <button id="togglePaymentClubOpenBtn" class="btn btn-outline-secondary guest-toggle" type="button"
@@ -234,19 +236,11 @@
         </div>
 
         <div class="tab-pane fade" id="christmas-pane" role="tabpanel" aria-labelledby="christmas-tab" tabindex="0">
-          <div class="grid-toolbar">
-            <button id="toggleChristmasGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-              aria-pressed="true">Gäste ausblenden</button>
-          </div>
-          <div id="christmasGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
+          <div id="christmasGrid" class="ag-theme-quartz grid-host"></div>
         </div>
 
         <div class="tab-pane fade" id="historical-pane" role="tabpanel" aria-labelledby="historical-tab" tabindex="0">
-          <div class="grid-toolbar">
-            <button id="toggleHistoricalGuestsBtn" class="btn btn-outline-secondary guest-toggle" type="button"
-              aria-pressed="true">Gäste ausblenden</button>
-          </div>
-          <div id="historicalGrid" class="ag-theme-quartz grid-host grid-host--with-toolbar"></div>
+          <div id="historicalGrid" class="ag-theme-quartz grid-host"></div>
         </div>
 
         <div class="tab-pane fade" id="changes-pane" role="tabpanel" aria-labelledby="changes-tab" tabindex="0">

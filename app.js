@@ -139,12 +139,8 @@ const state = {
   members: [],
   nextId: 1,
   editingId: null,
-  showOverviewGuests: true,
-  showPaymentGuests: false,
   showOnlyPaymentComputerGroups: false,
   showOnlyOpenClubPayments: false,
-  showChristmasGuests: false,
-  showHistoricalGuests: true,
   recentChanges: [],
   currentUser: null,
   authToken: localStorage.getItem("mitgliederverwaltung:authToken") || ""
@@ -154,7 +150,8 @@ const gridApis = {
   overview: null,
   payments: null,
   christmas: null,
-  historical: null
+  historical: null,
+  guests: null
 };
 
 let ageHistogramChart = null;
@@ -173,13 +170,15 @@ const searchableTabTargets = new Set([
   "#overview-pane",
   "#payments-pane",
   "#christmas-pane",
-  "#historical-pane"
+  "#historical-pane",
+  "#guests-pane"
 ]);
 const gridApiByTabTarget = {
   "#overview-pane": "overview",
   "#payments-pane": "payments",
   "#christmas-pane": "christmas",
-  "#historical-pane": "historical"
+  "#historical-pane": "historical",
+  "#guests-pane": "guests"
 };
 
 const gridLocaleText = {
@@ -969,22 +968,14 @@ const wireUi = () => {
   document.getElementById("userForm").addEventListener("submit", handleUserFormSubmit);
   document.getElementById("resetUserFormBtn").addEventListener("click", resetUserForm);
   document.getElementById("metricClubOpenBtn").addEventListener("click", showOpenClubPayments);
-  document.getElementById("toggleOverviewGuestsBtn").addEventListener("click", toggleOverviewGuests);
-  document.getElementById("togglePaymentGuestsBtn").addEventListener("click", togglePaymentGuests);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
-  document.getElementById("toggleChristmasGuestsBtn").addEventListener("click", toggleChristmasGuests);
-  document.getElementById("toggleHistoricalGuestsBtn").addEventListener("click", toggleHistoricalGuests);
   document.getElementById("refreshRecentChangesBtn").addEventListener("click", refreshRecentChanges);
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
   document.getElementById("clearAllFiltersBtn").addEventListener("click", clearAllFilters);
-  updateOverviewGuestToggle();
-  updatePaymentGuestToggle();
   updatePaymentComputerGroupToggle();
   updatePaymentClubOpenToggle();
-  updateChristmasGuestToggle();
-  updateHistoricalGuestToggle();
   updateGlobalSearchVisibility();
 
   document.querySelectorAll('#mainTabs button[data-bs-toggle="tab"]').forEach(tabButton => {
@@ -1031,6 +1022,7 @@ const initGrids = () => {
   gridApis.payments = createGrid("payments", "paymentsGrid", getPaymentColumns());
   gridApis.christmas = createGrid("christmas", "christmasGrid", getChristmasColumns());
   gridApis.historical = createGrid("historical", "historicalGrid", getHistoricalColumns());
+  gridApis.guests = createGrid("guests", "guestsGrid", getGuestsColumns());
 };
 
 const createGrid = (gridKey, containerId, columnDefs) => {
@@ -1074,6 +1066,18 @@ const createGrid = (gridKey, containerId, columnDefs) => {
 };
 
 const getOverviewColumns = () => [
+  getPhotoColumn(),
+  getEditColumn(),
+  { headerName: "Name", field: "name", minWidth: 130 },
+  { headerName: "Vorname", field: "vorname", minWidth: 130 },
+  { headerName: "Email", field: "email", minWidth: 220 },
+  { headerName: "Handy", field: "handy", minWidth: 150 },
+  { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 140 },
+  { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, filterValueGetter: params => formatInterestGroups(params.data?.interessengruppen), minWidth: 220, flex: 1 },
+  { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
+];
+
+const getGuestsColumns = () => [
   getPhotoColumn(),
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
@@ -2123,20 +2127,6 @@ const isOpenClubPaymentMember = member => !isGuestMember(member) && !asBoolean(m
 const normalizeGroupText = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const isComputerGroupMember = member => computerGroupPatterns.some(pattern => normalizeGroupText(member?.gruppenwahl).includes(pattern));
 
-const toggleOverviewGuests = () => {
-  state.showOverviewGuests = !state.showOverviewGuests;
-  updateOverviewGuestToggle();
-  refreshAllViews();
-};
-
-const togglePaymentGuests = () => {
-  if (state.showOnlyOpenClubPayments) state.showOnlyOpenClubPayments = false;
-  state.showPaymentGuests = !state.showPaymentGuests;
-  updatePaymentGuestToggle();
-  updatePaymentClubOpenToggle();
-  refreshAllViews();
-};
-
 const togglePaymentComputerGroups = () => {
   if (state.showOnlyOpenClubPayments) state.showOnlyOpenClubPayments = false;
   state.showOnlyPaymentComputerGroups = !state.showOnlyPaymentComputerGroups;
@@ -2149,36 +2139,20 @@ const togglePaymentClubOpen = () => {
   const shouldShowOpenOnly = !state.showOnlyOpenClubPayments;
   state.showOnlyOpenClubPayments = shouldShowOpenOnly;
   if (shouldShowOpenOnly) {
-    state.showPaymentGuests = false;
     state.showOnlyPaymentComputerGroups = false;
     clearGlobalSearch();
     clearGridFilters(gridApis.payments);
   }
-  updatePaymentGuestToggle();
   updatePaymentComputerGroupToggle();
   updatePaymentClubOpenToggle();
   refreshAllViews();
 };
 
-const toggleChristmasGuests = () => {
-  state.showChristmasGuests = !state.showChristmasGuests;
-  updateChristmasGuestToggle();
-  refreshAllViews();
-};
-
-const toggleHistoricalGuests = () => {
-  state.showHistoricalGuests = !state.showHistoricalGuests;
-  updateHistoricalGuestToggle();
-  refreshAllViews();
-};
-
 const showOpenClubPayments = () => {
-  state.showPaymentGuests = false;
   state.showOnlyPaymentComputerGroups = false;
   state.showOnlyOpenClubPayments = true;
   clearGlobalSearch();
   clearGridFilters(gridApis.payments);
-  updatePaymentGuestToggle();
   updatePaymentComputerGroupToggle();
   updatePaymentClubOpenToggle();
   refreshAllViews();
@@ -2187,8 +2161,6 @@ const showOpenClubPayments = () => {
   bootstrap.Tab.getOrCreateInstance(paymentsTab).show();
 };
 
-const updateOverviewGuestToggle = () => updateGuestToggleButton("toggleOverviewGuestsBtn", state.showOverviewGuests);
-const updatePaymentGuestToggle = () => updateGuestToggleButton("togglePaymentGuestsBtn", state.showPaymentGuests);
 const updatePaymentComputerGroupToggle = () => {
   const button = document.getElementById("togglePaymentComputerGroupsBtn");
   button.textContent = state.showOnlyPaymentComputerGroups ? "Alle Gruppen anzeigen" : "Nur Computergruppen";
@@ -2201,48 +2173,31 @@ const updatePaymentClubOpenToggle = () => {
   button.setAttribute("aria-pressed", String(state.showOnlyOpenClubPayments));
   button.classList.toggle("active", state.showOnlyOpenClubPayments);
 };
-const updateChristmasGuestToggle = () => updateGuestToggleButton("toggleChristmasGuestsBtn", state.showChristmasGuests);
-const updateHistoricalGuestToggle = () => updateGuestToggleButton("toggleHistoricalGuestsBtn", state.showHistoricalGuests);
-
-const updateGuestToggleButton = (buttonId, showGuests) => {
-  const button = document.getElementById(buttonId);
-  button.textContent = showGuests ? "Gäste ausblenden" : "Gäste anzeigen";
-  button.setAttribute("aria-pressed", String(showGuests));
-  button.classList.toggle("active", showGuests);
-};
-
-const filterGuests = (members, showGuests) => showGuests ? members : members.filter(member => !isGuestMember(member));
 const filterPaymentMembers = members => {
   if (state.showOnlyOpenClubPayments) return members.filter(isOpenClubPaymentMember);
-
-  const visibleMembers = filterGuests(members, state.showPaymentGuests);
-  return state.showOnlyPaymentComputerGroups ? visibleMembers.filter(isComputerGroupMember) : visibleMembers;
+  return state.showOnlyPaymentComputerGroups ? members.filter(isComputerGroupMember) : members;
 };
 
 const refreshAllViews = () => {
-  const activeMembers = [...state.members]
-    .filter(isActiveMember)
-    .sort((a, b) => {
-      const nameA = String(a.name || "").localeCompare(String(b.name || ""), "de", { sensitivity: "base" });
-      if (nameA !== 0) return nameA;
-      return String(a.vorname || "").localeCompare(String(b.vorname || ""), "de", { sensitivity: "base" });
-    });
+  const sortByName = (a, b) => {
+    const nameA = String(a.name || "").localeCompare(String(b.name || ""), "de", { sensitivity: "base" });
+    if (nameA !== 0) return nameA;
+    return String(a.vorname || "").localeCompare(String(b.vorname || ""), "de", { sensitivity: "base" });
+  };
 
-  const overviewMembers = filterGuests(activeMembers, state.showOverviewGuests);
-  const paymentMembers = filterPaymentMembers(activeMembers);
-  const christmasMembers = filterGuests(activeMembers, state.showChristmasGuests);
-  setGridData(gridApis.overview, overviewMembers);
-  setGridData(gridApis.payments, paymentMembers);
-  setGridData(gridApis.christmas, christmasMembers);
+  const activeMembers = [...state.members].filter(isActiveMember).sort(sortByName);
+  const nonGuests = activeMembers.filter(m => !isGuestMember(m));
+  const guests = activeMembers.filter(isGuestMember);
+
+  setGridData(gridApis.overview, nonGuests);
+  setGridData(gridApis.payments, filterPaymentMembers(nonGuests));
+  setGridData(gridApis.christmas, nonGuests);
+  setGridData(gridApis.guests, guests);
 
   const historicalMembers = [...state.members]
-    .filter(member => !isActiveMember(member))
-    .sort((a, b) => {
-      const nameA = String(a.name || "").localeCompare(String(b.name || ""), "de", { sensitivity: "base" });
-      if (nameA !== 0) return nameA;
-      return String(a.vorname || "").localeCompare(String(b.vorname || ""), "de", { sensitivity: "base" });
-    });
-  setGridData(gridApis.historical, filterGuests(historicalMembers, state.showHistoricalGuests));
+    .filter(m => !isActiveMember(m) && !isGuestMember(m))
+    .sort(sortByName);
+  setGridData(gridApis.historical, historicalMembers);
 
   refreshDashboard();
 
@@ -2289,25 +2244,15 @@ const clearGridFilters = api => {
 const clearAllFilters = () => {
   clearGlobalSearch();
   Object.values(gridApis).forEach(clearGridFilters);
-  state.showOverviewGuests = true;
-  state.showPaymentGuests = true;
   state.showOnlyPaymentComputerGroups = false;
   state.showOnlyOpenClubPayments = false;
-  state.showChristmasGuests = true;
-  state.showHistoricalGuests = true;
-  updateOverviewGuestToggle();
-  updatePaymentGuestToggle();
   updatePaymentComputerGroupToggle();
   updatePaymentClubOpenToggle();
-  updateChristmasGuestToggle();
-  updateHistoricalGuestToggle();
   refreshAllViews();
 };
 
 const showOverviewWithFilter = filterModel => {
   clearGlobalSearch();
-  state.showOverviewGuests = false;
-  updateOverviewGuestToggle();
   refreshAllViews();
 
   const overviewApi = gridApis.overview;
