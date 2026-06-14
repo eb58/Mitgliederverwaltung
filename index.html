@@ -53,6 +53,32 @@
         </button>
       </nav>
 
+      <div class="sidebar__actions">
+        <button id="addMemberBtn" class="sidebar__action-btn" type="button" title="Neues Mitglied">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+          <span class="sidebar__nav-label">Neues Mitglied</span>
+        </button>
+        <button id="clearAllFiltersBtn" class="sidebar__action-btn" type="button" title="Filter löschen">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 7H2l7 8.46V21l4-2v-3.54"/><line x1="18" y1="6" x2="22" y2="10"/><line x1="22" y1="6" x2="18" y2="10"/></svg>
+          <span class="sidebar__nav-label">Filter l&ouml;schen</span>
+        </button>
+        <button id="changePasswordBtn" class="sidebar__action-btn" type="button" title="Passwort ändern" hidden>
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span class="sidebar__nav-label">Passwort &auml;ndern</span>
+        </button>
+        <div id="adminMenu" class="dropdown sidebar__dropdown" hidden>
+          <button id="appMenuBtn" class="sidebar__action-btn" type="button" title="Admin"
+            data-bs-toggle="dropdown" aria-expanded="false">
+            <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span class="sidebar__nav-label">Admin</span>
+          </button>
+          <ul class="dropdown-menu">
+            <li id="manageUsersMenuItem"><button id="manageUsersBtn" class="dropdown-item" type="button">Benutzer</button></li>
+            <li id="manageReferenceDataMenuItem"><button id="manageReferenceDataBtn" class="dropdown-item" type="button">Stammdaten</button></li>
+          </ul>
+        </div>
+      </div>
+
       <div class="sidebar__footer">
         <span id="currentUserBadge" class="current-user-badge" hidden>
           <svg class="current-user-badge__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -72,20 +98,9 @@
     </aside>
 
     <div class="main-content">
-      <header class="app-header d-flex flex-wrap align-items-center gap-2">
+      <header class="app-header d-flex align-items-center">
         <input id="globalSearchInput" type="search" class="form-control search-input"
           placeholder="Suchen (Name, E-Mail, Straße, ...)">
-        <button id="clearAllFiltersBtn" class="btn filter-clear-btn" type="button">Filter l&ouml;schen</button>
-        <button id="addMemberBtn" class="btn btn-primary">Neues Mitglied</button>
-        <button id="changePasswordBtn" class="btn btn-primary app-menu__button" type="button" hidden>Passwort &auml;ndern</button>
-        <div id="adminMenu" class="dropdown app-menu" hidden>
-          <button id="appMenuBtn" class="btn btn-primary app-menu__button" type="button"
-            data-bs-toggle="dropdown" aria-expanded="false">Admin</button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li id="manageUsersMenuItem"><button id="manageUsersBtn" class="dropdown-item" type="button">Benutzer</button></li>
-            <li id="manageReferenceDataMenuItem"><button id="manageReferenceDataBtn" class="dropdown-item" type="button">Stammdaten</button></li>
-          </ul>
-        </div>
       </header>
 
       <section class="tab-content">
