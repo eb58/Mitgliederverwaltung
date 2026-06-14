@@ -777,10 +777,11 @@ const updateUserAdminButton = () => {
     if (btn) btn.hidden = !isAdmin;
   });
 
-  const currentUserBadge = document.getElementById("currentUserBadge");
-  if (currentUserBadge) {
-    currentUserBadge.hidden = !username;
-    currentUserBadge.title = username ? `Angemeldet als ${username}` : "";
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.hidden = !username;
+    logoutBtn.title = username ? `Abmelden (${username})` : "Abmelden";
+    logoutBtn.setAttribute("aria-label", logoutBtn.title);
   }
   const currentUserName = document.getElementById("currentUserName");
   if (currentUserName) currentUserName.textContent = username;

@@ -81,16 +81,16 @@
       </div>
 
       <div class="sidebar__footer">
-        <span id="currentUserBadge" class="current-user-badge" hidden>
-          <svg class="current-user-badge__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <button id="logoutBtn" class="logout-user-btn" type="button" aria-label="Abmelden" hidden>
+          <svg class="logout-user-btn__user-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path fill="currentColor" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
             <path fill="currentColor" d="M4.5 20a7.5 7.5 0 0 1 15 0 .75.75 0 0 1-.75.75H5.25A.75.75 0 0 1 4.5 20z"></path>
           </svg>
-          <span class="current-user-badge__label">Angemeldet als</span>
-          <span id="currentUserName" class="current-user-badge__name"></span>
-        </span>
-        <button id="logoutBtn" class="btn logout-icon-btn" type="button" aria-label="Abmelden" title="Abmelden">
-          <svg class="logout-icon-btn__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <span class="logout-user-btn__text sidebar__nav-label">
+            <span class="logout-user-btn__label">Angemeldet als</span>
+            <span id="currentUserName" class="logout-user-btn__name"></span>
+          </span>
+          <svg class="logout-user-btn__exit-icon sidebar__nav-label" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path fill="currentColor" d="M10 12.5a.5.5 0 0 1-.5.5h-7A1.5 1.5 0 0 1 1 11.5v-7A1.5 1.5 0 0 1 2.5 3h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h7a.5.5 0 0 1 .5.5z"></path>
             <path fill="currentColor" d="M15.85 8.35a.5.5 0 0 0 0-.7l-3-3a.5.5 0 0 0-.7.7L14.29 7.5H6.5a.5.5 0 0 0 0 1h7.79l-2.14 2.15a.5.5 0 0 0 .7.7l3-3z"></path>
           </svg>
