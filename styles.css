@@ -225,27 +225,6 @@ body {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-.sidebar__dropdown {
-  position: relative;
-}
-
-.sidebar__dropdown .dropdown-menu {
-  min-width: 180px;
-  margin-top: 0.3rem;
-  padding: 0.35rem;
-  border: 1px solid rgba(17, 93, 82, 0.14);
-  border-radius: 8px;
-  box-shadow: var(--shadow-md);
-}
-
-.sidebar__dropdown .dropdown-item {
-  border-radius: 6px;
-  padding: 0.55rem 0.75rem;
-}
-
-.sidebar__dropdown .dropdown-item:active {
-  background: var(--accent);
-}
 
 .sidebar--collapsed .sidebar__action-btn .sidebar__nav-label {
   opacity: 0;

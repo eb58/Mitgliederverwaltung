@@ -767,27 +767,29 @@ const setAppShellVisible = visible => {
 
 const updateUserAdminButton = () => {
   const isAdmin = String(state.currentUser?.role || "").trim().toLowerCase() === "admin";
-  const adminMenu = document.getElementById("adminMenu");
-  const changePasswordButton = document.getElementById("changePasswordBtn");
-  const currentUserBadge = document.getElementById("currentUserBadge");
-  const currentUserName = document.getElementById("currentUserName");
-  const passwordChangeUser = document.getElementById("passwordChangeUser");
   const username = String(state.currentUser?.username || "").trim();
-  if (adminMenu) adminMenu.hidden = !isAdmin;
+
+  const changePasswordButton = document.getElementById("changePasswordBtn");
   if (changePasswordButton) changePasswordButton.hidden = !state.currentUser;
+
+  ["manageUsersBtn", "manageReferenceDataBtn"].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.hidden = !isAdmin;
+  });
+
+  const currentUserBadge = document.getElementById("currentUserBadge");
   if (currentUserBadge) {
     currentUserBadge.hidden = !username;
     currentUserBadge.title = username ? `Angemeldet als ${username}` : "";
   }
+  const currentUserName = document.getElementById("currentUserName");
   if (currentUserName) currentUserName.textContent = username;
+
+  const passwordChangeUser = document.getElementById("passwordChangeUser");
   if (passwordChangeUser) {
     passwordChangeUser.hidden = !username;
     passwordChangeUser.textContent = username ? `Benutzer: ${username}` : "";
   }
-  ["manageUsersMenuItem", "manageReferenceDataMenuItem"].forEach(id => {
-    const item = document.getElementById(id);
-    if (item) item.hidden = !isAdmin;
-  });
 };
 
 const buildReferenceDataAdmin = () => {

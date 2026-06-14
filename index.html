@@ -70,17 +70,14 @@
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <span class="sidebar__nav-label">Passwort &auml;ndern</span>
         </button>
-        <div id="adminMenu" class="dropdown sidebar__dropdown" hidden>
-          <button id="appMenuBtn" class="sidebar__action-btn" type="button" title="Admin"
-            data-bs-toggle="dropdown" aria-expanded="false">
-            <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <span class="sidebar__nav-label">Admin</span>
-          </button>
-          <ul class="dropdown-menu">
-            <li id="manageUsersMenuItem"><button id="manageUsersBtn" class="dropdown-item" type="button">Benutzer</button></li>
-            <li id="manageReferenceDataMenuItem"><button id="manageReferenceDataBtn" class="dropdown-item" type="button">Stammdaten</button></li>
-          </ul>
-        </div>
+        <button id="manageUsersBtn" class="sidebar__action-btn" type="button" title="Benutzerverwaltung" hidden>
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="sidebar__nav-label">Benutzer</span>
+        </button>
+        <button id="manageReferenceDataBtn" class="sidebar__action-btn" type="button" title="Stammdaten" hidden>
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span class="sidebar__nav-label">Stammdaten</span>
+        </button>
       </div>
 
       <div class="sidebar__footer">
