@@ -191,6 +191,18 @@ body {
   max-width: 0;
 }
 
+.sidebar--collapsed .sidebar__nav .nav-link,
+.sidebar--collapsed .sidebar__action-btn {
+  justify-content: center;
+  padding: 0.7rem 0;
+  gap: 0;
+}
+
+.sidebar--collapsed .sidebar__nav-icon {
+  width: 22px;
+  height: 22px;
+}
+
 .sidebar__actions {
   display: flex;
   flex-direction: column;
