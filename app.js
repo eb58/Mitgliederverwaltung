@@ -1025,10 +1025,10 @@ const initGrids = () => {
   gridApis.payments = createGrid("payments", "paymentsGrid", getPaymentColumns());
   gridApis.christmas = createGrid("christmas", "christmasGrid", getChristmasColumns());
   gridApis.historical = createGrid("historical", "historicalGrid", getHistoricalColumns());
-  gridApis.guests = createGrid("guests", "guestsGrid", getGuestsColumns());
+  gridApis.guests = createGrid("guests", "guestsGrid", getGuestsColumns(), { rowClassRules: {} });
 };
 
-const createGrid = (gridKey, containerId, columnDefs) => {
+const createGrid = (gridKey, containerId, columnDefs, overrides = {}) => {
   const gridDiv = document.getElementById(containerId);
   const options = {
     columnDefs,
@@ -1060,7 +1060,8 @@ const createGrid = (gridKey, containerId, columnDefs) => {
     },
     onColumnVisible: event => saveGridColumnState(gridKey, event.api),
     onSortChanged: event => saveGridColumnState(gridKey, event.api),
-    onRowDoubleClicked: event => openMemberModal(event.data.id)
+    onRowDoubleClicked: event => openMemberModal(event.data.id),
+    ...overrides
   };
 
   const api = agGrid.createGrid(gridDiv, options);
