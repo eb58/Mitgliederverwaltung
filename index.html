@@ -17,8 +17,6 @@
 
     <aside class="sidebar" id="sidebar">
       <div class="sidebar__header">
-        <img class="sidebar__logo" src="assets/website-logo.jpg" alt="Freizeitstätte Lübars">
-        <img class="sidebar__icon" src="assets/app-icon.png" alt="Senioren Lübars">
         <button class="sidebar__toggle" id="sidebarToggle" type="button" aria-label="Navigation einklappen">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <polyline points="15 18 9 12 15 6"/>
@@ -99,7 +97,11 @@
     </aside>
 
     <div class="main-content">
-      <header class="app-header d-flex align-items-center">
+      <header class="app-header">
+        <div class="app-header__brand">
+          <img class="app-header__logo" src="assets/website-logo.jpg" alt="Freizeitstätte Lübars">
+          <span class="app-header__title">Mitgliederverwaltung</span>
+        </div>
         <input id="globalSearchInput" type="search" class="form-control search-input"
           placeholder="Suchen (Name, E-Mail, Straße, ...)">
       </header>
