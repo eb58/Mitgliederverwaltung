@@ -84,7 +84,11 @@ body {
 }
 
 .sidebar--collapsed .sidebar__logo { display: none; }
-.sidebar--collapsed .sidebar__icon { display: block; }
+.sidebar--collapsed .sidebar__icon { display: none; }
+.sidebar--collapsed .sidebar__header {
+  justify-content: center;
+  padding: 0.9rem 0;
+}
 
 .sidebar__toggle {
   appearance: none;
