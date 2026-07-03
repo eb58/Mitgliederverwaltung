@@ -104,17 +104,27 @@ Als Vorlage liegt `member-api.config.example.json` im Repository.
 
 ## Deployment
 
-Für klassisches Webhosting werden diese Dateien und Ordner hochgeladen:
+Für Strato/Webhosting gibt es ein PowerShell-Skript analog zum Gratulationsdienst:
+
+```powershell
+.\deploy.ps1
+```
+
+Das Skript baut das Frontend, erstellt ein lokales Deploy-Paket unter `.deploy/mitgliederverwaltung`, lädt Frontend und PHP-API per `scp` hoch und setzt danach Dateirechte. Ein lokaler Probelauf ohne Upload ist möglich mit:
+
+```powershell
+.\deploy.ps1 -SkipUpload
+```
+
+Für klassisches Webhosting werden diese Dateien und Ordner ausgeliefert:
 
 - `index.html`
-- `app.js`
-- `styles.css`
 - `assets/`
 - `vendor/`
-- `php-api/`
+- `php-api/` ohne `config.local.php`
 - optional `member-api.config.json`
 
-Die Details zur PHP-API, Rewrite-Regeln, Benutzeranlage und Schnelltests stehen in [php-api/README.md](php-api/README.md).
+Die Datei `php-api/config.local.php` enthält Live-Zugangsdaten und wird bewusst nicht deployed. Sie muss auf dem Server einmalig aus `php-api/config.local.example.php` erstellt werden. Die Details zur PHP-API, Rewrite-Regeln, Benutzeranlage und Schnelltests stehen in [php-api/README.md](php-api/README.md).
 
 ## Projektstruktur
 

@@ -3,6 +3,7 @@ node_modules/
 dist/
 dist-check/
 .vite/
+.deploy/
 .electron-builder-cache/
 .DS_Store
 npm-debug.log*
@@ -14,6 +15,7 @@ yarn-error.log*
 !.env.example
 !.env.*.example
 backup*.sql
+*.sql.gz
 *.bak
 *.tmp
 tmp/
