@@ -109,7 +109,6 @@ const formSections = [
       },
       {
         label: "Computer",
-        visibleWhen: "computerGroupMember",
         fieldKeys: [
           "beitragComputerBezahlt",
           "gezahlterBetragComputer",
@@ -1212,8 +1211,8 @@ const getPaymentColumns = () => [
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
   { headerName: "Beitrag bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: paidStatusCellRenderer },
   { headerName: "gezahlter Betrag Club", field: "gezahlterBetragClub", valueFormatter: currencyFormatter, minWidth: 190 },
-  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: computerGroupPaidStatusCellRenderer },
-  { headerName: "gezahlter Betrag Computer", field: "gezahlterBetragComputer", valueFormatter: computerGroupCurrencyFormatter, minWidth: 220 },
+  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: paidStatusCellRenderer },
+  { headerName: "gezahlter Betrag Computer", field: "gezahlterBetragComputer", valueFormatter: currencyFormatter, minWidth: 220 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
 
@@ -1268,8 +1267,6 @@ const paidStatusCellRenderer = params => {
   checkbox.setAttribute("aria-label", checkbox.title);
   return checkbox;
 };
-const computerGroupPaidStatusCellRenderer = params => isComputerGroupMember(params.data) ? paidStatusCellRenderer(params) : "";
-const computerGroupCurrencyFormatter = params => isComputerGroupMember(params.data) ? currencyFormatter(params) : "";
 
 const buildMemberForm = () => {
   const container = document.getElementById("formFields");
