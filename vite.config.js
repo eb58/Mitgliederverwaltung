@@ -3,8 +3,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: '/mitgliederverwaltung/',
   build: {
-    outDir: '../../Documents/docker-container/src/mitgliederverwaltung',
-    emptyOutDir: true,
+    outDir: '../Gratulationsdienst Reinickendorf/docker/src/mitgliederverwaltung',
+    emptyOutDir: false,
   },
   server: {
     proxy: {

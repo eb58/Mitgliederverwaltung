@@ -21,7 +21,6 @@ const funktionsMap = {};
 
 
 const interestGroupOptions = [];
-const groupChoiceOptions = [];
 const austrittsgrundOptions = [];
 const funktionsOptions = [];
 const seniorenclubOptions = [];
@@ -43,9 +42,7 @@ const fieldDefinitions = [
   { key: "austrittsdatum", label: "Austrittsdatum", type: "date" },
   { key: "austrittsgrund", label: "Austrittsgrund", type: "select", options: austrittsgrundOptions, allowEmpty: true },
   { key: "interessengruppen", label: "Interessengruppen", type: "multiselect", options: interestGroupOptions },
-  { key: "gruppenwahl", label: "Gruppenwahl", type: "select", options: groupChoiceOptions, allowEmpty: true },
   { key: "funktion", label: "Funktion", type: "multiselect", options: funktionsOptions, valueType: "textList" },
-  { key: "auswahl", label: "Auswahl", type: "checkbox" },
   { key: "ausweisErteilt", label: "Ausweis erteilt", type: "checkbox" },
   { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", type: "select", options: seniorenclubOptions, allowEmpty: true, valueType: "number" },
   { key: "weihnachtsessen", label: "Weihnachtsessen", type: "select", options: [{ value: 0, label: "Nein" }, { value: 1, label: "Ja" }, { value: 2, label: "Ja + Gast" }] },
@@ -90,8 +87,6 @@ const formSections = [
       "clubzugehoerigkeit",
       "interessengruppen",
       "funktion",
-      "gruppenwahl",
-      "auswahl",
       "ausweisErteilt"
     ]
   },
@@ -251,12 +246,6 @@ const refreshReferenceOptions = () => {
     [...interestGroups]
       .sort((a, b) => germanCollator.compare(a.label, b.label))
       .map(group => ({ value: group.id, label: group.label }))
-  );
-  replaceArrayContents(
-    groupChoiceOptions,
-    [...interestGroups]
-      .sort((a, b) => germanCollator.compare(a.label, b.label))
-      .map(group => ({ value: group.label, label: group.label }))
   );
   replaceArrayContents(
     austrittsgrundOptions,
@@ -1519,10 +1508,6 @@ const createMemberFormField = field => {
     input.addEventListener("input", () => updateMemberPhotoPreview(readMemberPreviewFromForm()));
   }
 
-  if (field.key === "gruppenwahl") {
-    input.addEventListener("change", updateConditionalMemberFormGroups);
-  }
-
   col.append(label, input);
   if (field.key === "interessengruppen") {
     col.appendChild(createInterestGroupDisplayField());
@@ -1650,8 +1635,12 @@ const memberChangeActionLabel = action => ({
 
 const legacyHiddenMemberChangeFields = new Set(["preisClub", "preisComputer", "preisWeihnachten"]);
 const legacyHiddenMemberChangeLabels = new Set(["Preis Club", "Preis Computer", "Preis Weihnachten"]);
+const hiddenMemberChangeFields = new Set(["gruppenwahl", "auswahl"]);
+const hiddenMemberChangeLabels = new Set(["Gruppenwahl", "Auswahl"]);
 const isVisibleMemberChange = change => !legacyHiddenMemberChangeFields.has(change.field)
   && !legacyHiddenMemberChangeLabels.has(change.label)
+  && !hiddenMemberChangeFields.has(change.field)
+  && !hiddenMemberChangeLabels.has(change.label)
   && String(change.old ?? "").trim() !== String(change.new ?? "").trim();
 const visibleMemberChanges = changes => Array.isArray(changes)
   ? changes.filter(isVisibleMemberChange)
@@ -1797,16 +1786,6 @@ const resetMemberFormTabs = () => {
   }
 };
 
-const ensureSelectHasValue = (input, raw) => {
-  const value = raw === null || raw === undefined ? "" : String(raw);
-  if (!value || Array.from(input.options).some(option => option.value === value)) return;
-
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = value;
-  input.appendChild(option);
-};
-
 const applyPaidAmountDefault = checkboxKey => {
   const config = paidAmountDefaults[checkboxKey];
   const checkbox = document.getElementById(`field-${checkboxKey}`);
@@ -1862,9 +1841,6 @@ const fillMemberForm = (member, isNew) => {
     }
 
     if (field.type === "select") {
-      if (field.key === "gruppenwahl") {
-        ensureSelectHasValue(input, raw);
-      }
       input.value = raw === null || raw === undefined ? "" : String(raw);
       return;
     }
@@ -1882,7 +1858,6 @@ const fillMemberForm = (member, isNew) => {
   });
 
   updateMemberPhotoPreview(member);
-  updateConditionalMemberFormGroups(member);
 
   const idInput = document.getElementById("field-id");
   if (idInput) {
@@ -1970,17 +1945,6 @@ const readMemberPreviewFromForm = () => ({
   vorname: document.getElementById("field-vorname")?.value || "",
   passbild: ""
 });
-
-const readMemberGroupStatusFromForm = () => ({
-  gruppenwahl: document.getElementById("field-gruppenwahl")?.value || ""
-});
-
-const updateConditionalMemberFormGroups = member => {
-  const formMember = member || readMemberGroupStatusFromForm();
-  document.querySelectorAll("[data-visible-when='computerGroupMember']").forEach(group => {
-    group.hidden = !isComputerGroupMember(formMember);
-  });
-};
 
 const handleMemberSubmit = async event => {
   event.preventDefault();
@@ -2126,7 +2090,13 @@ const isActiveMember = member => !member.austrittsdatum && !hasExitReason(member
 const isGuestMember = member => Number(member?.clubzugehoerigkeit) !== MEMBER_CLUB_ID;
 const isOpenClubPaymentMember = member => !isGuestMember(member) && !asBoolean(member.beitragClubBezahlt);
 const normalizeGroupText = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-const isComputerGroupMember = member => computerGroupPatterns.some(pattern => normalizeGroupText(member?.gruppenwahl).includes(pattern));
+const getMemberInterestGroupText = member => (member?.interessengruppen || [])
+  .map(groupId => interestGroupMap[groupId] || "")
+  .join(" ");
+const isComputerGroupMember = member => {
+  const interestGroupText = normalizeGroupText(getMemberInterestGroupText(member));
+  return computerGroupPatterns.some(pattern => interestGroupText.includes(pattern));
+};
 
 const togglePaymentComputerGroups = () => {
   if (state.showOnlyOpenClubPayments) state.showOnlyOpenClubPayments = false;
