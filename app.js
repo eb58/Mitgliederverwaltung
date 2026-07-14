@@ -2357,6 +2357,7 @@ const refreshDashboard = () => {
     .slice(0, Object.keys(interestGroupMap).length);
   renderInterestGroupChart(groupRows, total);
   renderBirthdayList(clubMembers, today);
+  renderBirthdayMonthList(clubMembers, today);
 };
 
 const renderBirthdayList = (members, today = new Date()) => {
@@ -2454,6 +2455,102 @@ const getUpcomingBirthday = (member, today = new Date()) => {
     age: birthday.getFullYear() - birthYear,
     isoDate: `${birthday.getFullYear()}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
   };
+};
+
+const getBirthdayForMonth = (member, year, monthIndex) => {
+  if (!member.geburtstag || typeof member.geburtstag !== "string") return null;
+  const parts = member.geburtstag.split("-");
+  if (parts.length !== 3) return null;
+
+  const [birthYear, month, day] = parts.map(Number);
+  if (![birthYear, month, day].every(Number.isFinite) || month - 1 !== monthIndex) return null;
+
+  const birthday = new Date(year, monthIndex, day);
+  if (birthday.getFullYear() !== year || birthday.getMonth() !== monthIndex || birthday.getDate() !== day) return null;
+
+  return {
+    member,
+    age: year - birthYear,
+    day,
+    isoDate: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+  };
+};
+
+const renderBirthdayMonthList = (members, today = new Date()) => {
+  const targetMonth = new Date(today.getFullYear(), today.getMonth() + 3, 1);
+  const monthLabel = targetMonth.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  setText("birthdayMonthTitle", `Geburtstagskinder im ${monthLabel}`);
+
+  const container = document.getElementById("birthdayMonthList");
+  if (!container) return;
+
+  const birthdays = members
+    .map(member => getBirthdayForMonth(member, targetMonth.getFullYear(), targetMonth.getMonth()))
+    .filter(Boolean)
+    .sort((a, b) => a.day - b.day || germanCollator.compare(formatMemberName(a.member), formatMemberName(b.member)));
+
+  container.innerHTML = "";
+  if (birthdays.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "birthday-empty";
+    empty.textContent = `Keine Geburtstage im ${monthLabel}`;
+    container.appendChild(empty);
+    return;
+  }
+
+  birthdays.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "birthday-row";
+    row.tabIndex = 0;
+    row.role = "button";
+    row.title = `${formatMemberName(item.member)} öffnen`;
+    row.addEventListener("click", () => openMemberModal(item.member.id));
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openMemberModal(item.member.id);
+      }
+    });
+
+    const photo = document.createElement("div");
+    photo.className = "birthday-photo member-photo member-photo--fallback";
+    setFallbackPhoto(photo);
+    resolveMemberPhotoDataUrl(item.member).then(photoDataUrl => {
+      if (!photoDataUrl) return;
+
+      const image = document.createElement("img");
+      image.className = "member-photo__image";
+      image.alt = `Passfoto von ${formatMemberName(item.member)}`;
+      image.addEventListener("error", () => {
+        setFallbackPhoto(photo);
+        photo.classList.add("birthday-photo");
+      }, { once: true });
+      photo.className = "birthday-photo member-photo";
+      photo.title = image.alt;
+      photo.setAttribute("aria-label", image.alt);
+      photo.replaceChildren(image);
+      image.src = photoDataUrl;
+    }).catch(() => {
+      // Fallback remains visible.
+    });
+
+    const person = document.createElement("div");
+    person.className = "birthday-person";
+    person.textContent = `${item.member.vorname || ""} ${item.member.name || ""}`.trim();
+
+    const details = document.createElement("div");
+    details.className = "birthday-details";
+    details.textContent = `${formatDateDE(item.isoDate)} · wird ${item.age}`;
+
+    const badge = document.createElement("div");
+    badge.className = "birthday-badge";
+    badge.textContent = `${item.day}.`;
+
+    const text = document.createElement("div");
+    text.append(person, details);
+    row.append(photo, text, badge);
+    container.appendChild(row);
+  });
 };
 
 const renderAgeChart = (buckets, total) => {

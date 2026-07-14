@@ -168,7 +168,7 @@ CREATE TABLE app_user (
   UNIQUE KEY uk_app_user_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Passwort: admin (nur fuer lokale Entwicklung!)
+-- Passwort: passwd (nur fuer lokale Entwicklung!)
 INSERT INTO app_user (username, password_hash, role, active) VALUES
   ('admin', '$2y$12$YkkU2/LjJREX65IJuOv./uJOtLmDnXjrE9lxEZ/jBqvHV66PU5rVq', 'admin', 1);
 

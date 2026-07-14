@@ -130,7 +130,7 @@ test123456!!
 `db/schema.mysql.sql` enthaelt einen lokalen Entwicklungsbenutzer:
 
 ```text
-admin / admin
+admin / passwd
 ```
 
 Die Anwendung verlangt bei unsicheren Standardpasswoertern eine Passwortaenderung nach dem Login. Einen Benutzer kannst du auch per PHP-Skript setzen:
