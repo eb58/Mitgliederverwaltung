@@ -139,6 +139,7 @@ const state = {
   currentUser: null,
   authToken: localStorage.getItem("mitgliederverwaltung:authToken") || ""
 };
+const recentChangesCache = { loaded: false, promise: null };
 
 const gridApis = {
   overview: null,
@@ -153,6 +154,7 @@ let interestGroupChart = null;
 
 const MEMBER_API_BROWSER_CONFIG_FILE_NAME = "member-api.config.json";
 const PHP_MEMBER_API_BASE_PATH = "/mitgliederverwaltung/php-api/index.php";
+const isLocalBrowserHost = () => ["localhost", "127.0.0.1", "::1"].includes(globalThis.location.hostname);
 const DEFAULT_MEMBER_API_BASE_URL = globalThis.location.protocol.startsWith("http")
   ? new URL(PHP_MEMBER_API_BASE_PATH, globalThis.location.origin).toString()
   : "https://senioren-luebars.berlin/mitgliederverwaltung/php-api/index.php";
@@ -227,6 +229,7 @@ let memberApiBaseUrl = DEFAULT_MEMBER_API_BASE_URL;
 let selectedMemberPhotoFile = null;
 let referenceAdminData = {};
 let selectedMemberPhotoObjectUrl = null;
+const memberPhotoCache = new Map();
 const restoringGridStateKeys = new Set();
 const passwordVisibilityTimers = new Map();
 
@@ -266,7 +269,7 @@ const refreshReferenceOptions = () => {
 refreshReferenceOptions();
 
 const loadMemberApiBrowserConfig = async () => {
-  if (!globalThis.location.protocol.startsWith("http")) return;
+  if (!globalThis.location.protocol.startsWith("http") || isLocalBrowserHost()) return;
   try {
     const response = await fetch(MEMBER_API_BROWSER_CONFIG_FILE_NAME, { cache: "no-store" });
     if (!response.ok) return;
@@ -303,7 +306,6 @@ const initApp = async () => {
   initGrids();
   wireUi();
   refreshAllViews();
-  refreshRecentChanges();
   setAppShellVisible(true);
 };
 
@@ -558,7 +560,10 @@ const setAuthToken = (token, { persist = true } = {}) => {
   }
 };
 
-const clearAuthToken = () => setAuthToken("");
+const clearAuthToken = () => {
+  setAuthToken("");
+  clearMemberPhotoCache();
+};
 
 const logout = () => {
   const token = state.authToken;
@@ -961,7 +966,7 @@ const wireUi = () => {
   document.getElementById("metricClubOpenBtn").addEventListener("click", showOpenClubPayments);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
-  document.getElementById("refreshRecentChangesBtn").addEventListener("click", refreshRecentChanges);
+  document.getElementById("refreshRecentChangesBtn").addEventListener("click", () => refreshRecentChanges({ force: true }));
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
   document.getElementById("clearAllFiltersBtn").addEventListener("click", clearAllFilters);
@@ -973,7 +978,7 @@ const wireUi = () => {
     tabButton.addEventListener("shown.bs.tab", event => {
       updateGlobalSearchVisibility(event.target.dataset.bsTarget);
       if (event.target.dataset.bsTarget === "#changes-pane") {
-        refreshRecentChanges();
+        refreshRecentChanges({ force: true });
       }
       setTimeout(() => {
         Object.entries(gridApis).forEach(([gridKey, api]) => fitGridColumnsIfNeeded(gridKey, api));
@@ -1342,6 +1347,9 @@ const buildMemberForm = () => {
   changesTabButton.dataset.bsTarget = "#member-form-changes-pane";
   changesTabButton.setAttribute("aria-controls", "member-form-changes-pane");
   changesTabButton.setAttribute("aria-selected", "false");
+  changesTabButton.addEventListener("shown.bs.tab", () => {
+    loadMemberChangeHistory(state.editingId, state.editingId === null);
+  });
   changesTabButton.textContent = "Änderungen";
 
   const changesPane = document.createElement("div");
@@ -1605,7 +1613,11 @@ const openMemberModal = memberId => {
   state.editingId = isNew ? null : member.id;
   clearSelectedMemberPhoto();
   fillMemberForm(member, isNew);
-  loadMemberChangeHistory(member.id, isNew);
+  renderMemberChangeHistory([], {
+    message: isNew
+      ? "\u00c4nderungen werden nach dem ersten Speichern protokolliert."
+      : "\u00c4nderungsverlauf wird beim \u00d6ffnen des Tabs geladen..."
+  });
   resetMemberFormTabs();
   memberModal.show();
 };
@@ -1694,20 +1706,31 @@ const renderMemberChangeHistory = (items, { message = "" } = {}) => {
   });
 };
 
-const refreshRecentChanges = async () => {
-  const button = document.getElementById("refreshRecentChangesBtn");
-  if (button) button.disabled = true;
-  renderRecentChanges(state.recentChanges, { message: state.recentChanges.length ? "" : "\u00c4nderungen werden geladen..." });
-  try {
-    const payload = await loadRecentMemberChangesViaApi();
-    state.recentChanges = Array.isArray(payload?.changes) ? payload.changes : [];
+const refreshRecentChanges = ({ force = false } = {}) => {
+  if (!force && recentChangesCache.loaded) {
     renderRecentChanges(state.recentChanges);
-  } catch (error) {
-    console.warn("Letzte Aenderungen konnten nicht geladen werden.", error);
-    renderRecentChanges(state.recentChanges, { message: state.recentChanges.length ? "" : "Letzte \u00c4nderungen konnten nicht geladen werden." });
-  } finally {
-    if (button) button.disabled = false;
+    return Promise.resolve();
   }
+  if (recentChangesCache.promise) return recentChangesCache.promise;
+
+  const button = document.getElementById("refreshRecentChangesBtn");
+  recentChangesCache.promise = (async () => {
+    if (button) button.disabled = true;
+    renderRecentChanges(state.recentChanges, { message: state.recentChanges.length ? "" : "\u00c4nderungen werden geladen..." });
+    try {
+      const payload = await loadRecentMemberChangesViaApi();
+      state.recentChanges = Array.isArray(payload?.changes) ? payload.changes : [];
+      recentChangesCache.loaded = true;
+      renderRecentChanges(state.recentChanges);
+    } catch (error) {
+      console.warn("Letzte Aenderungen konnten nicht geladen werden.", error);
+      renderRecentChanges(state.recentChanges, { message: state.recentChanges.length ? "" : "Letzte \u00c4nderungen konnten nicht geladen werden." });
+    } finally {
+      if (button) button.disabled = false;
+      recentChangesCache.promise = null;
+    }
+  })();
+  return recentChangesCache.promise;
 };
 
 const getRecentChangeMemberLabel = item => {
@@ -2007,14 +2030,16 @@ const handleMemberSubmit = async event => {
   clearSelectedMemberPhoto();
   memberModal.hide();
   refreshAllViews();
-  refreshRecentChanges();
+  if (document.getElementById("changes-pane")?.classList.contains("active")) {
+    refreshRecentChanges({ force: true });
+  }
 };
-
 const uploadSelectedMemberPhotoIfNeeded = async member => {
   if (!selectedMemberPhotoFile) return member;
 
   try {
     const photo = await uploadMemberPhotoViaApi(member.id, selectedMemberPhotoFile);
+    invalidateMemberPhotoCache(member.id);
     return {
       ...member,
       passbild: photo.fileName || member.passbild,
@@ -2874,11 +2899,41 @@ const loadMemberChangesViaApi = async memberId => {
 };
 
 const fetchMemberPhotoObjectUrl = async memberId => {
-  const response = await fetch(createMemberApiUrl(`/api/members/${memberId}/photo`), {
+  const cachedPhoto = memberPhotoCache.get(memberId);
+  if (cachedPhoto) return cachedPhoto;
+
+  const photoPromise = fetch(createMemberApiUrl(`/api/members/${memberId}/photo`), {
+    cache: "force-cache",
     headers: { Authorization: `Bearer ${state.authToken}` }
+  }).then(async response => {
+    if (!response.ok) return null;
+    return URL.createObjectURL(await response.blob());
+  }).catch(error => {
+    memberPhotoCache.delete(memberId);
+    throw error;
   });
-  if (!response.ok) return null;
-  return URL.createObjectURL(await response.blob());
+
+  memberPhotoCache.set(memberId, photoPromise);
+  return photoPromise;
+};
+
+const clearMemberPhotoCache = () => {
+  memberPhotoCache.forEach(cachedPhoto => {
+    cachedPhoto.then(photoUrl => {
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
+    }).catch(() => {});
+  });
+  memberPhotoCache.clear();
+};
+
+const invalidateMemberPhotoCache = memberId => {
+  const cachedPhoto = memberPhotoCache.get(memberId);
+  if (cachedPhoto) {
+    cachedPhoto.then(photoUrl => {
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
+    }).catch(() => {});
+  }
+  memberPhotoCache.delete(memberId);
 };
 
 const uploadMemberPhotoViaApi = async (memberId, file) => {
