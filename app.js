@@ -2415,6 +2415,7 @@ const renderBirthdayRows = (containerId, birthdays, emptyText, getBadgeText) => 
     const photo = document.createElement("div");
     photo.className = "birthday-photo member-photo member-photo--fallback";
     setFallbackPhoto(photo);
+    photo.classList.add("birthday-photo");
     resolveMemberPhotoDataUrl(item.member).then(photoDataUrl => {
       if (!photoDataUrl) return;
 
