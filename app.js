@@ -2460,7 +2460,7 @@ const renderBirthdayList = (members, today = new Date()) => {
     .sort((a, b) => a.daysUntil - b.daysUntil || String(a.member.name || "").localeCompare(String(b.member.name || ""), "de", { sensitivity: "base" }))
     .slice(0, 12);
 
-  renderBirthdayRows("birthdayList", birthdays, "Keine Geburtstage in den \u00e4chsten 7 Tagen", item => item.daysUntil === 0 ? "Heute" : `in ${item.daysUntil} T.`);
+  renderBirthdayRows("birthdayList", birthdays, "Keine Geburtstage in den \u00e4chsten 10 Tagen", item => item.daysUntil === 0 ? "Heute" : `in ${item.daysUntil} T.`);
 };
 
 const getUpcomingBirthday = (member, today = new Date()) => {
@@ -2475,7 +2475,7 @@ const getUpcomingBirthday = (member, today = new Date()) => {
   const birthdayThisYear = new Date(start.getFullYear(), month - 1, day);
   const birthday = birthdayThisYear < start ? new Date(start.getFullYear() + 1, month - 1, day) : birthdayThisYear;
   const daysUntil = Math.round((birthday - start) / 86400000);
-  if (daysUntil < 0 || daysUntil > 7) return null;
+  if (daysUntil < 0 || daysUntil > 10) return null;
 
   return {
     member,
