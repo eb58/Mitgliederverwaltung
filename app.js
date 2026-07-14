@@ -2360,21 +2360,15 @@ const refreshDashboard = () => {
   renderBirthdayMonthList(clubMembers, today);
 };
 
-const renderBirthdayList = (members, today = new Date()) => {
-  const container = document.getElementById("birthdayList");
+const renderBirthdayRows = (containerId, birthdays, emptyText, getBadgeText) => {
+  const container = document.getElementById(containerId);
   if (!container) return;
-
-  const birthdays = members
-    .map(member => getUpcomingBirthday(member, today))
-    .filter(Boolean)
-    .sort((a, b) => a.daysUntil - b.daysUntil || String(a.member.name || "").localeCompare(String(b.member.name || ""), "de", { sensitivity: "base" }))
-    .slice(0, 12);
 
   container.innerHTML = "";
   if (birthdays.length === 0) {
     const empty = document.createElement("div");
     empty.className = "birthday-empty";
-    empty.textContent = "Keine Geburtstage in den nächsten 7 Tagen";
+    empty.textContent = emptyText;
     container.appendChild(empty);
     return;
   }
@@ -2384,7 +2378,7 @@ const renderBirthdayList = (members, today = new Date()) => {
     row.className = "birthday-row";
     row.tabIndex = 0;
     row.role = "button";
-    row.title = `${formatMemberName(item.member)} öffnen`;
+    row.title = `${formatMemberName(item.member)} \u00f6ffnen`;
     row.addEventListener("click", () => openMemberModal(item.member.id));
     row.addEventListener("keydown", event => {
       if (event.key === "Enter" || event.key === " ") {
@@ -2396,7 +2390,6 @@ const renderBirthdayList = (members, today = new Date()) => {
     const photo = document.createElement("div");
     photo.className = "birthday-photo member-photo member-photo--fallback";
     setFallbackPhoto(photo);
-    photo.classList.add("birthday-photo");
     resolveMemberPhotoDataUrl(item.member).then(photoDataUrl => {
       if (!photoDataUrl) return;
 
@@ -2422,17 +2415,27 @@ const renderBirthdayList = (members, today = new Date()) => {
 
     const details = document.createElement("div");
     details.className = "birthday-details";
-    details.textContent = `${formatDateDE(item.isoDate)} · wird ${item.age}`;
+    details.textContent = `${formatDateDE(item.isoDate)} \u00b7 wird ${item.age}`;
 
     const badge = document.createElement("div");
     badge.className = "birthday-badge";
-    badge.textContent = item.daysUntil === 0 ? "Heute" : `in ${item.daysUntil} T.`;
+    badge.textContent = getBadgeText(item);
 
     const text = document.createElement("div");
     text.append(person, details);
     row.append(photo, text, badge);
     container.appendChild(row);
   });
+};
+
+const renderBirthdayList = (members, today = new Date()) => {
+  const birthdays = members
+    .map(member => getUpcomingBirthday(member, today))
+    .filter(Boolean)
+    .sort((a, b) => a.daysUntil - b.daysUntil || String(a.member.name || "").localeCompare(String(b.member.name || ""), "de", { sensitivity: "base" }))
+    .slice(0, 12);
+
+  renderBirthdayRows("birthdayList", birthdays, "Keine Geburtstage in den \u00e4chsten 7 Tagen", item => item.daysUntil === 0 ? "Heute" : `in ${item.daysUntil} T.`);
 };
 
 const getUpcomingBirthday = (member, today = new Date()) => {
@@ -2481,76 +2484,17 @@ const renderBirthdayMonthList = (members, today = new Date()) => {
   const monthLabel = targetMonth.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
   setText("birthdayMonthTitle", `Geburtstagskinder im ${monthLabel}`);
 
-  const container = document.getElementById("birthdayMonthList");
-  if (!container) return;
-
   const birthdays = members
     .map(member => getBirthdayForMonth(member, targetMonth.getFullYear(), targetMonth.getMonth()))
     .filter(Boolean)
     .sort((a, b) => a.day - b.day || germanCollator.compare(formatMemberName(a.member), formatMemberName(b.member)));
 
-  container.innerHTML = "";
-  if (birthdays.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "birthday-empty";
-    empty.textContent = `Keine Geburtstage im ${monthLabel}`;
-    container.appendChild(empty);
-    return;
-  }
-
-  birthdays.forEach(item => {
-    const row = document.createElement("div");
-    row.className = "birthday-row";
-    row.tabIndex = 0;
-    row.role = "button";
-    row.title = `${formatMemberName(item.member)} öffnen`;
-    row.addEventListener("click", () => openMemberModal(item.member.id));
-    row.addEventListener("keydown", event => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openMemberModal(item.member.id);
-      }
-    });
-
-    const photo = document.createElement("div");
-    photo.className = "birthday-photo member-photo member-photo--fallback";
-    setFallbackPhoto(photo);
-    resolveMemberPhotoDataUrl(item.member).then(photoDataUrl => {
-      if (!photoDataUrl) return;
-
-      const image = document.createElement("img");
-      image.className = "member-photo__image";
-      image.alt = `Passfoto von ${formatMemberName(item.member)}`;
-      image.addEventListener("error", () => {
-        setFallbackPhoto(photo);
-        photo.classList.add("birthday-photo");
-      }, { once: true });
-      photo.className = "birthday-photo member-photo";
-      photo.title = image.alt;
-      photo.setAttribute("aria-label", image.alt);
-      photo.replaceChildren(image);
-      image.src = photoDataUrl;
-    }).catch(() => {
-      // Fallback remains visible.
-    });
-
-    const person = document.createElement("div");
-    person.className = "birthday-person";
-    person.textContent = `${item.member.vorname || ""} ${item.member.name || ""}`.trim();
-
-    const details = document.createElement("div");
-    details.className = "birthday-details";
-    details.textContent = `${formatDateDE(item.isoDate)} · wird ${item.age}`;
-
-    const badge = document.createElement("div");
-    badge.className = "birthday-badge";
-    badge.textContent = `${item.day}.`;
-
-    const text = document.createElement("div");
-    text.append(person, details);
-    row.append(photo, text, badge);
-    container.appendChild(row);
-  });
+  renderBirthdayRows(
+    "birthdayMonthList",
+    birthdays,
+    `Keine Geburtstage im ${monthLabel}`,
+    item => `${item.day}.`
+  );
 };
 
 const renderAgeChart = (buckets, total) => {
