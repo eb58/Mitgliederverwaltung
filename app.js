@@ -179,9 +179,16 @@ const gridApiByTabTarget = {
 
 const gridLocaleText = {
   page: "Seite",
+  pageSizeSelectorLabel: "Seitengröße:",
+  ariaPageSizeSelectorLabel: "Seitengröße",
   more: "mehr",
   to: "bis",
   of: "von",
+  firstPage: "Erste Seite",
+  previousPage: "Vorherige Seite",
+  nextPage: "Nächste Seite",
+  lastPage: "Letzte Seite",
+  pageLastRowUnknown: "?",
   next: "Weiter",
   last: "Letzte",
   first: "Erste",
