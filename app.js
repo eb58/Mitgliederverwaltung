@@ -2287,7 +2287,6 @@ const renderFunctionOverview = members => {
   });
 
   const visibleEntries = [...entries.values()]
-    .filter(entry => entry.members.length)
     .sort((a, b) => functionOverviewSortWeight(a.label) - functionOverviewSortWeight(b.label) || germanCollator.compare(a.label, b.label));
   const uniqueMembers = new Set(visibleEntries.flatMap(entry => entry.members.map(member => member.id)));
 
@@ -2319,6 +2318,12 @@ const renderFunctionOverview = members => {
 
     const memberList = document.createElement("div");
     memberList.className = "function-card__members";
+    if (!entry.members.length) {
+      const empty = document.createElement("p");
+      empty.className = "function-card__empty";
+      empty.textContent = "Niemand zugeordnet";
+      memberList.appendChild(empty);
+    }
     [...entry.members]
       .sort((a, b) => germanCollator.compare(formatMemberName(a), formatMemberName(b)))
       .forEach(member => {
@@ -2337,10 +2342,7 @@ const renderFunctionOverview = members => {
         groups.textContent = formatInterestGroups(member.interessengruppen) || "Keine Interessengruppe hinterlegt";
         details.append(name, groups);
 
-        const contact = document.createElement("span");
-        contact.className = "function-card__member-contact";
-        contact.textContent = [member.telefon, member.handy].filter(Boolean).join(" · ") || "-";
-        button.append(details, contact);
+        button.append(details);
         memberList.appendChild(button);
       });
 

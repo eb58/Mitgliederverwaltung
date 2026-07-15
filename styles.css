@@ -1362,7 +1362,11 @@ body {
 }
 
 .function-overview {
-  padding: 0.35rem 0 1rem;
+  padding: 1.4rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), var(--surface-3));
+  border: 1px solid rgba(18, 128, 124, 0.14);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
 }
 
 .function-overview__header {
@@ -1450,10 +1454,19 @@ body {
   padding: 0.8rem;
 }
 
+.function-card__empty {
+  margin: 0;
+  padding: 0.8rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+  text-align: center;
+}
+
 .function-card__member {
   display: grid;
   width: 100%;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: 0.8rem;
   padding: 0.7rem 0.8rem;
   color: var(--ink);
@@ -1478,19 +1491,11 @@ body {
   font-weight: 750;
 }
 
-.function-card__member-groups,
-.function-card__member-contact {
+.function-card__member-groups {
   display: block;
   margin-top: 0.18rem;
   color: var(--muted);
   font-size: 0.82rem;
-}
-
-.function-card__member-contact {
-  align-self: center;
-  margin-top: 0;
-  text-align: right;
-  white-space: nowrap;
 }
 
 .function-overview__empty {
@@ -1525,7 +1530,4 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .function-card__member-contact {
-    text-align: left;
-  }
 }
