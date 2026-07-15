@@ -49,13 +49,13 @@ npm install
 Entwicklungsserver starten:
 
 ```bash
-npm.cmd run dev
+npm run dev
 ```
 
 Produktionsbuild erzeugen:
 
 ```bash
-npm.cmd run build
+npm run build
 ```
 
 Unter Windows ist `npm.cmd` in PowerShell robuster als `npm`, wenn die PowerShell Execution Policy das Laden von `npm.ps1` blockiert.
@@ -73,7 +73,7 @@ C:\Users\erich\Projects\Gratulationsdienst Reinickendorf\docker\src\mitgliederve
 Build ausführen:
 
 ```bash
-npm.cmd run build
+npm run build
 ```
 
 Die Anwendung ist danach erreichbar unter:
@@ -115,6 +115,8 @@ Das Skript baut das Frontend, erstellt ein lokales Deploy-Paket unter `.deploy/m
 ```powershell
 .\deploy.ps1 -SkipUpload
 ```
+
+Das Skript setzt voraus, dass der gemeinsame Gratulationsdienst neben diesem Projekt liegt, weil Vite den Frontend-Build in dessen Docker-Webroot schreibt. Für einen manuellen Build muss dieser Pfad in `vite.config.js` entsprechend angepasst werden.
 
 Für klassisches Webhosting werden diese Dateien und Ordner ausgeliefert:
 
