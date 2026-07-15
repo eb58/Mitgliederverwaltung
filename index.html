@@ -193,10 +193,19 @@
             <div class="col-lg-6">
               <div class="stat-panel birthday-panel">
                 <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
-                  <h2 id="birthdayMonthTitle" class="h6 mb-0">Geburtstagskinder im Monat</h2>
-                  <span class="text-muted small">in 3 Monaten</span>
+                  <div class="d-flex align-items-center gap-2">
+                    <h2 id="birthdayRoundTitle" class="h6 mb-0">Anstehende runde Geburtstage</h2>
+                    <button id="downloadRoundBirthdayBtn" class="edit-icon-btn" type="button" title="Liste der runden Geburtstage herunterladen" aria-label="Liste der runden Geburtstage herunterladen">
+                      <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                        <path d="M12 3v12"></path>
+                        <path d="m7 10 5 5 5-5"></path>
+                        <path d="M5 21h14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <span class="text-muted small">nächste 6 Monate</span>
                 </div>
-                <div id="birthdayMonthList" class="birthday-list"></div>
+                <div id="birthdayRoundList" class="birthday-list"></div>
               </div>
             </div>
           </div>

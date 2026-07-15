@@ -966,6 +966,7 @@ const wireUi = () => {
   document.getElementById("metricClubOpenBtn").addEventListener("click", showOpenClubPayments);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
+  document.getElementById("downloadRoundBirthdayBtn").addEventListener("click", downloadRoundBirthdayList);
   document.getElementById("refreshRecentChangesBtn").addEventListener("click", () => refreshRecentChanges({ force: true }));
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
@@ -2382,7 +2383,7 @@ const refreshDashboard = () => {
     .slice(0, Object.keys(interestGroupMap).length);
   renderInterestGroupChart(groupRows, total);
   renderBirthdayList(clubMembers, today);
-  renderBirthdayMonthList(clubMembers, today);
+  renderRoundBirthdayList(clubMembers, today);
 };
 
 const renderBirthdayRows = (containerId, birthdays, emptyText, getBadgeText) => {
@@ -2465,6 +2466,12 @@ const renderBirthdayList = (members, today = new Date()) => {
 };
 
 const getUpcomingBirthday = (member, today = new Date()) => {
+  const birthday = getNextBirthday(member, today);
+  if (!birthday || birthday.daysUntil > 10) return null;
+  return birthday;
+};
+
+const getNextBirthday = (member, today = new Date()) => {
   if (!member.geburtstag || typeof member.geburtstag !== "string") return null;
   const parts = member.geburtstag.split("-");
   if (parts.length !== 3) return null;
@@ -2476,51 +2483,66 @@ const getUpcomingBirthday = (member, today = new Date()) => {
   const birthdayThisYear = new Date(start.getFullYear(), month - 1, day);
   const birthday = birthdayThisYear < start ? new Date(start.getFullYear() + 1, month - 1, day) : birthdayThisYear;
   const daysUntil = Math.round((birthday - start) / 86400000);
-  if (daysUntil < 0 || daysUntil > 10) return null;
 
   return {
     member,
+    birthday,
     daysUntil,
     age: birthday.getFullYear() - birthYear,
     isoDate: `${birthday.getFullYear()}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
   };
 };
 
-const getBirthdayForMonth = (member, year, monthIndex) => {
-  if (!member.geburtstag || typeof member.geburtstag !== "string") return null;
-  const parts = member.geburtstag.split("-");
-  if (parts.length !== 3) return null;
-
-  const [birthYear, month, day] = parts.map(Number);
-  if (![birthYear, month, day].every(Number.isFinite) || month - 1 !== monthIndex) return null;
-
-  const birthday = new Date(year, monthIndex, day);
-  if (birthday.getFullYear() !== year || birthday.getMonth() !== monthIndex || birthday.getDate() !== day) return null;
-
-  return {
-    member,
-    age: year - birthYear,
-    day,
-    isoDate: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-  };
+const getRoundBirthdays = (members, today = new Date()) => {
+  const end = new Date(today.getFullYear(), today.getMonth() + 6, today.getDate());
+  return members
+    .map(member => getNextBirthday(member, today))
+    .filter(Boolean)
+    .filter(item => item.birthday <= end && item.age >= 80 && item.age % 5 === 0)
+    .sort((a, b) => a.daysUntil - b.daysUntil || germanCollator.compare(formatMemberName(a.member), formatMemberName(b.member)));
 };
 
-const renderBirthdayMonthList = (members, today = new Date()) => {
-  const targetMonth = new Date(today.getFullYear(), today.getMonth() + 3, 1);
-  const monthLabel = targetMonth.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
-  setText("birthdayMonthTitle", `Geburtstagskinder im ${monthLabel}`);
-
-  const birthdays = members
-    .map(member => getBirthdayForMonth(member, targetMonth.getFullYear(), targetMonth.getMonth()))
-    .filter(Boolean)
-    .sort((a, b) => a.day - b.day || germanCollator.compare(formatMemberName(a.member), formatMemberName(b.member)));
+const renderRoundBirthdayList = (members, today = new Date()) => {
+  const birthdays = getRoundBirthdays(members, today);
 
   renderBirthdayRows(
-    "birthdayMonthList",
+    "birthdayRoundList",
     birthdays,
-    `Keine Geburtstage im ${monthLabel}`,
-    item => `${item.day}.`
+    "Keine runden Geburtstage in den nächsten 6 Monaten",
+    item => `${item.age}. Geburtstag`
   );
+};
+
+const downloadRoundBirthdayList = () => {
+  const today = new Date();
+  const birthdays = getRoundBirthdays(
+    state.members.filter(member => isActiveMember(member) && !isGuestMember(member)),
+    today
+  );
+  const lines = birthdays.length
+    ? birthdays.map(item => {
+      const member = item.member;
+      const phone = [member.telefon, member.handy].filter(Boolean).join(" / ") || "-";
+      const address = [member.strasse, [member.plz, member.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ") || "-";
+      return [
+        `${formatMemberName(member)} – ${item.age}. Geburtstag am ${formatDateDE(item.isoDate)}`,
+        `Telefon: ${phone}`,
+        `Adresse: ${address}`
+      ].join("\n");
+    })
+    : ["Keine runden Geburtstage in den nächsten 6 Monaten."];
+  const content = [
+    "Anstehende runde Geburtstage",
+    `Erstellt am ${formatDateDE(formatIsoDate(today))}`,
+    "",
+    ...lines
+  ].join("\n\n");
+  const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `runde-geburtstage-${formatIsoDate(today)}.txt`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
 const renderAgeChart = (buckets, total) => {
