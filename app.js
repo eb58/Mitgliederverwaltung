@@ -2178,11 +2178,9 @@ const updatePaymentComputerGroupToggle = () => {
 };
 const updatePaymentClubOpenToggle = () => {
   const button = document.getElementById("togglePaymentClubOpenBtn");
-  const downloadButton = document.getElementById("downloadOpenPaymentsBtn");
   button.textContent = state.showOnlyOpenClubPayments ? "Alle Club-Beitraege" : "Nur Club offen";
   button.setAttribute("aria-pressed", String(state.showOnlyOpenClubPayments));
   button.classList.toggle("active", state.showOnlyOpenClubPayments);
-  downloadButton.hidden = !state.showOnlyOpenClubPayments;
 };
 const filterPaymentMembers = members => {
   if (state.showOnlyOpenClubPayments) return members.filter(isOpenClubPaymentMember);

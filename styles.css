@@ -570,6 +570,10 @@ body {
   color: #ffffff;
 }
 
+.grid-toolbar .edit-icon-btn {
+  height: calc(1.5em + 0.75rem + 2px);
+}
+
 .grid-host {
   width: 100%;
   height: calc(100dvh - 100px);
