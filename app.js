@@ -2138,6 +2138,9 @@ const normalizeGroupText = value => String(value || "").normalize("NFD").replace
 const getMemberInterestGroupText = member => (member?.interessengruppen || [])
   .map(groupId => interestGroupMap[groupId] || "")
   .join(" ");
+const getMemberFunctionIds = member => Array.isArray(member?.funktionen) && member.funktionen.length
+  ? member.funktionen
+  : String(member?.funktion || "").split(/[;,]/).map(Number).filter(id => Number.isFinite(id) && id > 0);
 const isComputerGroupMember = member => {
   const interestGroupText = normalizeGroupText(getMemberInterestGroupText(member));
   return computerGroupPatterns.some(pattern => interestGroupText.includes(pattern));
@@ -2252,6 +2255,7 @@ const refreshAllViews = () => {
   setGridData(gridApis.payments, filterPaymentMembers(nonGuests));
   setGridData(gridApis.christmas, nonGuests);
   setGridData(gridApis.guests, guests);
+  renderFunctionOverview(nonGuests);
 
   const historicalMembers = [...state.members]
     .filter(m => !isActiveMember(m) && !isGuestMember(m))
@@ -2263,6 +2267,95 @@ const refreshAllViews = () => {
   applyQuickFilter(document.getElementById("globalSearchInput").value.trim());
 
   Object.entries(gridApis).forEach(([gridKey, api]) => fitGridColumnsIfNeeded(gridKey, api));
+};
+
+const renderFunctionOverview = members => {
+  const grid = document.getElementById("functionOverviewGrid");
+  const summary = document.getElementById("functionOverviewSummary");
+  if (!grid) return;
+
+  const entries = new Map(
+    Object.entries(funktionsMap)
+      .filter(([, label]) => label)
+      .map(([id, label]) => [Number(id), { label, members: [] }])
+  );
+  members.forEach(member => {
+    getMemberFunctionIds(member).forEach(functionId => {
+      const entry = entries.get(functionId);
+      if (entry) entry.members.push(member);
+    });
+  });
+
+  const visibleEntries = [...entries.values()]
+    .filter(entry => entry.members.length)
+    .sort((a, b) => functionOverviewSortWeight(a.label) - functionOverviewSortWeight(b.label) || germanCollator.compare(a.label, b.label));
+  const uniqueMembers = new Set(visibleEntries.flatMap(entry => entry.members.map(member => member.id)));
+
+  if (summary) summary.textContent = `${visibleEntries.length} Funktionen · ${uniqueMembers.size} Mitglieder`;
+  grid.replaceChildren();
+
+  if (!visibleEntries.length) {
+    const empty = document.createElement("div");
+    empty.className = "function-overview__empty";
+    empty.textContent = "Für aktive Mitglieder sind keine Funktionen hinterlegt.";
+    grid.appendChild(empty);
+    return;
+  }
+
+  visibleEntries.forEach(entry => {
+    const card = document.createElement("article");
+    card.className = "function-card";
+
+    const header = document.createElement("header");
+    header.className = "function-card__header";
+    const title = document.createElement("h3");
+    title.className = "function-card__title";
+    title.textContent = entry.label;
+    const count = document.createElement("span");
+    count.className = "function-card__count";
+    count.textContent = String(entry.members.length);
+    count.setAttribute("aria-label", `${entry.members.length} Mitglieder`);
+    header.append(title, count);
+
+    const memberList = document.createElement("div");
+    memberList.className = "function-card__members";
+    [...entry.members]
+      .sort((a, b) => germanCollator.compare(formatMemberName(a), formatMemberName(b)))
+      .forEach(member => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "function-card__member";
+        button.title = "Mitglied bearbeiten";
+        button.addEventListener("click", () => openMemberModal(member.id));
+
+        const details = document.createElement("span");
+        const name = document.createElement("span");
+        name.className = "function-card__member-name";
+        name.textContent = formatMemberName(member);
+        const groups = document.createElement("span");
+        groups.className = "function-card__member-groups";
+        groups.textContent = formatInterestGroups(member.interessengruppen) || "Keine Interessengruppe hinterlegt";
+        details.append(name, groups);
+
+        const contact = document.createElement("span");
+        contact.className = "function-card__member-contact";
+        contact.textContent = [member.telefon, member.handy].filter(Boolean).join(" · ") || "-";
+        button.append(details, contact);
+        memberList.appendChild(button);
+      });
+
+    card.append(header, memberList);
+    grid.appendChild(card);
+  });
+};
+
+const functionOverviewSortWeight = label => {
+  const normalized = normalizeGroupText(label);
+  if (normalized === "vorstand") return 0;
+  if (normalized.includes("ersthelfer")) return 1;
+  if (normalized.includes("rote karte")) return 2;
+  if (normalized.includes("gruppenleiter")) return 3;
+  return 4;
 };
 
 const setGridData = (api, rowData) => {
