@@ -2196,27 +2196,43 @@ const filterPaymentMembers = members => {
 
 const downloadOpenClubPayments = () => {
   const members = filterPaymentMembers(state.members.filter(member => isActiveMember(member) && !isGuestMember(member)));
-  const csvCell = value => `"${String(value ?? "").replace(/"/g, '""')}"`;
-  const rows = [
-    ["Name", "Vorname", "Telefon", "Handy", "Adresse", "Club bezahlt", "Betrag Club", "Einzahlung Club am", "Computer bezahlt", "Betrag Computer"],
-    ...members.map(member => [
-      member.name,
-      member.vorname,
-      member.telefon,
-      member.handy,
-      [member.strasse, [member.plz, member.ort].filter(Boolean).join(" ")].filter(Boolean).join(", "),
-      asBoolean(member.beitragClubBezahlt) ? "Ja" : "Nein",
-      member.gezahlterBetragClub,
-      member.einzahlungClubAm,
-      asBoolean(member.beitragComputerBezahlt) ? "Ja" : "Nein",
-      member.gezahlterBetragComputer
-    ])
+  const readableValue = value => value === null || value === undefined || value === "" ? "-" : value;
+  const readableGroups = member => readableValue(formatInterestGroups(member.interessengruppen));
+  const readablePayment = (paid, amount, date) => {
+    if (!asBoolean(paid)) return "Offen";
+    const readableAmount = formatCurrency(amount).replace(/\u00a0/g, " ");
+    const details = [readableAmount, date ? `am ${formatDateDE(date)}` : ""].filter(Boolean).join(" ");
+    return details ? `Bezahlt – ${details}` : "Bezahlt";
+  };
+  const readableComputerPayment = member => isComputerGroupMember(member)
+    ? readablePayment(member.beitragComputerBezahlt, member.gezahlterBetragComputer, member.einzahlungComputerAm)
+    : "";
+  const today = formatDateDE(formatIsoDate(new Date()));
+  const lines = [
+    "BEZAHLDATEN",
+    `Erstellt am: ${today}`,
+    `Anzahl Personen: ${members.length}`,
+    "",
+    ...members.flatMap((member, index) => {
+      const age = calculateAge(member.geburtstag);
+      const computerPayment = readableComputerPayment(member);
+      const note = String(member.bemerkung || "").trim().replace(/\s+/g, " ");
+      return [
+        `${index + 1}. ${formatMemberName(member)}${age === null ? "" : ` (${age} Jahre)`}`,
+        `   Gruppen: ${readableGroups(member)}`,
+        `   Telefon: ${readableValue(member.telefon)} | Handy: ${readableValue(member.handy)}`,
+        `   Club-Beitrag: ${readablePayment(member.beitragClubBezahlt, member.gezahlterBetragClub, member.einzahlungClubAm)}`,
+        ...(computerPayment ? [`   Computer-Beitrag: ${computerPayment}`] : []),
+        ...(note ? [`   Notiz: ${note}`] : []),
+        ""
+      ];
+    })
   ];
-  const content = rows.map(row => row.map(csvCell).join(";")).join("\r\n");
-  const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: "text/csv;charset=utf-8" }));
+  const content = lines.join("\r\n");
+  const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: "text/plain;charset=utf-8" }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = `offene-club-beitraege-${formatIsoDate(new Date())}.csv`;
+  link.download = `bezahldaten-${formatIsoDate(new Date())}.txt`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
