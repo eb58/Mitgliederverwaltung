@@ -966,6 +966,7 @@ const wireUi = () => {
   document.getElementById("metricClubOpenBtn").addEventListener("click", showOpenClubPayments);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
+  document.getElementById("downloadOpenPaymentsBtn").addEventListener("click", downloadOpenClubPayments);
   document.getElementById("downloadRoundBirthdayBtn").addEventListener("click", downloadRoundBirthdayList);
   document.getElementById("refreshRecentChangesBtn").addEventListener("click", () => refreshRecentChanges({ force: true }));
   document.getElementById("memberForm").addEventListener("submit", handleMemberSubmit);
@@ -1658,13 +1659,23 @@ const isVisibleMemberChange = change => !legacyHiddenMemberChangeFields.has(chan
 const visibleMemberChanges = changes => Array.isArray(changes)
   ? changes.filter(isVisibleMemberChange)
   : [];
+const visibleMemberChangeItems = items => Array.isArray(items)
+  ? items.filter(item => visibleMemberChanges(item.changes).length)
+  : [];
+const formatMemberChangeValue = (change, value) => {
+  const text = String(value ?? "").trim();
+  if (!text) return "leer";
+  const field = fieldDefinitions.find(({ key, label }) => key === change.field || label === change.label);
+  return field?.type === "date" ? formatDateDE(text) : text;
+};
 
 const renderMemberChangeHistory = (items, { message = "" } = {}) => {
   const container = document.getElementById("memberChangeHistory");
   if (!container) return;
   container.innerHTML = "";
+  const visibleItems = visibleMemberChangeItems(items);
 
-  if (message || !items.length) {
+  if (message || !visibleItems.length) {
     const empty = document.createElement("div");
     empty.className = "member-change-history__empty";
     empty.textContent = message || "Noch keine Änderungen protokolliert.";
@@ -1672,7 +1683,7 @@ const renderMemberChangeHistory = (items, { message = "" } = {}) => {
     return;
   }
 
-  items.forEach(item => {
+  visibleItems.forEach(item => {
     const entry = document.createElement("article");
     entry.className = "member-change-entry";
 
@@ -1695,8 +1706,8 @@ const renderMemberChangeHistory = (items, { message = "" } = {}) => {
       list.className = "member-change-entry__list";
       changes.forEach(change => {
         const listItem = document.createElement("li");
-        const oldValue = change.old || "leer";
-        const newValue = change.new || "leer";
+        const oldValue = formatMemberChangeValue(change, change.old);
+        const newValue = formatMemberChangeValue(change, change.new);
         listItem.textContent = `${change.label || change.field}: ${oldValue} -> ${newValue}`;
         list.appendChild(listItem);
       });
@@ -1745,8 +1756,9 @@ const renderRecentChanges = (items, { message = "" } = {}) => {
   const container = document.getElementById("recentChangesList");
   if (!container) return;
   container.innerHTML = "";
+  const visibleItems = visibleMemberChangeItems(items);
 
-  if (message || !items.length) {
+  if (message || !visibleItems.length) {
     const empty = document.createElement("div");
     empty.className = "recent-change-list__empty";
     empty.textContent = message || "Noch keine \u00c4nderungen protokolliert.";
@@ -1754,7 +1766,7 @@ const renderRecentChanges = (items, { message = "" } = {}) => {
     return;
   }
 
-  container.replaceChildren(...items.map(createRecentChangeEntry));
+  container.replaceChildren(...visibleItems.map(createRecentChangeEntry));
 };
 
 const createRecentChangeEntry = item => {
@@ -1792,8 +1804,8 @@ const createRecentChangeEntry = item => {
     list.className = "recent-change-entry__list";
     changes.forEach(change => {
       const listItem = document.createElement("li");
-      const oldValue = change.old || "leer";
-      const newValue = change.new || "leer";
+      const oldValue = formatMemberChangeValue(change, change.old);
+      const newValue = formatMemberChangeValue(change, change.new);
       listItem.textContent = `${change.label || change.field}: ${oldValue} -> ${newValue}`;
       list.appendChild(listItem);
     });
@@ -2166,13 +2178,42 @@ const updatePaymentComputerGroupToggle = () => {
 };
 const updatePaymentClubOpenToggle = () => {
   const button = document.getElementById("togglePaymentClubOpenBtn");
+  const downloadButton = document.getElementById("downloadOpenPaymentsBtn");
   button.textContent = state.showOnlyOpenClubPayments ? "Alle Club-Beitraege" : "Nur Club offen";
   button.setAttribute("aria-pressed", String(state.showOnlyOpenClubPayments));
   button.classList.toggle("active", state.showOnlyOpenClubPayments);
+  downloadButton.hidden = !state.showOnlyOpenClubPayments;
 };
 const filterPaymentMembers = members => {
   if (state.showOnlyOpenClubPayments) return members.filter(isOpenClubPaymentMember);
   return state.showOnlyPaymentComputerGroups ? members.filter(isComputerGroupMember) : members;
+};
+
+const downloadOpenClubPayments = () => {
+  const members = filterPaymentMembers(state.members.filter(member => isActiveMember(member) && !isGuestMember(member)));
+  const csvCell = value => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const rows = [
+    ["Name", "Vorname", "Telefon", "Handy", "Adresse", "Club bezahlt", "Betrag Club", "Einzahlung Club am", "Computer bezahlt", "Betrag Computer"],
+    ...members.map(member => [
+      member.name,
+      member.vorname,
+      member.telefon,
+      member.handy,
+      [member.strasse, [member.plz, member.ort].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+      asBoolean(member.beitragClubBezahlt) ? "Ja" : "Nein",
+      member.gezahlterBetragClub,
+      member.einzahlungClubAm,
+      asBoolean(member.beitragComputerBezahlt) ? "Ja" : "Nein",
+      member.gezahlterBetragComputer
+    ])
+  ];
+  const content = rows.map(row => row.map(csvCell).join(";")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `offene-club-beitraege-${formatIsoDate(new Date())}.csv`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
 const refreshAllViews = () => {
