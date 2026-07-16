@@ -2455,6 +2455,22 @@ const clearInactiveQuickFilters = () => {
 
 const refreshAllGridCells = () => Object.values(gridApis).forEach(api => api?.refreshCells?.({ force: true }));
 
+const getBusinessYearRange = (referenceDate = new Date()) => {
+  const year = referenceDate.getMonth() >= 10 /* November */
+    ? referenceDate.getFullYear()
+    : referenceDate.getFullYear() - 1;
+  return { from: `${year}-11-01`, to: `${year + 1}-10-31` };
+};
+
+const isDateInRange = (value, from, to) => {
+  const date = String(value || "");
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= from && date <= to;
+};
+
+const sumPaymentsInBusinessYear = (members, amountField, dateField, range) => members
+  .filter(member => isDateInRange(member[dateField], range.from, range.to))
+  .reduce((sum, member) => sum + (Number(member[amountField]) || 0), 0);
+
 const refreshDashboard = () => {
   const activeMembers = state.members.filter(isActiveMember);
   const clubMembers = activeMembers.filter(member => !isGuestMember(member));
@@ -2477,6 +2493,13 @@ const refreshDashboard = () => {
 
   setText("metricClubOpen", `${clubOpen} (${percent(clubOpen, total)}%)`);
   setText("metricComputerOpen", `${computerOpen} (${percent(computerOpen, computerTotal)}%)`);
+
+  const businessYearRange = getBusinessYearRange();
+  const clubBusinessYearSum = sumPaymentsInBusinessYear(clubMembers, "gezahlterBetragClub", "einzahlungClubAm", businessYearRange);
+  const computerBusinessYearSum = sumPaymentsInBusinessYear(computerMembers, "gezahlterBetragComputer", "einzahlungComputerAm", businessYearRange);
+
+  setText("metricClubBusinessYearSum", formatCurrency(clubBusinessYearSum));
+  setText("metricComputerBusinessYearSum", formatCurrency(computerBusinessYearSum));
 
   const genderCounts = {
     m: 0,
