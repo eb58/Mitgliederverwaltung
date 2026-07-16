@@ -185,8 +185,11 @@ function requireAuth(): array
         'id' => (int) $user['id'],
         'username' => $user['username'],
         'role' => $user['role'],
-        'passwordChangeRequired' => ($hasSessionPasswordChangeFlag && (bool) $user['password_change_required'])
-            || isPasswordChangeRequiredForUser($user),
+        // Bcrypt-Prüfung pro Request vermeiden: Flag wurde beim Login gesetzt,
+        // nur ein zwischenzeitlich geleertes Passwort muss noch erkannt werden.
+        'passwordChangeRequired' => $hasSessionPasswordChangeFlag
+            ? ((bool) $user['password_change_required'] || isPasswordUnset($user['password_hash']))
+            : isPasswordChangeRequiredForUser($user),
     ];
 }
 

@@ -299,9 +299,7 @@ const initApp = async () => {
   });
   wireLoginForm();
   await ensureAuthenticated();
-  await loadReferenceData();
-
-  const loadedMembers = await loadStoredMembers();
+  const [, loadedMembers] = await Promise.all([loadReferenceData(), loadStoredMembers()]);
   state.members = loadedMembers || [];
   state.nextId = getNextId(state.members);
 
