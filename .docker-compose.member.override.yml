@@ -1,0 +1,15 @@
+services:
+  web:
+    environment:
+      MEMBER_DB_HOST: db
+      MEMBER_DB_PORT: '3306'
+      MEMBER_DB_NAME: mitgliederverwaltung
+      MEMBER_DB_USER: eb
+      MEMBER_DB_PASSWORD: 'changeme!'
+    volumes:
+      - type: bind
+        source: C:/Users/erich/Projects/Gratulationsdienst/docker/src/mitgliederverwaltung
+        target: /var/www/html/mitgliederverwaltung
+      - type: bind
+        source: C:/Users/erich/Projects/Mitgliederverwaltung/php-api
+        target: /var/www/html/mitgliederverwaltung/php-api

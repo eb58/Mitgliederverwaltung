@@ -24,6 +24,7 @@ const interestGroupOptions = [];
 const austrittsgrundOptions = [];
 const funktionsOptions = [];
 const seniorenclubOptions = [];
+const interestGroupPriority = new Map([["Excel", 0], ["Skat", 1]]);
 
 const fieldDefinitions = [
   { key: "id", label: "ID", type: "number", required: true },
@@ -254,7 +255,11 @@ const refreshReferenceOptions = () => {
   replaceArrayContents(
     interestGroupOptions,
     [...interestGroups]
-      .sort((a, b) => germanCollator.compare(a.label, b.label))
+      .sort((a, b) => {
+        const aPriority = interestGroupPriority.get(a.label) ?? Number.MAX_SAFE_INTEGER;
+        const bPriority = interestGroupPriority.get(b.label) ?? Number.MAX_SAFE_INTEGER;
+        return aPriority !== bPriority ? aPriority - bPriority : germanCollator.compare(a.label, b.label);
+      })
       .map(group => ({ value: group.id, label: group.label }))
   );
   replaceArrayContents(
@@ -1489,20 +1494,17 @@ const createMemberFormField = field => {
     });
   } else if (field.type === "multiselect") {
     input = document.createElement("select");
-    input.className = "form-select";
+    input.className = "member-form-selection-input";
     input.multiple = true;
-    input.size = ["interessengruppen", "funktion"].includes(field.key) ? 8 : Math.min(6, field.options.length);
-    if (field.key === "interessengruppen") {
-      input.addEventListener("change", updateInterestGroupDisplayField);
-    } else if (field.key === "funktion") {
-      input.addEventListener("change", updateFunctionDisplayField);
-    }
+    input.tabIndex = -1;
+    input.setAttribute("aria-hidden", "true");
     field.options.forEach(option => {
       const el = document.createElement("option");
       el.value = String(option.value);
       el.textContent = option.label;
       input.appendChild(el);
     });
+    input.addEventListener("change", () => updateSelectionChipField(field.key));
   } else {
     input = document.createElement("input");
     input.className = "form-control";
@@ -1524,52 +1526,49 @@ const createMemberFormField = field => {
   }
 
   col.append(label, input);
-  if (field.key === "interessengruppen") {
-    col.appendChild(createInterestGroupDisplayField());
-  } else if (field.key === "funktion") {
-    col.appendChild(createFunctionDisplayField());
+  if (field.type === "multiselect") {
+    col.appendChild(createSelectionChipField(field));
   }
   return col;
 };
 
-const createInterestGroupDisplayField = () => {
-  const display = document.createElement("input");
-  display.type = "text";
-  display.id = "field-interessengruppen-display";
-  display.className = "form-control member-form-selection-display";
-  display.readOnly = true;
-  display.tabIndex = -1;
-  display.setAttribute("aria-label", "Ausgewählte Interessengruppen");
-  return display;
+const createSelectionChipField = field => {
+  const container = document.createElement("div");
+  container.id = `field-${field.key}-chips`;
+  container.className = "member-form-selection-chips";
+  container.setAttribute("role", "group");
+  container.setAttribute("aria-label", `${field.label} auswählen`);
+
+  field.options.forEach(option => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "member-form-selection-chip";
+    chip.dataset.value = String(option.value);
+    chip.textContent = option.label;
+    chip.setAttribute("aria-pressed", "false");
+    chip.addEventListener("click", () => {
+      const input = document.getElementById(`field-${field.key}`);
+      const selectedOption = Array.from(input?.options || []).find(item => item.value === chip.dataset.value);
+      if (!selectedOption) return;
+      selectedOption.selected = !selectedOption.selected;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    container.appendChild(chip);
+  });
+
+  return container;
 };
 
-const updateInterestGroupDisplayField = () => {
-  const display = document.getElementById("field-interessengruppen-display");
-  const input = document.getElementById("field-interessengruppen");
-  if (!display || !input) return;
+const updateSelectionChipField = fieldKey => {
+  const input = document.getElementById(`field-${fieldKey}`);
+  const container = document.getElementById(`field-${fieldKey}-chips`);
+  if (!input || !container) return;
 
-  const groupIds = Array.from(input.selectedOptions).map(option => Number(option.value));
-  display.value = formatInterestGroups(groupIds);
-};
-
-const createFunctionDisplayField = () => {
-  const display = document.createElement("input");
-  display.type = "text";
-  display.id = "field-funktion-display";
-  display.className = "form-control member-form-selection-display";
-  display.readOnly = true;
-  display.tabIndex = -1;
-  display.setAttribute("aria-label", "Ausgewählte Funktionen");
-  return display;
-};
-
-const updateFunctionDisplayField = () => {
-  const display = document.getElementById("field-funktion-display");
-  const input = document.getElementById("field-funktion");
-  if (!display || !input) return;
-
-  const functionIds = Array.from(input.selectedOptions).map(option => Number(option.value));
-  display.value = formatFunctions(functionIds);
+  Array.from(container.children).forEach(chip => {
+    const selected = Array.from(input.selectedOptions).some(option => option.value === chip.dataset.value);
+    chip.classList.toggle("is-selected", selected);
+    chip.setAttribute("aria-pressed", String(selected));
+  });
 };
 
 const createMemberPhotoPreview = () => {
@@ -1863,11 +1862,7 @@ const fillMemberForm = (member, isNew) => {
       Array.from(input.options).forEach(option => {
         option.selected = values.has(option.value);
       });
-      if (field.key === "interessengruppen") {
-        updateInterestGroupDisplayField();
-      } else if (field.key === "funktion") {
-        updateFunctionDisplayField();
-      }
+      updateSelectionChipField(field.key);
       return;
     }
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vite';
 
-const buildDir = path.resolve(process.cwd(), '../Gratulationsdienst Reinickendorf/docker/src/mitgliederverwaltung');
+const buildDir = path.resolve(process.cwd(), '../Gratulationsdienst/docker/src/mitgliederverwaltung');
 const generatedAssetPattern = /^index-[\w-]+\.(css|js)$/;
 
 const cleanGeneratedAssets = () => {
@@ -17,7 +17,7 @@ export default defineConfig({
   plugins: [{ name: 'clean-generated-assets', buildStart: cleanGeneratedAssets }],
   base: '/mitgliederverwaltung/',
   build: {
-    outDir: '../Gratulationsdienst Reinickendorf/docker/src/mitgliederverwaltung',
+    outDir: '../Gratulationsdienst/docker/src/mitgliederverwaltung',
     emptyOutDir: false,
   },
   server: {
