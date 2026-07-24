@@ -67,7 +67,7 @@ Für die lokale Entwicklung nutzt die Mitgliederverwaltung denselben Apache/PHP-
 Der Frontend-Build wird in den gemeinsamen Webroot geschrieben:
 
 ```text
-C:\Users\erich\Projects\Gratulationsdienst Reinickendorf\docker\src\mitgliederverwaltung
+C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung
 ```
 
 Build ausführen:

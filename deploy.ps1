@@ -9,7 +9,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$buildDir = "..\Gratulationsdienst Reinickendorf\docker\src\mitgliederverwaltung"
+$buildDir = "..\Gratulationsdienst\docker\src\mitgliederverwaltung"
 $deployDir = ".deploy\mitgliederverwaltung"
 $apiFiles = @(
     "php-api\.htaccess",

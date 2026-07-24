@@ -7,7 +7,7 @@ Diese Anleitung beschreibt die lokale Entwicklung der Mitgliederverwaltung mit d
 Lokal laeuft ein gemeinsamer Apache/PHP-Container mit gemeinsamem Webroot:
 
 ```text
-C:\Users\erich\Projects\Gratulationsdienst Reinickendorf\docker\src
+C:\Users\erich\Projects\Gratulationsdienst\docker\src
 ```
 
 Die Anwendungen liegen darin unter getrennten Pfaden:
@@ -19,7 +19,7 @@ http://localhost/mitgliederverwaltung/
 
 Die Mitgliederverwaltung liefert nur ihre App-Artefakte und ihr Datenbankschema:
 
-- Frontend-Build nach `C:\Users\erich\Projects\Gratulationsdienst Reinickendorf\docker\src\mitgliederverwaltung`
+- Frontend-Build nach `C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung`
 - PHP-API aus `php-api/`
 - MySQL-Schema aus `db/schema.mysql.sql`
 
@@ -47,7 +47,7 @@ npm.cmd run build
 Der Build landet in:
 
 ```text
-C:\Users\erich\Projects\Gratulationsdienst Reinickendorf\docker\src\mitgliederverwaltung
+C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung
 ```
 
 Die Anwendung ist danach erreichbar unter:
@@ -61,7 +61,7 @@ http://localhost/mitgliederverwaltung/
 Der gemeinsame Webserver muss die PHP-API unter diesem Pfad sehen:
 
 ```text
-C:\Users\erich\Projects\Gratulationsdienst Reinickendorf\docker\src\mitgliederverwaltung\php-api
+C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung\php-api
 ```
 
 Praktisch gibt es zwei Varianten:
