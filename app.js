@@ -237,6 +237,7 @@ let memberApiBaseUrl = DEFAULT_MEMBER_API_BASE_URL;
 let selectedMemberPhotoFile = null;
 let referenceAdminData = {};
 let selectedMemberPhotoObjectUrl = null;
+let sessionExpiredNoticeShown = false;
 const memberPhotoCache = new Map();
 const restoringGridStateKeys = new Set();
 const passwordVisibilityTimers = new Map();
@@ -563,6 +564,7 @@ const login = async (username, password) => {
 
 const setAuthToken = (token, { persist = true } = {}) => {
   state.authToken = token || "";
+  if (state.authToken) sessionExpiredNoticeShown = false;
   if (state.authToken && persist) {
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, state.authToken);
   } else {
@@ -591,6 +593,22 @@ const logout = () => {
       console.warn("Server-Logout fehlgeschlagen.", error);
     });
   }
+};
+
+const handleSessionExpired = () => {
+  if (sessionExpiredNoticeShown) return;
+  sessionExpiredNoticeShown = true;
+  clearAuthToken();
+  state.currentUser = null;
+  state.members = [];
+  state.nextId = 1;
+  refreshAllViews();
+  setAppShellVisible(false);
+  showLoginForm();
+  const errorElement = document.getElementById("loginError");
+  errorElement.textContent = "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.";
+  errorElement.hidden = false;
+  loginModal.show();
 };
 
 const reloadMembersFromApi = async () => {
@@ -758,6 +776,23 @@ const deactivateUser = async id => {
     errorElement.textContent = error.message || "Benutzer konnte nicht deaktiviert werden.";
     errorElement.hidden = false;
   }
+};
+
+const showToast = (message, { duration = 6000 } = {}) => {
+  const stack = document.getElementById("toastStack");
+  if (!stack) return;
+  const toast = document.createElement("div");
+  toast.className = "toast-item";
+  toast.setAttribute("role", "alert");
+  toast.innerHTML = `<span class="toast-item__message"></span><button type="button" class="toast-item__close" aria-label="Schließen">×</button>`;
+  toast.querySelector(".toast-item__message").textContent = message;
+  const dismiss = () => {
+    toast.classList.add("toast-item--leaving");
+    toast.addEventListener("animationend", () => toast.remove(), { once: true });
+  };
+  toast.querySelector(".toast-item__close").addEventListener("click", dismiss);
+  setTimeout(dismiss, duration);
+  stack.appendChild(toast);
 };
 
 const setAppShellVisible = visible => {
@@ -1953,7 +1988,7 @@ const handleMemberPhotoSelection = event => {
   }
 
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-    window.alert("Bitte ein JPG-, PNG- oder WebP-Bild auswählen.");
+    showToast("Bitte ein JPG-, PNG- oder WebP-Bild auswählen.");
     event.target.value = "";
     updateMemberPhotoPreview(readMemberPreviewFromForm());
     return;
@@ -1987,20 +2022,20 @@ const handleMemberSubmit = async event => {
 
   let formData = readMemberFromForm();
   if (!formData.name || !formData.vorname) {
-    window.alert("Name und Vorname sind Pflichtfelder.");
+    showToast("Name und Vorname sind Pflichtfelder.");
     return;
   }
 
   if (state.editingId === null) {
     if (state.members.some(member => member.id === formData.id)) {
-      window.alert(`Die ID ${formData.id} existiert bereits. Bitte eine andere ID wählen.`);
+      showToast(`Die ID ${formData.id} existiert bereits. Bitte eine andere ID wählen.`);
       return;
     }
     try {
       formData = await createMemberViaApi(formData);
     } catch (error) {
       console.warn("Mitglied konnte nicht angelegt werden.", error);
-      window.alert("Speichern in der Datenbank fehlgeschlagen.");
+      showToast("Speichern in der Datenbank fehlgeschlagen.");
       return;
     }
     try {
@@ -2013,7 +2048,7 @@ const handleMemberSubmit = async event => {
   } else {
     const index = state.members.findIndex(member => member.id === state.editingId);
     if (index < 0) {
-      window.alert("Der Datensatz wurde nicht gefunden.");
+      showToast("Der Datensatz wurde nicht gefunden.");
       return;
     }
     formData.id = state.editingId;
@@ -2022,7 +2057,7 @@ const handleMemberSubmit = async event => {
       formData = await updateMemberViaApi(formData);
     } catch (error) {
       console.warn("Mitglied konnte nicht gespeichert werden.", error);
-      window.alert("Speichern in der Datenbank fehlgeschlagen.");
+      showToast("Speichern in der Datenbank fehlgeschlagen.");
       return;
     }
     try {
@@ -2060,7 +2095,7 @@ const uploadSelectedMemberPhotoIfNeeded = async member => {
     };
   } catch (error) {
     console.warn("Passfoto konnte nicht hochgeladen werden.", error);
-    window.alert("Passfoto konnte nicht hochgeladen werden.");
+    showToast("Passfoto konnte nicht hochgeladen werden.");
     throw error;
   }
 };
@@ -3057,6 +3092,10 @@ const requestMemberApi = async (path, { method = "GET", params = {}, body = null
     throw new Error("API hat kein JSON geliefert. Bitte API-Adresse pruefen.");
   }
   if (!response.ok) {
+    if (response.status === 401 && requiresAuth && token) {
+      handleSessionExpired();
+      return new Promise(() => {});
+    }
     const error = new Error(payload?.error || `API-Fehler ${response.status}`);
     error.statusCode = response.status;
     throw error;
