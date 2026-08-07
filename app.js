@@ -1449,7 +1449,9 @@ const createMemberFormField = field => {
   if (field.type === "textarea") {
     col.className = "col-12 member-form-field";
   } else if (field.type === "checkbox") {
-    col.className = "col-sm-6 col-lg-4 member-form-field";
+    col.className = field.key === "ausweisErteilt"
+      ? "col-sm-6 col-lg-4 offset-md-6 member-form-field"
+      : "col-sm-6 col-lg-4 member-form-field";
   } else if (field.type === "radio") {
     col.className = "col-sm-6 member-form-field";
   } else {
