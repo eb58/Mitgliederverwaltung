@@ -589,84 +589,69 @@ body {
   height: calc(100dvh - 155px);
 }
 
-.ag-theme-quartz {
-  --ag-font-family: "Segoe UI", "Noto Sans", sans-serif;
-  --ag-border-color: rgba(15, 118, 110, 0.15);
-  --ag-header-background-color: #e6f5f3;
-  --ag-header-foreground-color: #143f44;
-  --ag-odd-row-background-color: #f7fbfb;
-  --ag-row-hover-color: rgba(18, 128, 124, 0.08);
-  --ag-selected-row-background-color: rgba(18, 128, 124, 0.16);
-  --ag-font-size: 14.5px;
-  --ag-header-height: 46px;
-  --ag-row-height: 50px;
-  --ag-cell-horizontal-padding: 16px;
-  --ag-wrapper-border-radius: 16px;
-}
-
-.ag-theme-quartz .ag-header-cell-text {
+.grid-host .ag-header-cell-text {
   font-weight: 700;
 }
 
-.ag-theme-quartz .ag-row {
+.grid-host .ag-row {
   border-color: #edf1ef;
 }
 
-.ag-theme-quartz .ag-row.ag-row-hover:not(.guest-row) {
+.grid-host .ag-row.ag-row-hover:not(.guest-row) {
   background-color: #eaf7f5;
 }
 
-.ag-theme-quartz .ag-row.guest-row {
+.grid-host .ag-row.guest-row {
   background-color: #fff3e4;
   border-color: #efd5ad;
 }
 
-.ag-theme-quartz .ag-row.guest-row.ag-row-hover {
+.grid-host .ag-row.guest-row.ag-row-hover {
   background-color: #ffecd2;
 }
 
-.ag-theme-quartz .ag-row.guest-row .ag-cell {
+.grid-host .ag-row.guest-row .ag-cell {
   color: #4b5660;
 }
 
-.ag-theme-quartz .ag-row.guest-row .ag-cell:first-child {
+.grid-host .ag-row.guest-row .ag-cell:first-child {
   box-shadow: inset 5px 0 0 #c56a3d;
 }
 
-.ag-theme-quartz .ag-cell {
+.grid-host .ag-cell {
   display: flex;
   align-items: center;
   line-height: 1.35;
 }
 
-.ag-theme-quartz .ag-cell-wrapper {
+.grid-host .ag-cell-wrapper {
   width: 100%;
   display: flex;
   align-items: center;
 }
 
-.ag-theme-quartz .ag-cell-value {
+.grid-host .ag-cell-value {
   line-height: 1.35;
 }
 
-.ag-theme-quartz .edit-cell,
-.ag-theme-quartz .edit-header,
-.ag-theme-quartz .photo-cell,
-.ag-theme-quartz .photo-header {
+.grid-host .edit-cell,
+.grid-host .edit-header,
+.grid-host .photo-cell,
+.grid-host .photo-header {
   padding: 0;
   text-align: center;
   justify-content: center;
 }
 
-.ag-theme-quartz .edit-cell,
-.ag-theme-quartz .photo-cell {
+.grid-host .edit-cell,
+.grid-host .photo-cell {
   overflow: visible;
 }
 
-.ag-theme-quartz .edit-cell .ag-cell-wrapper,
-.ag-theme-quartz .edit-cell .ag-cell-value,
-.ag-theme-quartz .photo-cell .ag-cell-wrapper,
-.ag-theme-quartz .photo-cell .ag-cell-value {
+.grid-host .edit-cell .ag-cell-wrapper,
+.grid-host .edit-cell .ag-cell-value,
+.grid-host .photo-cell .ag-cell-wrapper,
+.grid-host .photo-cell .ag-cell-value {
   width: 100%;
   height: 100%;
   display: flex;

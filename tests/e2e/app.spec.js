@@ -99,6 +99,21 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await expect(page.locator("#overviewGrid")).toContainText("Anna");
 });
 
+test("Spaltenfilter sind sichtbar und lassen sich zurücksetzen", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#overview-tab").click();
+
+  const nameFloatingFilter = page.locator('#overviewGrid .ag-floating-filter[col-id="name"]');
+  const nameFilter = nameFloatingFilter.getByRole("textbox");
+  await expect(nameFilter).toBeVisible();
+  await nameFilter.fill("Müller");
+  await expect(page.locator("#overviewGrid .ag-center-cols-container")).toContainText("Müller");
+  await expect(page.locator("#overviewGrid .ag-center-cols-container")).not.toContainText("Gästefreund");
+
+  await nameFloatingFilter.getByRole("button", { name: "Filtermenü öffnen" }).click();
+  await expect(page.getByRole("button", { name: "Zurücksetzen", exact: true })).toBeVisible();
+});
+
 test("Vereinsmaske stapelt Ausweis direkt unter Funktion", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#addMemberBtn").click();

@@ -221,7 +221,9 @@ const gridLocaleText = {
   selectAll: "Alle auswählen",
   searchOoo: "Suchen...",
   blanks: "Leer",
+  notBlank: "Nicht leer",
   filterOoo: "Filtern...",
+  dateFormatOoo: "tt.mm.jjjj",
   equals: "Gleich",
   notEqual: "Ungleich",
   contains: "Enthält",
@@ -229,15 +231,37 @@ const gridLocaleText = {
   startsWith: "Beginnt mit",
   endsWith: "Endet mit",
   lessThan: "Kleiner als",
+  lessThanOrEqual: "Kleiner oder gleich",
   greaterThan: "Größer als",
+  greaterThanOrEqual: "Größer oder gleich",
   inRange: "Im Bereich",
+  true: "Wahr",
+  false: "Falsch",
   andCondition: "UND",
   orCondition: "ODER",
   applyFilter: "Anwenden",
   resetFilter: "Zurücksetzen",
   clearFilter: "Leeren",
-  cancelFilter: "Abbrechen"
+  cancelFilter: "Abbrechen",
+  ariaFilterInput: "Filtereingabe",
+  ariaFilterMenuOpen: "Filtermenü öffnen",
+  ariaDateFilterInput: "Datumsfiltereingabe"
 };
+
+const createGridTheme = () => globalThis.agGrid?.themeQuartz?.withParams
+  ? globalThis.agGrid.themeQuartz.withParams({
+    accentColor: "#12807c",
+    borderColor: "#d5e1de",
+    browserColorScheme: "light",
+    fontFamily: "Segoe UI, Noto Sans, sans-serif",
+    headerBackgroundColor: "#e6f5f3",
+    headerTextColor: "#143f44",
+    oddRowBackgroundColor: "#f7fbfb",
+    rowHoverColor: "#eaf7f5",
+    selectedRowBackgroundColor: "#d8efe8",
+    wrapperBorderRadius: 16
+  })
+  : undefined;
 
 const computerGroupPatterns = [
   "computer",
@@ -1092,13 +1116,16 @@ const initGrids = () => {
 
 const createGrid = (gridKey, containerId, columnDefs, overrides = {}) => {
   const gridDiv = document.getElementById(containerId);
+  const theme = createGridTheme();
   const options = {
+    ...(theme ? { theme } : {}),
     columnDefs,
     rowData: [],
     defaultColDef: {
       sortable: true,
       filter: true,
       floatingFilter: true,
+      filterParams: { buttons: ["reset"] },
       resizable: true,
       minWidth: 120
     },
@@ -1138,7 +1165,7 @@ const getOverviewColumns = () => [
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
   { headerName: "Email", field: "email", minWidth: 220 },
   { headerName: "Handy", field: "handy", minWidth: 150 },
-  { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 140 },
+  { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { buttons: ["reset"], comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 140 },
   { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, filterValueGetter: params => formatInterestGroups(params.data?.interessengruppen), minWidth: 220, flex: 1 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
@@ -1150,7 +1177,7 @@ const getGuestsColumns = () => [
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
   { headerName: "Email", field: "email", minWidth: 220 },
   { headerName: "Handy", field: "handy", minWidth: 150 },
-  { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 140 },
+  { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { buttons: ["reset"], comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 140 },
   { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, filterValueGetter: params => formatInterestGroups(params.data?.interessengruppen), minWidth: 220, flex: 1 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
