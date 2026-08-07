@@ -62,7 +62,7 @@ Unter Windows ist `npm.cmd` in PowerShell robuster als `npm`, wenn die PowerShel
 
 ## Lokaler Docker-Betrieb
 
-Für die lokale Entwicklung nutzt die Mitgliederverwaltung denselben Apache/PHP-Container wie der Gratulationsdienst. Dieses Repository bringt deshalb keine eigene Docker-Compose-Datei für den Webserver mit.
+Für die lokale Entwicklung nutzt die Mitgliederverwaltung denselben Apache/PHP-Container wie der Gratulationsdienst. Die Datei `docker-compose.local.yml` ergänzt dessen Konfiguration um die Mounts, den Apache-Pfad und die Datenbankverbindung der Mitgliederverwaltung.
 
 Der Frontend-Build wird in den gemeinsamen Webroot geschrieben:
 
@@ -76,11 +76,19 @@ Build ausführen:
 npm run build
 ```
 
+Gemeinsamen Webcontainer mit der lokalen Ergänzung starten oder neu erstellen:
+
+```powershell
+docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\docker-compose.local.yml up -d --no-deps --force-recreate web
+```
+
 Die Anwendung ist danach erreichbar unter:
 
 ```text
 http://localhost/mitgliederverwaltung/
 ```
+
+Nach Frontend-Änderungen reicht `npm.cmd run build` und ein Neuladen im Browser. Änderungen unter `php-api/` sind durch den direkten Mount sofort verfügbar.
 
 Die Datenbankstruktur liegt im Projekt:
 

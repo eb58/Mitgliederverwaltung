@@ -1366,6 +1366,22 @@ const buildMemberForm = () => {
       section.groups.forEach(group => {
         row.appendChild(createMemberFormGroup(group, fieldByKey));
       });
+    } else if (section.id === "verein") {
+      section.fieldKeys.slice(0, 4).forEach(fieldKey => {
+        const field = fieldByKey.get(fieldKey);
+        if (field) row.appendChild(createMemberFormField(field));
+      });
+
+      const interestGroupsField = fieldByKey.get("interessengruppen");
+      if (interestGroupsField) row.appendChild(createMemberFormField(interestGroupsField));
+
+      const functionColumn = document.createElement("div");
+      functionColumn.className = "col-md-6 member-form-field-stack";
+      ["funktion", "ausweisErteilt"].forEach(fieldKey => {
+        const field = fieldByKey.get(fieldKey);
+        if (field) functionColumn.appendChild(createMemberFormField(field, "member-form-field"));
+      });
+      row.appendChild(functionColumn);
     } else {
       section.fieldKeys.forEach(fieldKey => {
         const field = fieldByKey.get(fieldKey);
@@ -1443,15 +1459,15 @@ const createMemberFormGroup = (group, fieldByKey) => {
   return wrapper;
 };
 
-const createMemberFormField = field => {
+const createMemberFormField = (field, className = "") => {
   const col = document.createElement("div");
   col.dataset.fieldKey = field.key;
-  if (field.type === "textarea") {
+  if (className) {
+    col.className = className;
+  } else if (field.type === "textarea") {
     col.className = "col-12 member-form-field";
   } else if (field.type === "checkbox") {
-    col.className = field.key === "ausweisErteilt"
-      ? "col-sm-6 col-lg-4 offset-md-6 member-form-field"
-      : "col-sm-6 col-lg-4 member-form-field";
+    col.className = "col-sm-6 col-lg-4 member-form-field";
   } else if (field.type === "radio") {
     col.className = "col-sm-6 member-form-field";
   } else {

@@ -819,6 +819,12 @@ body {
   min-width: 0;
 }
 
+.member-form-field-stack {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
 .member-form-selection-input {
   position: absolute;
   width: 1px;

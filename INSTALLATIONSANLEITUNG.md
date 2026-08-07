@@ -50,6 +50,12 @@ Der Build landet in:
 C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung
 ```
 
+Gemeinsamen Webcontainer mit der lokalen Ergaenzung starten oder neu erstellen:
+
+```powershell
+docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\docker-compose.local.yml up -d --no-deps --force-recreate web
+```
+
 Die Anwendung ist danach erreichbar unter:
 
 ```text
@@ -64,10 +70,7 @@ Der gemeinsame Webserver muss die PHP-API unter diesem Pfad sehen:
 C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung\php-api
 ```
 
-Praktisch gibt es zwei Varianten:
-
-- `php-api/` aus diesem Projekt in den gemeinsamen Webroot kopieren
-- oder im gemeinsamen Docker-Setup einen Mount auf diesen Projektordner setzen
+`docker-compose.local.yml` bindet `php-api/` direkt an dieser Stelle ein. Aenderungen am Backend sind deshalb ohne Kopieren und ohne Container-Neustart verfuegbar.
 
 Die API liest ihre Datenbankkonfiguration aus Umgebungsvariablen:
 
@@ -108,21 +111,22 @@ Es erstellt:
 Falls die Datenbank noch nicht existiert, einmal anlegen:
 
 ```powershell
-docker exec -i mysql_db mysql --default-character-set=utf8mb4 -u eb -p -e "CREATE DATABASE IF NOT EXISTS mitgliederverwaltung CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+docker exec gradi-db mariadb -uroot -pchangeme!! -e "CREATE DATABASE IF NOT EXISTS mitgliederverwaltung CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
-Danach das Schema importieren:
+Danach das Schema zuerst unveraendert in den Container kopieren und dort importieren:
 
 ```powershell
-docker exec -i mysql_db mysql --default-character-set=utf8mb4 -u eb -p mitgliederverwaltung < db/schema.mysql.sql
+docker cp .\db\schema.mysql.sql gradi-db:/tmp/mitgliederverwaltung-schema.sql
+docker exec gradi-db sh -c "mariadb --default-character-set=utf8mb4 -uroot -pchangeme!! mitgliederverwaltung < /tmp/mitgliederverwaltung-schema.sql"
 ```
 
-Der Parameter `--default-character-set=utf8mb4` ist unter Windows wichtig, damit Umlaute in Stammdaten nicht falsch kodiert importiert werden.
+Die SQL-Datei nicht mit `Get-Content | docker exec` weiterreichen: Windows PowerShell kann dabei nicht-ASCII-Zeichen durch `?` ersetzen. `docker cp` erhaelt die UTF-8-Bytes unveraendert; `--default-character-set=utf8mb4` stellt die passende MariaDB-Verbindungskodierung sicher.
 
 Das Passwort der lokalen gemeinsamen MySQL-Instanz ist aktuell:
 
 ```text
-test123456!!
+changeme!!
 ```
 
 ## Admin-Benutzer
@@ -167,7 +171,7 @@ http://localhost/mitgliederverwaltung/
 
 ## Hinweise
 
-- Dieses Projekt bringt keine eigene Docker-Compose-Datei fuer den Webserver mit.
+- `docker-compose.local.yml` erweitert die Compose-Datei des Gratulationsdienstes; sie startet keinen zweiten Webserver.
 - Der lokale Webserver ist der gemeinsame Docker-Container.
 - Das SQL-Schema bleibt im Projekt, damit Neuinstallationen reproduzierbar sind.
 - Nach Frontend-Aenderungen reicht `npm.cmd run build`.
