@@ -7,14 +7,21 @@
     "dev": "vite",
     "build": "vite build",
     "watch": "vite build --watch",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run tests/unit",
+    "test:unit:watch": "vitest tests/unit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
-    "vite": "^6.3.5"
+    "@playwright/test": "^1.62.1",
+    "vite": "^6.3.5",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
-    "bootstrap": "^5.3.8",
     "ag-grid-community": "^35.3.0",
+    "bootstrap": "^5.3.8",
     "chart.js": "^4.5.1"
   }
 }

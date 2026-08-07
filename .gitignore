@@ -4,6 +4,9 @@ node_modules/
 dist/
 dist-check/
 .vite/
+playwright-report/
+test-results/
+.playwright/
 .deploy/
 .electron-builder-cache/
 .DS_Store

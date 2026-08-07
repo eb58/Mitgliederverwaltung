@@ -160,6 +160,29 @@ Die Datei `php-api/config.local.php` enthält Live-Zugangsdaten und wird bewusst
 - Zahlungen und Computerclub-Filter hängen an denselben normalisierten Mitgliedsdaten wie Dashboard und Tabellen.
 - Änderungen an Mitgliedern werden über die API auditierbar protokolliert.
 
+## Tests
+
+Alle Unit- und E2E-Tests ausführen:
+
+```powershell
+npm.cmd test
+```
+
+Die Testarten können auch einzeln gestartet werden:
+
+```powershell
+npm.cmd run test:unit
+npm.cmd run test:e2e
+```
+
+Die Unit-Tests unter `tests/unit/` prüfen die Datums-, Währungs-, Alters-, Geschäftsjahres- und URL-Logik. Die Playwright-Tests unter `tests/e2e/` starten automatisch einen Vite-Server und simulieren die API im Browser. Sie verändern deshalb weder die lokale noch die produktive Mitgliederdatenbank.
+
+Unter Windows verwendet Playwright den installierten Microsoft Edge. In einer CI- oder Linux-Umgebung muss einmalig der Chromium-Browser installiert werden:
+
+```bash
+npx playwright install chromium
+```
+
 ## Build-Hinweise
 
 Beim Vite-Build können Hinweise erscheinen, dass einige Vendor-Skripte und CSS-Dateien nicht gebundelt werden. Das ist erwartbar, weil diese Dateien im Hosting-Betrieb statisch über `vendor/` ausgeliefert werden.

@@ -1,5 +1,27 @@
 "use strict";
 
+import {
+  asBoolean,
+  calculateAge,
+  createMemberApiUrlForBase,
+  ensureMinimumAge,
+  formatCurrency,
+  formatDateDE,
+  formatIsoDate,
+  getBirthDateRangeForAgeBucket,
+  getBusinessYearRange,
+  getNextId,
+  normalizeGroupText,
+  normalizePhotoFileName,
+  parseIsoDate,
+  parseLegacyCashAmount,
+  parseLegacyCurrency,
+  parseLegacyDate,
+  percent,
+  roundCurrency,
+  sumPaymentsInBusinessYear
+} from "./member-utils.js";
+
 const interestGroups = [];
 
 const germanCollator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
@@ -2180,7 +2202,6 @@ const hasExitReason = member => Boolean(austrittsgrundMap[Number(member.austritt
 const isActiveMember = member => !member.austrittsdatum && !hasExitReason(member);
 const isGuestMember = member => Number(member?.clubzugehoerigkeit) !== MEMBER_CLUB_ID;
 const isOpenClubPaymentMember = member => !isGuestMember(member) && !asBoolean(member.beitragClubBezahlt);
-const normalizeGroupText = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const getMemberInterestGroupText = member => (member?.interessengruppen || [])
   .map(groupId => interestGroupMap[groupId] || "")
   .join(" ");
@@ -2500,22 +2521,6 @@ const clearInactiveQuickFilters = () => {
 };
 
 const refreshAllGridCells = () => Object.values(gridApis).forEach(api => api?.refreshCells?.({ force: true }));
-
-const getBusinessYearRange = (referenceDate = new Date()) => {
-  const year = referenceDate.getMonth() >= 10 /* November */
-    ? referenceDate.getFullYear()
-    : referenceDate.getFullYear() - 1;
-  return { from: `${year}-11-01`, to: `${year + 1}-10-31` };
-};
-
-const isDateInRange = (value, from, to) => {
-  const date = String(value || "");
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= from && date <= to;
-};
-
-const sumPaymentsInBusinessYear = (members, amountField, dateField, range) => members
-  .filter(member => isDateInRange(member[dateField], range.from, range.to))
-  .reduce((sum, member) => sum + (Number(member[amountField]) || 0), 0);
 
 const refreshDashboard = () => {
   const activeMembers = state.members.filter(isActiveMember);
@@ -2906,12 +2911,6 @@ const formatInterestGroups = groupIds => !groupIds || groupIds.length === 0 ? ""
 
 const formatFunctions = functionIds => !functionIds || functionIds.length === 0 ? "" : functionIds.map(id => funktionsMap[id] || `ID ${id}`).join(", ");
 
-const formatDateDE = isoDate => {
-  if (!isoDate || typeof isoDate !== "string") return "";
-  const parts = isoDate.split("-");
-  return parts.length !== 3 ? isoDate : `${parts[2]}.${parts[1]}.${parts[0]}`;
-};
-
 const formatDateTimeDE = value => {
   if (!value) return "";
   const date = new Date(String(value).replace(" ", "T"));
@@ -2925,94 +2924,6 @@ const formatDateTimeDE = value => {
   });
 };
 
-const formatCurrency = value => {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "";
-  return Number(value).toLocaleString("de-DE", { style: "currency", currency: "EUR" });
-};
-
-const parseLegacyDate = value => {
-  if (!value) return "";
-  const trimmed = String(value).trim();
-  if (!trimmed) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-  const parts = trimmed.split(/[./]/).map(part => part.trim()).filter(Boolean);
-  if (parts.length !== 3) return "";
-  let [day, month, year] = parts.map(Number);
-  if (year < 100) year += 1900;
-  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return "";
-  if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) return "";
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-};
-
-const parseLegacyCurrency = value => {
-  if (value === null || value === undefined || value === "") return 0;
-  if (typeof value === "number") return roundCurrency(value);
-  const normalized = String(value).replace(/\s/g, "").replace("€", "").replace(/\./g, "").replace(",", ".");
-  const parsed = Number(normalized.replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(parsed) ? roundCurrency(parsed) : 0;
-};
-
-const parseLegacyCashAmount = (cashValue, paidValue) => {
-  const parsedCashValue = parseLegacyCurrency(cashValue);
-  return parsedCashValue === -1 ? parseLegacyCurrency(paidValue) : parsedCashValue;
-};
-
-const asBoolean = value => {
-  if (value === true || value === 1 || value === -1) return true;
-  if (typeof value === "string") {
-    const lower = value.trim().toLowerCase();
-    return ["true", "1", "-1", "yes"].includes(lower);
-  }
-  return false;
-};
-
-const parseIsoDate = isoDate => {
-  if (!isoDate || typeof isoDate !== "string") return null;
-  const parts = isoDate.split("-");
-  if (parts.length !== 3) return null;
-  const [year, month, day] = parts.map(Number);
-  if (![year, month, day].every(Number.isFinite)) return null;
-  const date = new Date(year, month - 1, day);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const formatIsoDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-
-const calculateAge = (isoDate, today = new Date()) => {
-  const birthDate = parseIsoDate(isoDate);
-  if (!birthDate) return null;
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age -= 1;
-  return age >= 0 ? age : null;
-};
-
-const getBirthDateRangeForAgeBucket = (bucket, today = new Date()) => {
-  const currentDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const to = new Date(currentDay.getFullYear() - bucket.min, currentDay.getMonth(), currentDay.getDate());
-  if (!Number.isFinite(bucket.max)) {
-    return { from: "1900-01-01", to: formatIsoDate(to) };
-  }
-
-  const from = new Date(currentDay.getFullYear() - bucket.max - 1, currentDay.getMonth(), currentDay.getDate() + 1);
-  return { from: formatIsoDate(from), to: formatIsoDate(to) };
-};
-
-const ensureMinimumAge = (isoDate, minAge = 55, today = new Date()) => {
-  const normalized = parseLegacyDate(isoDate);
-  if (!normalized) return isoDate;
-  const parts = normalized.split("-");
-  if (parts.length !== 3) return normalized;
-  const [year, month, day] = parts.map(Number);
-  if (![year, month, day].every(Number.isFinite)) return normalized;
-  const birthDate = new Date(year, month - 1, day);
-  const minBirthday = new Date(today.getFullYear() - minAge, today.getMonth(), today.getDate());
-  return birthDate <= minBirthday ? normalized : `${minBirthday.getFullYear()}-${String(minBirthday.getMonth() + 1).padStart(2, "0")}-${String(minBirthday.getDate()).padStart(2, "0")}`;
-};
-
-const percent = (value, total) => total ? Math.round((value / total) * 100) : 0;
-const roundCurrency = value => Math.round(Number(value) * 100) / 100;
-
 const formatMemberName = member => `${member?.vorname || ""} ${member?.name || ""}`.trim() || "Mitglied";
 
 const resolveMemberPhotoDataUrl = async member => {
@@ -3020,11 +2931,6 @@ const resolveMemberPhotoDataUrl = async member => {
     return fetchMemberPhotoObjectUrl(member.id);
   }
   return null;
-};
-
-const normalizePhotoFileName = value => {
-  const fileName = String(value || "").trim().split(/[\\/]/).filter(Boolean).pop() || "";
-  return /\.(jpe?g|png)$/i.test(fileName) ? fileName : "";
 };
 
 const loadStoredMembers = async () => {
@@ -3046,23 +2952,6 @@ const getMemberApiBaseUrlCandidates = () => {
     candidates.push(new URL(PHP_MEMBER_API_BASE_PATH, window.location.origin).toString());
   }
   return [...new Set(candidates)];
-};
-
-const createMemberApiUrlForBase = (baseUrl, path, params = {}) => {
-  const url = new URL(baseUrl);
-  const normalizedPath = path.replace(/^\/+/, "");
-  if (url.pathname.endsWith(".php")) {
-    url.pathname = `${url.pathname}/${normalizedPath}`;
-  } else {
-    const basePath = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
-    url.pathname = `${basePath}/${normalizedPath}`;
-  }
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== null && value !== undefined && value !== "") {
-      url.searchParams.set(key, value);
-    }
-  });
-  return url.toString();
 };
 
 const requestMemberApi = async (path, { method = "GET", params = {}, body = null, requiresAuth = true, authToken = "" } = {}) => {
@@ -3264,4 +3153,3 @@ const normalizeMember = raw => {
 }
 
 const cloneMember = member => !member ? null : JSON.parse(JSON.stringify(member));
-const getNextId = members => members.reduce((max, member) => Math.max(max, member.id), 0) + 1;
