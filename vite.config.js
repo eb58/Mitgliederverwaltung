@@ -14,7 +14,7 @@ const cleanGeneratedAssets = () => {
 };
 
 export default defineConfig({
-  plugins: [{ name: 'clean-generated-assets', buildStart: cleanGeneratedAssets }],
+  plugins: [{ name: 'clean-generated-assets', apply: 'build', buildStart: cleanGeneratedAssets }],
   base: '/mitgliederverwaltung/',
   build: {
     outDir: '../Gratulationsdienst/docker/src/mitgliederverwaltung',
