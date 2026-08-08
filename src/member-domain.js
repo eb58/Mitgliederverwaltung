@@ -42,7 +42,7 @@ export const normalizeMember = raw => {
     ? null
     : Number(member.austrittsgrund);
   member.interessengruppen = Array.isArray(member.interessengruppen)
-    ? member.interessengruppen.map(Number).filter(Number.isFinite)
+    ? member.interessengruppen.map(Number).filter(id => Number.isFinite(id) && id > 0)
     : [];
   member.gruppenwahl = member.gruppenwahl || "";
   member.funktion = member.funktion || "";
@@ -72,7 +72,7 @@ export const createEmptyMember = nextId => {
     if (field.type === "checkbox") return [field.key, false];
     if (field.type === "multiselect") return [field.key, []];
     if (field.type === "number" || field.type === "currency") return [field.key, field.key === "id" ? nextId : 0];
-    if (field.type === "select") return [field.key, field.key === "geschlecht" ? "w" : null];
+    if (field.type === "select" || field.type === "radio") return [field.key, field.key === "geschlecht" ? "w" : null];
     return [field.key, ""];
   }));
   return { ...member, ort: "Berlin", clubzugehoerigkeit: MEMBER_CLUB_ID };
