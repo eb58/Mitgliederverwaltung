@@ -1125,8 +1125,8 @@ body {
 
 .modal-dialog-scrollable .modal-content > form {
   display: flex;
+  height: min(760px, calc(100dvh - 3.5rem));
   min-height: 0;
-  max-height: calc(100dvh - 3.5rem);
   flex-direction: column;
   overflow: hidden;
 }
@@ -1839,7 +1839,7 @@ body {
   }
 
   .modal-dialog-scrollable .modal-content > form {
-    max-height: calc(100dvh - 1rem);
+    height: calc(100dvh - 1rem);
   }
 
   .modal-body {

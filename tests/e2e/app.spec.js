@@ -102,6 +102,7 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
 test("Navigation und Dialogaktionen bleiben auf kleinen Bildschirmen erreichbar", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 });
   await openAuthenticatedApp(page);
+  await page.setViewportSize({ width: 375, height: 500 });
 
   const menuButton = page.locator("#mobileMenuToggle");
   const sidebar = page.locator("#sidebar");
@@ -116,8 +117,15 @@ test("Navigation und Dialogaktionen bleiben auf kleinen Bildschirmen erreichbar"
   await page.locator("#addMemberBtn").click();
   await expect(sidebar).not.toBeInViewport();
   await expect(page.locator("#memberModal")).toHaveClass(/show/);
-  await expect(page.locator('#memberForm button[type="submit"]')).toBeInViewport();
-  await expect(page.getByRole("button", { name: "Abbrechen" })).toBeInViewport();
+  const memberTabs = page.locator("#memberFormTabs .nav-link");
+  const saveButton = page.locator('#memberForm button[type="submit"]');
+  const cancelButton = page.getByRole("button", { name: "Abbrechen" });
+  await expect(memberTabs).toHaveCount(7);
+  for (const tab of await memberTabs.all()) {
+    await tab.click();
+    await expect(saveButton).toBeInViewport();
+    await expect(cancelButton).toBeInViewport();
+  }
 });
 
 test("Spaltenfilter sind sichtbar und lassen sich zurücksetzen", async ({ page }) => {
