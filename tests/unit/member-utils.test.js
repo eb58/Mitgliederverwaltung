@@ -7,6 +7,7 @@ import {
   ensureMinimumAge,
   formatCurrency,
   formatDateDE,
+  formatIsoDate,
   getBirthDateRangeForAgeBucket,
   getBusinessYearRange,
   getNextId,
@@ -18,6 +19,7 @@ import {
   parseLegacyCurrency,
   parseLegacyDate,
   percent,
+  roundCurrency,
   sumPaymentsInBusinessYear
 } from "../../member-utils.js";
 
@@ -75,6 +77,31 @@ describe("Datumslogik", () => {
     expect(ensureMinimumAge("1980-01-01", 55, new Date(2026, 7, 7))).toBe("1971-08-07");
     expect(ensureMinimumAge("1960-01-01", 55, new Date(2026, 7, 7))).toBe("1960-01-01");
   });
+
+  it("lässt nicht normalisierbare Geburtstage unverändert", () => {
+    expect(ensureMinimumAge("unbekannt", 55, new Date(2026, 7, 7))).toBe("unbekannt");
+  });
+
+  it("weist Tage und Monate außerhalb des gültigen Bereichs zurück", () => {
+    expect(parseLegacyDate("32.01.2026")).toBe("");
+    expect(parseLegacyDate("01.13.2026")).toBe("");
+    expect(parseLegacyDate("00.01.2026")).toBe("");
+    expect(parseLegacyDate("12.2026")).toBe("");
+  });
+
+  it("interpretiert zweistellige Jahre als 19xx", () => {
+    expect(parseLegacyDate("15.06.99")).toBe("1999-06-15");
+  });
+
+  it("formatiert Kalenderdaten mit führenden Nullen", () => {
+    expect(formatIsoDate(new Date(2026, 0, 5))).toBe("2026-01-05");
+    expect(formatIsoDate(new Date(2026, 10, 23))).toBe("2026-11-23");
+  });
+
+  it("liefert null für nicht auswertbare oder zukünftige Geburtstage", () => {
+    expect(calculateAge("unbekannt", new Date(2026, 7, 7))).toBeNull();
+    expect(calculateAge("", new Date(2026, 7, 7))).toBeNull();
+  });
 });
 
 describe("Import- und Anzeigeformate", () => {
@@ -104,6 +131,18 @@ describe("Import- und Anzeigeformate", () => {
     expect(normalizePhotoFileName("/tmp/passbild.png")).toBe("passbild.png");
     expect(normalizePhotoFileName("virus.exe")).toBe("");
   });
+
+  it("prüft die Dateiendung nach dem letzten Punkt, nicht nur irgendeinen Treffer", () => {
+    expect(normalizePhotoFileName("archiv.tar.gz")).toBe("");
+    expect(normalizePhotoFileName("")).toBe("");
+    expect(normalizePhotoFileName("ohneEndung")).toBe("");
+  });
+
+  it("rundet Beträge auf Cent", () => {
+    expect(roundCurrency(10.126)).toBe(10.13);
+    expect(roundCurrency(-5.129)).toBe(-5.13);
+    expect(roundCurrency(3.14159)).toBe(3.14);
+  });
 });
 
 describe("API- und Listenhilfen", () => {
@@ -120,9 +159,31 @@ describe("API- und Listenhilfen", () => {
       .toBe("https://example.test/api/members/12");
   });
 
+  it("behält den Parameterwert 0, verwirft aber leere Strings", () => {
+    const url = createMemberApiUrlForBase(
+      "http://localhost/mitgliederverwaltung/php-api/index.php",
+      "/api/members",
+      { limit: 0, offset: 5, search: "" }
+    );
+    expect(url).toBe("http://localhost/mitgliederverwaltung/php-api/index.php/api/members?limit=0&offset=5");
+  });
+
+  it("überschreibt eine bereits in der Basis-URL vorhandene Query gleichen Namens", () => {
+    const url = createMemberApiUrlForBase(
+      "http://localhost/mitgliederverwaltung/php-api/index.php?limit=999",
+      "/api/members",
+      { limit: 50 }
+    );
+    expect(url).toBe("http://localhost/mitgliederverwaltung/php-api/index.php/api/members?limit=50");
+  });
+
   it("ermittelt die nächste freie Mitglieds-ID", () => {
     expect(getNextId([])).toBe(1);
     expect(getNextId([{ id: 4 }, { id: 9 }, { id: 2 }])).toBe(10);
+  });
+
+  it("rutscht bei ausschließlich negativen IDs nicht unter 1", () => {
+    expect(getNextId([{ id: -5 }, { id: -1 }])).toBe(1);
   });
 
   it("berechnet Prozentwerte defensiv", () => {
