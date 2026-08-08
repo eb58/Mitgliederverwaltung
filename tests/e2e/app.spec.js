@@ -137,6 +137,63 @@ test("Vereinsmaske stapelt Ausweis direkt unter Funktion", async ({ page }) => {
   await expect(boardChip).toHaveAttribute("aria-pressed", "true");
 });
 
+test("fehlende Pflichtfelder zeigen einen Toast statt eines Dialogs", async ({ page }) => {
+  let dialogShown = false;
+  page.on("dialog", dialog => {
+    dialogShown = true;
+    dialog.dismiss();
+  });
+
+  await openAuthenticatedApp(page);
+  await page.locator("#addMemberBtn").click();
+  await expect(page.locator("#memberModal")).toHaveClass(/show/);
+
+  await page.locator('#memberForm button[type="submit"]').click();
+
+  await expect(page.locator(".toast-item__message")).toHaveText("Name und Vorname sind Pflichtfelder.");
+  await expect(page.locator("#memberModal")).toHaveClass(/show/);
+  expect(dialogShown).toBe(false);
+});
+
+test("abgelaufene Sitzung zeigt Hinweis und führt zurück zum Login", async ({ page }) => {
+  await openAuthenticatedApp(page);
+
+  await page.route("**/mitgliederverwaltung/php-api/index.php/**", async route => {
+    const url = new URL(route.request().url());
+    const apiPath = url.pathname.split("/index.php")[1] || "";
+    if (apiPath === "/api/member-changes") {
+      return json(route, { error: "Anmeldung erforderlich." }, 401);
+    }
+    return route.fallback();
+  });
+
+  await page.locator("#changes-tab").click();
+
+  await expect(page.locator("#loginModal")).toHaveClass(/show/);
+  await expect(page.locator("#loginError")).toHaveText("Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.");
+  await expect(page.locator("#appShell")).toBeHidden();
+});
+
+test("Interessengruppen-Chips sind priorisiert sortiert und lassen sich ab-/anwählen", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#addMemberBtn").click();
+  await page.locator("#member-form-verein-tab").click();
+
+  const chips = page.locator("#field-interessengruppen-chips .member-form-selection-chip");
+  await expect(chips).toHaveText(["Excel", "Computer", "Gesprächskreis Aktuelles"]);
+
+  const excelChip = chips.filter({ hasText: "Excel" });
+  await expect(excelChip).toHaveAttribute("aria-pressed", "false");
+
+  await excelChip.click();
+  await expect(excelChip).toHaveAttribute("aria-pressed", "true");
+  await expect(excelChip).toHaveClass(/is-selected/);
+
+  await excelChip.click();
+  await expect(excelChip).toHaveAttribute("aria-pressed", "false");
+  await expect(excelChip).not.toHaveClass(/is-selected/);
+});
+
 test("neues Mitglied wird mit Formulardaten an die API gesendet", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#addMemberBtn").click();

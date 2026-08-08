@@ -8,9 +8,10 @@
     "build": "vite build",
     "watch": "vite build --watch",
     "preview": "vite preview",
-    "test": "npm run test:unit && npm run test:e2e",
+    "test": "npm run test:unit && npm run test:php && npm run test:e2e",
     "test:unit": "vitest run tests/unit",
     "test:unit:watch": "vitest tests/unit",
+    "test:php": "node tools/ensure-phpunit.mjs && php tools/phpunit.phar --configuration phpunit.xml",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "hooks:install": "git config core.hooksPath .githooks"

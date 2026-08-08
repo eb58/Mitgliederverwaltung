@@ -30,3 +30,5 @@ php-api/config.local.php
 php-api/setup-user-once.php
 member-api.config.json
 db/import/
+tools/phpunit.phar
+.phpunit.result.cache
