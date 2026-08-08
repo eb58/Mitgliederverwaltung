@@ -24,6 +24,7 @@ import {
   formatMemberName,
   getMemberFunctionIds,
   getMemberInterestGroupText,
+  getNewestMembers,
   getNextBirthday,
   getRoundBirthdays,
   getUpcomingBirthday,
@@ -195,6 +196,37 @@ describe("Gruppen und Funktionen", () => {
     expect(formatInterestGroups(undefined)).toBe("");
     expect(formatFunctions([1, 2])).toBe("Vorstand, Kassenwart");
     expect(formatFunctions(null)).toBe("");
+  });
+});
+
+describe("getNewestMembers", () => {
+  const members = [
+    { name: "Alt", vorname: "Otto", eintrittsdatum: "2020-01-01" },
+    { name: "Zander", vorname: "Uwe", eintrittsdatum: "2026-03-01" },
+    { name: "Auer", vorname: "Eva", eintrittsdatum: "2026-03-01" },
+    { name: "Neu", vorname: "Ina", eintrittsdatum: "2026-06-15" },
+    { name: "Ohne", vorname: "Karl", eintrittsdatum: "" },
+    { name: "Kaputt", vorname: "Rolf", eintrittsdatum: "unbekannt" }
+  ];
+
+  it("sortiert nach Eintrittsdatum absteigend, bei Gleichstand nach Name", () => {
+    expect(getNewestMembers(members).map(member => member.name)).toEqual(["Neu", "Auer", "Zander", "Alt"]);
+  });
+
+  it("begrenzt auf die gewünschte Anzahl", () => {
+    expect(getNewestMembers(members, 2).map(member => member.name)).toEqual(["Neu", "Auer"]);
+    expect(getNewestMembers(members, 0)).toEqual([]);
+  });
+
+  it("lässt die Eingabeliste unverändert", () => {
+    const input = [...members];
+    getNewestMembers(input);
+    expect(input[0].name).toBe("Alt");
+    expect(input.length).toBe(6);
+  });
+
+  it("kommt mit einer leeren Liste zurecht", () => {
+    expect(getNewestMembers([])).toEqual([]);
   });
 });
 

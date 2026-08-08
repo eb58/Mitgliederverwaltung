@@ -69,9 +69,11 @@ try {
     }
 
     jsonResponse(['error' => 'Route nicht gefunden.'], 404);
+} catch (ApiResponse $response) {
+    emitResponse($response);
 } catch (ApiError $error) {
-    jsonResponse(['error' => $error->getMessage()], $error->statusCode);
+    emitResponse(errorResponse($error->getMessage(), $error->statusCode));
 } catch (Throwable $error) {
     error_log((string) $error);
-    jsonResponse(['error' => 'Interner Serverfehler.'], 500);
+    emitResponse(errorResponse('Interner Serverfehler.', 500));
 }

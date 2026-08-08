@@ -18,9 +18,11 @@ function config(): array
     return $config;
 }
 
-function db(): PDO
+/** Ohne Argument die gemeinsame Verbindung, mit Argument setzen (fuer Tests). */
+function db(?PDO $override = null): PDO
 {
     static $pdo = null;
+    if ($override instanceof PDO) return $pdo = $override;
     if ($pdo instanceof PDO) return $pdo;
 
     $db = config()['db'];
@@ -39,10 +41,23 @@ function db(): PDO
     return $pdo;
 }
 
-function tableHasColumn(string $table, string $column): bool
+function &schemaCache(): array
 {
     static $cache = [];
-    $key = $table . '.' . $column;
+    return $cache;
+}
+
+/** Nach einem Schemawechsel noetig, in Tests auch zum Erzwingen eines Neulesens. */
+function clearSchemaCache(): void
+{
+    $cache = &schemaCache();
+    $cache = [];
+}
+
+function tableHasColumn(string $table, string $column): bool
+{
+    $cache = &schemaCache();
+    $key = 'column:' . $table . '.' . $column;
     if (array_key_exists($key, $cache)) return $cache[$key];
 
     $statement = db()->prepare(
@@ -55,15 +70,16 @@ function tableHasColumn(string $table, string $column): bool
 
 function tableExists(string $table): bool
 {
-    static $cache = [];
-    if (array_key_exists($table, $cache)) return $cache[$table];
+    $cache = &schemaCache();
+    $key = 'table:' . $table;
+    if (array_key_exists($key, $cache)) return $cache[$key];
 
     $statement = db()->prepare(
         'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
     );
     $statement->execute([$table]);
-    $cache[$table] = (int) $statement->fetchColumn() > 0;
-    return $cache[$table];
+    $cache[$key] = (int) $statement->fetchColumn() > 0;
+    return $cache[$key];
 }
 
 function sendCorsHeaders(): void
@@ -73,18 +89,55 @@ function sendCorsHeaders(): void
     header('Access-Control-Allow-Headers: Authorization,Content-Type,X-File-Name');
 }
 
+/**
+ * Fertige Antwort eines Handlers. Wird geworfen statt direkt gesendet, damit
+ * der Einstiegspunkt sie ausgibt und Tests sie abfangen koennen.
+ */
+final class ApiResponse extends RuntimeException
+{
+    public function __construct(
+        public mixed $payload = null,
+        public int $statusCode = 200,
+        public array $headers = [],
+        public ?string $rawBody = null
+    ) {
+        parent::__construct('');
+    }
+}
+
 function jsonResponse(mixed $payload, int $status = 200): void
 {
-    http_response_code($status);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
+    throw new ApiResponse($payload, $status, ['Content-Type' => 'application/json; charset=utf-8']);
 }
 
 function noContent(): void
 {
-    http_response_code(204);
-    exit;
+    throw new ApiResponse(null, 204);
+}
+
+function rawResponse(string $body, int $status, array $headers): void
+{
+    throw new ApiResponse(null, $status, $headers, $body);
+}
+
+function errorResponse(string $message, int $status): ApiResponse
+{
+    return new ApiResponse(['error' => $message], $status, ['Content-Type' => 'application/json; charset=utf-8']);
+}
+
+function emitResponse(ApiResponse $response): void
+{
+    http_response_code($response->statusCode);
+    foreach ($response->headers as $name => $value) {
+        header($name . ': ' . $value);
+    }
+    if ($response->rawBody !== null) {
+        echo $response->rawBody;
+        return;
+    }
+    if ($response->statusCode !== 204) {
+        echo json_encode($response->payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
 }
 
 function requestPath(): string
@@ -123,9 +176,17 @@ function decodeJsonBody(string $raw): array
     return $payload;
 }
 
+/** Ohne Argument der Rohkoerper der Anfrage, mit Argument setzen (fuer Tests, null setzt zurueck). */
+function requestBody(?string $override = null): string
+{
+    static $body = null;
+    if (func_num_args() > 0) $body = $override;
+    return $body ?? (file_get_contents('php://input') ?: '');
+}
+
 function readJsonBody(): array
 {
-    return decodeJsonBody(file_get_contents('php://input') ?: '');
+    return decodeJsonBody(requestBody());
 }
 
 function clampListLimit(mixed $value, int $default, int $max): int
@@ -1110,16 +1171,16 @@ function handleMemberPhoto(int $id, array $currentUser): void
         $photo = $statement->fetch();
         if (!$photo) throw new ApiError('Passbild nicht gefunden.', 404);
         $etag = '"' . $photo['sha256'] . '"';
-        header('Content-Type: ' . $photo['mime_type']);
-        header('Content-Disposition: inline; filename="' . addslashes($photo['dateiname']) . '"');
-        header('Cache-Control: private, max-age=3600');
-        header('ETag: ' . $etag);
+        $headers = [
+            'Content-Type' => $photo['mime_type'],
+            'Content-Disposition' => 'inline; filename="' . addslashes($photo['dateiname']) . '"',
+            'Cache-Control' => 'private, max-age=3600',
+            'ETag' => $etag,
+        ];
         if (($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
-            http_response_code(304);
-            exit;
+            rawResponse('', 304, $headers);
         }
-        echo $photo['inhalt'];
-        exit;
+        rawResponse((string) $photo['inhalt'], 200, $headers);
     }
 
     if ($method === 'PUT') {
@@ -1133,7 +1194,7 @@ function handleMemberPhoto(int $id, array $currentUser): void
         } else {
             $fileName = rawurldecode((string) ($_SERVER['HTTP_X_FILE_NAME'] ?? 'passbild.jpg')) ?: 'passbild.jpg';
             $mimeType = explode(';', $contentType)[0] ?: 'application/octet-stream';
-            $content = file_get_contents('php://input') ?: '';
+            $content = requestBody();
         }
         assertPhotoSize($content);
         $sha = hash('sha256', $content);

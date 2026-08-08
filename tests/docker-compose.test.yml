@@ -1,0 +1,19 @@
+# Wegwerf-Datenbank fuer die PHP-Integrationstests.
+# Start: npm run test:php:db:up   |  Stop: npm run test:php:db:down
+# Laeuft auf tmpfs, ueberlebt einen Neustart also bewusst nicht.
+services:
+  db:
+    image: mariadb:latest
+    container_name: mv-test-db
+    environment:
+      MARIADB_ROOT_PASSWORD: test
+      MARIADB_DATABASE: mitgliederverwaltung_test
+    ports:
+      - "3307:3306"
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
