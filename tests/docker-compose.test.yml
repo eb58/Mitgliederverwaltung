@@ -13,7 +13,11 @@ services:
     tmpfs:
       - /var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 3s
+      # Bewusst ueber TCP statt healthcheck.sh: waehrend der Erstinitialisierung
+      # laeuft ein temporaerer Server, der nur den Socket bedient und danach
+      # durchgestartet wird. Ueber den Socket meldete der Container "healthy",
+      # und das Schema landete in einer gleich darauf verworfenen Instanz.
+      test: ["CMD", "mariadb", "-h", "127.0.0.1", "-uroot", "-ptest", "-e", "SELECT 1", "mitgliederverwaltung_test"]
+      interval: 2s
       timeout: 3s
-      retries: 30
+      retries: 40

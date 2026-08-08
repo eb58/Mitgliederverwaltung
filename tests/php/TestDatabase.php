@@ -16,6 +16,7 @@ final class TestDatabase
     private static ?string $failure = null;
     private static array $hashes = [];
     private static array $referenceSeed = [];
+    private static array $expectedTables = [];
 
     private static function env(string $name, string $fallback): string
     {
@@ -41,7 +42,7 @@ final class TestDatabase
             self::env('MEMBER_TEST_DB_NAME', 'mitgliederverwaltung_test')
         );
         try {
-            self::$pdo = new PDO($dsn, self::env('MEMBER_TEST_DB_USER', 'root'), self::env('MEMBER_TEST_DB_PASSWORD', 'test'), [
+            $pdo = new PDO($dsn, self::env('MEMBER_TEST_DB_USER', 'root'), self::env('MEMBER_TEST_DB_PASSWORD', 'test'), [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
@@ -52,8 +53,12 @@ final class TestDatabase
             return null;
         }
 
-        self::loadSchema(self::$pdo);
-        return self::$pdo;
+        // Erst nach erfolgreichem Schema merken: bricht der Aufbau ab (z. B. weil
+        // MariaDB gerade seinen Init-Server durchstartet), soll der naechste
+        // Aufruf es erneut versuchen statt eine halbfertige DB weiterzureichen.
+        self::loadSchema($pdo);
+        self::$pdo = $pdo;
+        return $pdo;
     }
 
     public static function skipReason(): string
@@ -71,14 +76,25 @@ final class TestDatabase
 
         $sql = (string) file_get_contents(__DIR__ . '/../../server/db/schema.mysql.sql');
         $referencePattern = '/^INSERT INTO (' . implode('|', self::REFERENCE_TABLES) . ')\b/i';
+        self::$referenceSeed = [];
+        self::$expectedTables = [];
         foreach (explode(';', $sql) as $statement) {
             $clean = trim(preg_replace('/^\s*--.*$/m', '', $statement));
             if ($clean === '') continue;
             if (preg_match($referencePattern, $clean)) {
                 self::$referenceSeed[] = $clean;
             }
+            if (preg_match('/^CREATE TABLE (\w+)/i', $clean, $match)) {
+                self::$expectedTables[] = $match[1];
+            }
             $pdo->exec($statement);
         }
+    }
+
+    private static function schemaIsComplete(PDO $pdo): bool
+    {
+        $rows = $pdo->query('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()')->fetchAll();
+        return !array_diff(self::$expectedTables, array_column($rows, 'TABLE_NAME'));
     }
 
     /** Leert alle veraenderlichen Tabellen und legt die Standardbenutzer neu an. */
@@ -86,6 +102,8 @@ final class TestDatabase
     {
         $pdo = self::pdo();
         if (!$pdo) return;
+        // Das tmpfs der Test-DB ist nach einem Container-Neustart leer.
+        if (!self::schemaIsComplete($pdo)) self::loadSchema($pdo);
 
         $tables = ['mitglied_aenderung', 'mitglied_passbild', 'mitglied_funktion', 'mitglied_interessengruppe', 'mitglied', 'app_session', 'app_user', ...self::REFERENCE_TABLES];
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
