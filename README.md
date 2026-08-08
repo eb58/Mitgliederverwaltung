@@ -6,7 +6,7 @@ Webbasierte Mitgliederverwaltung für den Seniorenclub Lübars. Die Anwendung b�
 
 Die Anwendung besteht aus einem statischen Frontend und einer schlanken PHP-API:
 
-- `index.html`, `src/` und `styles.css`: Browser-Oberfläche, von Vite mit den Frontend-Abhängigkeiten gebündelt
+- `index.html` und `src/`: Browser-Oberfläche, von Vite mit den Frontend-Abhängigkeiten gebündelt
 - `public/assets/`: statische Bilder und App-Icon
 - `server/`: PHP-Backend, Datenbankschema sowie lokale Server- und Deployment-Konfiguration
 - `config/member-api.config.example.json`: Vorlage für eine abweichende API-Adresse
@@ -140,14 +140,13 @@ Vor dem Upload entfernt das Skript alte Frontend-Bundles, das nicht mehr benöti
 ```text
 .
 |-- index.html                     # App-Shell und Modals
-|-- styles.css                     # Layout und Design
 |-- package.json                   # Vite-Skripte und Frontend-Abhängigkeiten
 |-- config/                        # optionale Frontend-Konfigurationen
 |-- docs/                          # Installations- und Betriebsanleitungen
 |-- public/
 |   `-- assets/                    # App-Icon und Bilder
 |-- server/                        # PHP-Backend, Schema und Serverkonfiguration
-|-- src/                           # JavaScript der Browser-Anwendung
+|-- src/                           # JavaScript und Styles der Browser-Anwendung
 `-- tests/                         # Tests, Runner-Konfigurationen und Testwerkzeuge
 ```
 
