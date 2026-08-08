@@ -260,6 +260,10 @@ body {
   border-radius: 10px;
 }
 
+.sidebar-backdrop {
+  display: none;
+}
+
 /* ── Main content ── */
 .main-content {
   flex: 1;
@@ -310,6 +314,29 @@ body {
 
 .app-header .search-input {
   margin-left: auto;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border: 1px solid rgba(18, 128, 124, 0.28);
+  border-radius: 9px;
+}
+
+.mobile-menu-toggle svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 
@@ -1096,6 +1123,24 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+.modal-dialog-scrollable .modal-content > form {
+  display: flex;
+  min-height: 0;
+  max-height: calc(100dvh - 3.5rem);
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-dialog-scrollable .modal-content > form .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.modal-dialog-scrollable .modal-content > form .modal-header,
+.modal-dialog-scrollable .modal-content > form .modal-footer {
+  flex-shrink: 0;
+}
+
 .modal-header,
 .modal-footer {
   background: var(--surface-2);
@@ -1635,12 +1680,194 @@ body {
 }
 
 @media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(82vw, 280px);
+    height: 100dvh;
+    z-index: 1045;
+    transform: translateX(-102%);
+    transition: transform var(--sidebar-transition);
+  }
+
+  .sidebar.sidebar--collapsed {
+    width: min(82vw, 280px);
+  }
+
+  .sidebar--mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar--collapsed .sidebar__header {
+    justify-content: space-between;
+  }
+
+  .sidebar--collapsed .sidebar__icon {
+    width: 32px;
+    opacity: 0.9;
+  }
+
+  .sidebar--collapsed .sidebar__nav-label,
+  .sidebar--collapsed .sidebar__action-btn .sidebar__nav-label {
+    max-width: 180px;
+    opacity: 1;
+  }
+
+  .sidebar--collapsed .sidebar__nav .nav-link,
+  .sidebar--collapsed .sidebar__action-btn {
+    justify-content: flex-start;
+    gap: 0.7rem;
+    padding: 0.62rem 0.7rem;
+  }
+
+  .sidebar--collapsed .sidebar__nav-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .sidebar-backdrop:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    display: block;
+    padding: 0;
+    background: rgba(8, 22, 33, 0.48);
+    border: 0;
+  }
+
+  .main-content {
+    width: 100%;
+  }
+
+  .app-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 56px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .mobile-menu-toggle {
+    display: inline-flex;
+  }
+
+  .app-header__brand {
+    min-width: 0;
+  }
+
+  .app-header .search-input {
+    order: 2;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .main-content .tab-content {
+    padding: 0.75rem;
+  }
+
   .search-input {
     width: 100%;
   }
 
+  .grid-toolbar {
+    justify-content: flex-start;
+  }
+
+  .grid-toolbar .guest-toggle {
+    flex: 1 1 145px;
+  }
+
+  .grid-host {
+    height: calc(100dvh - 145px);
+    min-height: 300px;
+    border-radius: 10px;
+  }
+
+  .grid-host--with-toolbar {
+    height: calc(100dvh - 215px);
+  }
+
+  .stat-panel,
+  .function-overview {
+    padding: 0.9rem;
+  }
+
+  .age-panel,
+  .group-panel {
+    height: 420px;
+  }
+
   .birthday-list {
     grid-template-columns: 1fr;
+  }
+
+  .birthday-panel > .d-flex {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+  }
+
+  .birthday-row {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .birthday-row .birthday-photo {
+    width: 72px;
+    height: 72px;
+    grid-row: span 2;
+  }
+
+  .birthday-badge {
+    justify-self: start;
+  }
+
+  .member-photo-preview {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .member-photo-preview__image {
+    width: 126px;
+    height: 156px;
+  }
+
+  .member-form-selection-chip {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .modal-dialog {
+    margin: 0.5rem;
+  }
+
+  .modal-dialog-scrollable .modal-content > form {
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .modal-body {
+    padding: 0.75rem;
+  }
+
+  .modal-footer {
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 8rem;
+  }
+
+  .user-admin-form,
+  .reference-form {
+    grid-template-columns: 1fr;
+  }
+
+  .user-admin-form__actions,
+  .reference-form__actions {
+    grid-column: 1;
+  }
+
+  .user-admin-form__actions .btn,
+  .reference-form__actions .btn {
+    flex: 1 1 8rem;
   }
 
   .function-overview__header {
@@ -1656,4 +1883,23 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .function-overview__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+}
+
+@media (max-width: 420px) {
+  .app-header__logo {
+    display: none;
+  }
+
+  .app-header__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .grid-toolbar .guest-toggle {
+    flex-basis: 100%;
+  }
 }

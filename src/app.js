@@ -210,12 +210,39 @@ const wireUi = () => {
 
   const sidebar = document.getElementById("sidebar");
   const sidebarToggle = document.getElementById("sidebarToggle");
+  const mobileMenuToggle = document.getElementById("mobileMenuToggle");
+  const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+  const isMobileLayout = () => window.matchMedia("(max-width: 768px)").matches;
+  const setMobileMenuOpen = open => {
+    sidebar.classList.toggle("sidebar--mobile-open", open);
+    sidebar.inert = isMobileLayout() && !open;
+    mobileMenuToggle.setAttribute("aria-expanded", String(open));
+    mobileMenuToggle.setAttribute("aria-label", open ? "Navigation schließen" : "Navigation öffnen");
+    sidebarBackdrop.hidden = !open;
+  };
   if (localStorage.getItem("sidebar-collapsed") === "true") sidebar.classList.add("sidebar--collapsed");
   sidebarToggle.addEventListener("click", () => {
+    if (isMobileLayout()) {
+      setMobileMenuOpen(false);
+      return;
+    }
     sidebar.classList.toggle("sidebar--collapsed");
     localStorage.setItem("sidebar-collapsed", sidebar.classList.contains("sidebar--collapsed"));
     setTimeout(() => Object.entries(gridApis).forEach(([k, api]) => fitGridColumnsIfNeeded(k, api)), 230);
   });
+  mobileMenuToggle.addEventListener("click", () => setMobileMenuOpen(!sidebar.classList.contains("sidebar--mobile-open")));
+  sidebarBackdrop.addEventListener("click", () => setMobileMenuOpen(false));
+  sidebar.addEventListener("click", event => {
+    if (isMobileLayout() && event.target.closest("button") && event.target !== sidebarToggle) setMobileMenuOpen(false);
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && sidebar.classList.contains("sidebar--mobile-open")) {
+      setMobileMenuOpen(false);
+      mobileMenuToggle.focus();
+    }
+  });
+  window.addEventListener("resize", () => setMobileMenuOpen(false));
+  setMobileMenuOpen(false);
 
 };
 

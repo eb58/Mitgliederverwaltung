@@ -97,8 +97,18 @@
       </div>
     </aside>
 
+    <button id="sidebarBackdrop" class="sidebar-backdrop" type="button" aria-label="Navigation schließen" hidden></button>
+
     <div class="main-content">
       <header class="app-header">
+        <button id="mobileMenuToggle" class="mobile-menu-toggle" type="button" aria-controls="sidebar"
+          aria-expanded="false" aria-label="Navigation öffnen">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <line x1="4" y1="7" x2="20" y2="7"></line>
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+            <line x1="4" y1="17" x2="20" y2="17"></line>
+          </svg>
+        </button>
         <div class="app-header__brand">
           <img class="app-header__logo" src="assets/website-logo.jpg" alt="Freizeitstätte Lübars">
           <span class="app-header__title">Mitgliederverwaltung</span>

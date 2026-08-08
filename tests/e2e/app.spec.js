@@ -99,6 +99,27 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await expect(page.locator("#overviewGrid")).toContainText("Anna");
 });
 
+test("Navigation und Dialogaktionen bleiben auf kleinen Bildschirmen erreichbar", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  await openAuthenticatedApp(page);
+
+  const menuButton = page.locator("#mobileMenuToggle");
+  const sidebar = page.locator("#sidebar");
+  await expect(menuButton).toBeVisible();
+  await expect(sidebar).not.toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+
+  await menuButton.click();
+  await expect(sidebar).toBeInViewport();
+  await expect(page.locator("#addMemberBtn")).toBeInViewport();
+
+  await page.locator("#addMemberBtn").click();
+  await expect(sidebar).not.toBeInViewport();
+  await expect(page.locator("#memberModal")).toHaveClass(/show/);
+  await expect(page.locator('#memberForm button[type="submit"]')).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Abbrechen" })).toBeInViewport();
+});
+
 test("Spaltenfilter sind sichtbar und lassen sich zurücksetzen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#overview-tab").click();
