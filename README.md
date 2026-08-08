@@ -172,9 +172,10 @@ Die Testarten können auch einzeln gestartet werden:
 npm.cmd run test:unit
 npm.cmd run test:php
 npm.cmd run test:e2e
+npm.cmd run test:coverage
 ```
 
-Die Unit-Tests unter `tests/unit/` prüfen die Datums-, Währungs-, Alters-, Geschäftsjahres- und URL-Logik. Die PHP-Tests unter `tests/php/` prüfen die reine Logik von `php-api/lib.php` (Auth-Hilfsfunktionen, Feld-Normalisierung, Änderungsprotokoll) ohne Datenbankzugriff; `npm run test:php` lädt dafür einmalig `tools/phpunit.phar` herunter (nicht Teil des Repos) und benötigt die PHP-Erweiterung `mbstring`. Die Playwright-Tests unter `tests/e2e/` starten automatisch einen Vite-Server und simulieren die API im Browser. Sie verändern deshalb weder die lokale noch die produktive Mitgliederdatenbank.
+Die Unit-Tests unter `tests/unit/` prüfen die Datums-, Währungs-, Alters-, Geschäftsjahres- und URL-Logik. Die PHP-Tests unter `tests/php/` prüfen die reine Logik von `php-api/lib.php` (Auth-Hilfsfunktionen, Feld-Normalisierung, Änderungsprotokoll) ohne Datenbankzugriff; `npm run test:php` lädt dafür einmalig `tools/phpunit.phar` herunter (nicht Teil des Repos) und benötigt die PHP-Erweiterung `mbstring`. `npm run test:coverage` nutzt Node.js' eingebauten experimentellen Coverage-Reporter und gibt Zeilen-, Branch- und Funktionsabdeckung für die JavaScript-Unit-Tests aus. Die Playwright-Tests unter `tests/e2e/` starten automatisch einen Vite-Server und simulieren die API im Browser. Sie verändern deshalb weder die lokale noch die produktive Mitgliederdatenbank.
 
 Der versionierte Pre-Commit-Hook führt vor jedem Commit die vollständige Test-Suite aus und bricht den Commit bei einem Fehler ab. Er wird einmalig aktiviert mit:
 

@@ -9,8 +9,9 @@
     "watch": "vite build --watch",
     "preview": "vite preview",
     "test": "npm run test:unit && npm run test:php && npm run test:e2e",
-    "test:unit": "vitest run tests/unit",
-    "test:unit:watch": "vitest tests/unit",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage tests/unit/*.test.js",
+    "test:unit:watch": "node --test --watch tests/unit/*.test.js",
     "test:php": "node tools/ensure-phpunit.mjs && php tools/phpunit.phar --configuration phpunit.xml",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
@@ -18,8 +19,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
-    "vite": "^6.3.5",
-    "vitest": "^4.1.10"
+    "vite": "^6.3.5"
   },
   "dependencies": {
     "ag-grid-community": "^35.3.0",
