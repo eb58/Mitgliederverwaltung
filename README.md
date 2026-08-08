@@ -146,14 +146,20 @@ Vor dem Upload entfernt das Skript alte Frontend-Bundles, das nicht mehr benöti
 |-- public/
 |   `-- assets/                    # App-Icon und Bilder
 |-- server/                        # PHP-Backend, Schema und Serverkonfiguration
-|-- src/                           # JavaScript und Styles der Browser-Anwendung
+|-- src/
+|   |-- app.js                    # Einstiegspunkt und Zusammensetzen der Module
+|   |-- member-*.js               # Mitgliederlogik, API, Formular und Verlauf
+|   |-- auth.js                   # Anmeldung und Sitzungsverwaltung
+|   |-- dashboard.js              # Kennzahlen und Diagramme
+|   |-- *-admin.js                # Benutzer- und Stammdatenverwaltung
+|   `-- styles.css                # Anwendungsdesign
 `-- tests/                         # Tests, Runner-Konfigurationen und Testwerkzeuge
 ```
 
 ## Hinweise zur Arbeit am Code
 
 - Die Oberfläche ist bewusst als kompakte Single-Page-App gehalten.
-- Stammdaten und Mitgliederfelder werden zentral in `src/app.js` definiert.
+- Stammdaten und Mitgliederfelder werden zentral in `src/member-config.js` definiert; `src/app.js` verbindet die eigenständigen Module.
 - Zahlungen und Computerclub-Filter hängen an denselben normalisierten Mitgliedsdaten wie Dashboard und Tabellen.
 - Änderungen an Mitgliedern werden über die API auditierbar protokolliert.
 
