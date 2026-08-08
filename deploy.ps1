@@ -43,12 +43,8 @@ if (Test-Path $deployDir) {
 }
 
 New-Item -ItemType Directory -Path $deployDir | Out-Null
-Copy-Item -Path "$buildDir\*" -Destination $deployDir -Recurse -Force
-
-$localApiInBuild = Join-Path $deployDir "php-api"
-if (Test-Path $localApiInBuild) {
-    Remove-Item -LiteralPath $localApiInBuild -Recurse -Force
-}
+Copy-Item -Path "$buildDir\assets" -Destination $deployDir -Recurse -Force
+Copy-Item -Path "$buildDir\index.html" -Destination $deployDir -Force
 
 New-Item -ItemType Directory -Path "$deployDir\php-api" | Out-Null
 foreach ($file in $apiFiles) {
@@ -60,15 +56,15 @@ if ($SkipUpload) {
     exit 0
 }
 
-Write-Host "Lege Zielverzeichnisse an..." -ForegroundColor Cyan
-ssh -p $Port $sshOpt "${User}@${Server}" "mkdir -p '${remoteApi}' && rm -rf '${remoteApp}/assets' '${remoteApp}/vendor'"
+Write-Host "Bereinige Zielverzeichnisse..." -ForegroundColor Cyan
+ssh -p $Port $sshOpt "${User}@${Server}" "mkdir -p '${remoteApi}' && rm -rf '${remoteApp}/assets' '${remoteApp}/vendor' && find '${remoteApi}' -mindepth 1 -maxdepth 1 ! -name 'config.local.php' -exec rm -rf -- {} \;"
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Remote-Verzeichnis konnte nicht angelegt werden." -ForegroundColor Red
+    Write-Host "Remote-Verzeichnisse konnten nicht vorbereitet werden." -ForegroundColor Red
     exit 1
 }
 
 Write-Host "Lade Frontend hoch..." -ForegroundColor Cyan
-scp -r -P $Port $sshOpt "$deployDir\assets" "$deployDir\vendor" "$deployDir\index.html" "${User}@${Server}:${remoteApp}/"
+scp -r -P $Port $sshOpt "$deployDir\assets" "$deployDir\index.html" "${User}@${Server}:${remoteApp}/"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Frontend-Upload fehlgeschlagen." -ForegroundColor Red
     exit 1

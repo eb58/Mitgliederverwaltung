@@ -6,8 +6,8 @@ Webbasierte Mitgliederverwaltung für den Seniorenclub Lübars. Die Anwendung b�
 
 Die Anwendung besteht aus einem statischen Frontend und einer schlanken PHP-API:
 
-- `index.html`, `app.js`, `styles.css`: Browser-Oberfläche
-- `public/vendor/`: lokal ausgelieferte Bibliotheken für Bootstrap, AG Grid und Chart.js
+- `index.html`, `app.js`, `styles.css`: Browser-Oberfläche, von Vite mit den Frontend-Abhängigkeiten gebündelt
+- `public/assets/`: statische Bilder und App-Icon
 - `php-api/`: Backend-Endpunkte für Login, Mitglieder, Passbilder, Stammdaten und Änderungsprotokolle
 - `member-api.config.json`: optionale Frontend-Konfiguration für eine abweichende API-Adresse
 
@@ -130,11 +130,10 @@ Für klassisches Webhosting werden diese Dateien und Ordner ausgeliefert:
 
 - `index.html`
 - `assets/`
-- `vendor/`
 - `php-api/` ohne `config.local.php`
 - optional `member-api.config.json`
 
-Die Datei `php-api/config.local.php` enthält Live-Zugangsdaten und wird bewusst nicht deployed. Sie muss auf dem Server einmalig aus `php-api/config.local.example.php` erstellt werden. Die Details zur PHP-API, Rewrite-Regeln, Benutzeranlage und Schnelltests stehen in [php-api/README.md](php-api/README.md).
+Vor dem Upload entfernt das Skript alte Frontend-Bundles, das nicht mehr benötigte `vendor/`-Verzeichnis und veraltete API-Dateien vom Ziel. Die Datei `php-api/config.local.php` enthält Live-Zugangsdaten, bleibt bei der Bereinigung erhalten und wird bewusst nicht deployed. Sie muss auf dem Server einmalig aus `php-api/config.local.example.php` erstellt werden. Die Details zur PHP-API, Rewrite-Regeln, Benutzeranlage und Schnelltests stehen in [php-api/README.md](php-api/README.md).
 
 ## Projektstruktur
 
@@ -148,8 +147,7 @@ Die Datei `php-api/config.local.php` enthält Live-Zugangsdaten und wird bewusst
 |-- member-api.config.example.json # Beispiel für abweichende API-Adresse
 |-- db/schema.mysql.sql            # zusammengefasstes MySQL-Initialschema
 |-- public/
-|   |-- assets/                    # App-Icon und Bilder
-|   `-- vendor/                    # lokal ausgelieferte Frontend-Bibliotheken
+|   `-- assets/                    # App-Icon und Bilder
 `-- php-api/                       # PHP-Backend
 ```
 
@@ -192,4 +190,4 @@ npx playwright install chromium
 
 ## Build-Hinweise
 
-Beim Vite-Build können Hinweise erscheinen, dass einige Vendor-Skripte und CSS-Dateien nicht gebundelt werden. Das ist erwartbar, weil diese Dateien im Hosting-Betrieb statisch über `vendor/` ausgeliefert werden.
+Vite bündelt und minifiziert den Anwendungscode sowie Bootstrap, AG Grid und Chart.js. Der Hinweis auf ein großes JavaScript-Bundle ist wegen AG Grid erwartbar; die ausgelieferte Datei ist bereits minifiziert und lässt sich vom Webserver zusätzlich komprimiert übertragen.
