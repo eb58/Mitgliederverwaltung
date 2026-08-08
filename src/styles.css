@@ -137,6 +137,15 @@ body {
   overflow-x: hidden;
 }
 
+#mainTabs #dashboard-tab { order: 1; }
+#mainTabs #function-overview-tab { order: 2; }
+#mainTabs #overview-tab { order: 3; }
+#mainTabs #payments-tab { order: 4; }
+#mainTabs #guests-tab { order: 5; }
+#mainTabs #christmas-tab { order: 6; }
+#mainTabs #historical-tab { order: 7; }
+#mainTabs #changes-tab { order: 8; }
+
 .sidebar__nav .nav-link {
   display: flex;
   align-items: center;

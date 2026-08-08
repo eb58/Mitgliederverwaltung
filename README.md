@@ -17,7 +17,7 @@ Das Frontend kann lokal mit Vite entwickelt werden. Im Hosting-Betrieb werden di
 
 - Dashboard mit Kennzahlen zu Mitgliedern, Zahlungen, Altersstruktur und Interessengruppen
 - Mitgliederübersicht mit Suche, Filtern, Spaltenzustand und Bearbeitungsdialog
-- getrennte Ansichten für Gäste, ehemalige Mitglieder, Bezahlungsdaten und Weihnachtsessen
+- getrennte Ansichten für Gäste, ehemalige Mitglieder, Clubbeiträge und Weihnachtsessen
 - Beitragsverwaltung für Club- und Computerbeitrag
 - Computerclub-Erkennung über angekreuzte Interessengruppen mit Computerkurs-Bezug
 - Passbild-Upload pro Mitglied

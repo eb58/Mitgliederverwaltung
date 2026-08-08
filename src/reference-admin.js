@@ -10,7 +10,7 @@ import {
 } from "./member-config.js";
 
 const sections = [
-  { type: "interest-groups", labelName: "Bezeichnung" },
+  { type: "interest-groups", labelName: "Bezeichnung", editAction: "Umbenennen" },
   { type: "functions", labelName: "Bezeichnung" },
   { type: "exit-reasons", labelName: "Bezeichnung" },
   { type: "senior-clubs", labelName: "Name" }
@@ -131,7 +131,7 @@ export const createReferenceAdmin = ({
       const editButton = document.createElement("button");
       editButton.className = "btn btn-sm btn-outline-secondary me-2";
       editButton.type = "button";
-      editButton.textContent = "Bearbeiten";
+      editButton.textContent = sections.find(section => section.type === type)?.editAction || "Bearbeiten";
       editButton.addEventListener("click", () => fillForm(type, item));
       const toggleButton = document.createElement("button");
       toggleButton.className = item.active === false ? "btn btn-sm btn-outline-primary" : "btn btn-sm btn-outline-danger";

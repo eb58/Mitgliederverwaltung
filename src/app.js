@@ -187,6 +187,7 @@ const wireUi = () => {
   document.getElementById("metricClubOpenBtn").addEventListener("click", showOpenClubPayments);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
+  document.getElementById("downloadMembersBtn").addEventListener("click", downloadMembers);
   document.getElementById("downloadOpenPaymentsBtn").addEventListener("click", downloadOpenClubPayments);
   document.getElementById("downloadRoundBirthdayBtn").addEventListener("click", downloadRoundBirthdayList);
   document.getElementById("refreshRecentChangesBtn").addEventListener("click", () => refreshRecentChanges({ force: true }));
@@ -366,6 +367,7 @@ const getOverviewColumns = () => [
   { headerName: "Email", field: "email", minWidth: 220 },
   { headerName: "Handy", field: "handy", minWidth: 150 },
   { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { buttons: ["reset"], comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 140 },
+  { headerName: "Eintrittsdatum", field: "eintrittsdatum", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { buttons: ["reset"], comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 150 },
   { headerName: "Interessengruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, filterValueGetter: params => formatInterestGroups(params.data?.interessengruppen), minWidth: 220, flex: 1 },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
@@ -609,6 +611,99 @@ const filterPaymentMembers = members => {
   return state.showOnlyPaymentComputerGroups ? members.filter(isComputerGroupMember) : members;
 };
 
+const downloadTextFile = (fileName, lines) => {
+  const content = lines.join("\r\n");
+  const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+const filterOperatorLabels = {
+  contains: "enthält",
+  notContains: "enthält nicht",
+  equals: "ist gleich",
+  notEqual: "ist nicht gleich",
+  startsWith: "beginnt mit",
+  endsWith: "endet mit",
+  lessThan: "ist kleiner als",
+  lessThanOrEqual: "ist höchstens",
+  greaterThan: "ist größer als",
+  greaterThanOrEqual: "ist mindestens",
+  inRange: "liegt zwischen",
+  blank: "ist leer",
+  notBlank: "ist nicht leer"
+};
+
+const formatFilterCondition = model => {
+  if (Array.isArray(model?.conditions)) {
+    const separator = model.operator === "OR" ? " oder " : " und ";
+    return model.conditions.map(formatFilterCondition).join(separator);
+  }
+  const operator = filterOperatorLabels[model?.type] || model?.type || "entspricht";
+  const normalizeValue = value => model?.filterType === "date"
+    ? formatDateDE(String(value).slice(0, 10))
+    : String(value);
+  const values = (Array.isArray(model?.values)
+    ? model.values
+    : [model?.filter ?? model?.dateFrom, model?.filterTo ?? model?.dateTo])
+    .filter(value => value !== undefined && value !== null && value !== "")
+    .map(normalizeValue);
+  if (!values.length) return operator;
+  if (model?.type === "inRange" && values.length > 1) return `${operator} "${values[0]}" und "${values[1]}"`;
+  return `${operator} ${values.map(value => `"${value}"`).join(", ")}`;
+};
+
+const getOverviewFilterLines = api => {
+  const quickFilter = document.getElementById("globalSearchInput")?.value.trim();
+  const columnFilters = Object.entries(api.getFilterModel()).map(([columnId, model]) => {
+    const label = api.getColumnDef(columnId)?.headerName || columnId;
+    return `- ${label}: ${formatFilterCondition(model)}`;
+  });
+  const filters = [...(quickFilter ? [`- Suche: "${quickFilter}"`] : []), ...columnFilters];
+  return filters.length ? filters : ["- Keine"];
+};
+
+const downloadMembers = () => {
+  const api = gridApis.overview;
+  if (!api) return;
+  const members = [];
+  api.forEachNodeAfterFilterAndSort(node => {
+    if (node.data) members.push(node.data);
+  });
+  const readableValue = value => value === null || value === undefined || value === "" ? "-" : value;
+  const today = formatDateDE(formatIsoDate(new Date()));
+  const lines = [
+    "MITGLIEDERLISTE",
+    `Erstellt am: ${today}`,
+    "",
+    "GEWÄHLTE FILTER",
+    ...getOverviewFilterLines(api),
+    "",
+    `Anzahl Personen: ${members.length}`,
+    "",
+    ...members.flatMap((member, index) => {
+      const age = calculateAge(member.geburtstag);
+      const address = [member.strasse, [member.plz, member.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+      const note = String(member.bemerkung || "").trim().replace(/\s+/g, " ");
+      return [
+        `${index + 1}. ${formatMemberName(member)}${age === null ? "" : ` (${age} Jahre)`}`,
+        `   Geburtstag: ${member.geburtstag ? formatDateDE(member.geburtstag) : "-"}`,
+        `   Eintrittsdatum: ${member.eintrittsdatum ? formatDateDE(member.eintrittsdatum) : "-"}`,
+        `   Anschrift: ${readableValue(address)}`,
+        `   Telefon: ${readableValue(member.telefon)} | Handy: ${readableValue(member.handy)}`,
+        `   E-Mail: ${readableValue(member.email)}`,
+        `   Gruppen: ${readableValue(formatInterestGroups(member.interessengruppen))}`,
+        ...(note ? [`   Notiz: ${note}`] : []),
+        ""
+      ];
+    })
+  ];
+  downloadTextFile(`mitgliederliste-${formatIsoDate(new Date())}.txt`, lines);
+};
+
 const downloadOpenClubPayments = () => {
   const members = filterPaymentMembers(state.members.filter(member => isActiveMember(member) && !isGuestMember(member)));
   const readableValue = value => value === null || value === undefined || value === "" ? "-" : value;
@@ -643,13 +738,7 @@ const downloadOpenClubPayments = () => {
       ];
     })
   ];
-  const content = lines.join("\r\n");
-  const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: "text/plain;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `bezahldaten-${formatIsoDate(new Date())}.txt`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadTextFile(`bezahldaten-${formatIsoDate(new Date())}.txt`, lines);
 };
 
 const refreshAllViews = () => {
