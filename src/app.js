@@ -561,7 +561,6 @@ const paidStatusCellRenderer = params => {
 };
 
 const togglePaymentComputerGroups = () => {
-  if (state.showOnlyOpenClubPayments) state.showOnlyOpenClubPayments = false;
   state.showOnlyPaymentComputerGroups = !state.showOnlyPaymentComputerGroups;
   updatePaymentComputerGroupToggle();
   updatePaymentClubOpenToggle();
@@ -572,7 +571,6 @@ const togglePaymentClubOpen = () => {
   const shouldShowOpenOnly = !state.showOnlyOpenClubPayments;
   state.showOnlyOpenClubPayments = shouldShowOpenOnly;
   if (shouldShowOpenOnly) {
-    state.showOnlyPaymentComputerGroups = false;
     clearGlobalSearch();
     clearGridFilters(gridApis.payments);
   }
@@ -596,19 +594,18 @@ const showOpenClubPayments = () => {
 
 const updatePaymentComputerGroupToggle = () => {
   const button = document.getElementById("togglePaymentComputerGroupsBtn");
-  button.textContent = state.showOnlyPaymentComputerGroups ? "Alle Gruppen anzeigen" : "Nur Computergruppen";
   button.setAttribute("aria-pressed", String(state.showOnlyPaymentComputerGroups));
   button.classList.toggle("active", state.showOnlyPaymentComputerGroups);
 };
 const updatePaymentClubOpenToggle = () => {
   const button = document.getElementById("togglePaymentClubOpenBtn");
-  button.textContent = state.showOnlyOpenClubPayments ? "Alle Club-Beitraege" : "Nur Club offen";
   button.setAttribute("aria-pressed", String(state.showOnlyOpenClubPayments));
   button.classList.toggle("active", state.showOnlyOpenClubPayments);
 };
 const filterPaymentMembers = members => {
-  if (state.showOnlyOpenClubPayments) return members.filter(isOpenClubPaymentMember);
-  return state.showOnlyPaymentComputerGroups ? members.filter(isComputerGroupMember) : members;
+  return members
+    .filter(member => !state.showOnlyPaymentComputerGroups || isComputerGroupMember(member))
+    .filter(member => !state.showOnlyOpenClubPayments || isOpenClubPaymentMember(member));
 };
 
 const downloadTextFile = (fileName, lines) => {

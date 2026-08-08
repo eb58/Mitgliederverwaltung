@@ -130,6 +130,18 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await expect(page.locator("#overviewGrid")).toContainText("Müller");
   await expect(page.locator("#overviewGrid")).toContainText("Anna");
   await expect(page.locator('#overviewGrid [role="columnheader"][col-id="eintrittsdatum"]')).toContainText("Eintrittsdatum");
+
+  await page.locator("#payments-tab").click();
+  const computerToggle = page.locator("#togglePaymentComputerGroupsBtn");
+  const clubOpenToggle = page.locator("#togglePaymentClubOpenBtn");
+  await expect(computerToggle).toHaveText("Nur Computergruppen");
+  await expect(clubOpenToggle).toHaveText("Nur Club offen");
+  await computerToggle.click();
+  await expect(computerToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(computerToggle).toHaveClass(/active/);
+  await clubOpenToggle.click();
+  await expect(computerToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(clubOpenToggle).toHaveAttribute("aria-pressed", "true");
 });
 
 test("Navigation und Dialogaktionen bleiben auf kleinen Bildschirmen erreichbar", async ({ page }) => {
