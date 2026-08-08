@@ -24,6 +24,7 @@ const members = [
     vorname: "Anna",
     geschlecht: "w",
     geburtstag: "1960-02-03",
+    eintrittsdatum: "2025-11-01",
     ort: "Berlin",
     clubzugehoerigkeit: 9,
     interessengruppen: [16],
@@ -93,6 +94,10 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
 
   await expect(page.locator("#metricTotal")).toHaveText("1");
   await expect(page.locator("#metricGuestCount")).toHaveText("1");
+  await expect(page.locator("#newestMemberList")).toContainText("Anna Müller");
+  await expect(page.locator("#newestMemberList")).toContainText("66 Jahre");
+  await expect(page.locator("#newestMemberList")).toContainText("Eintritt 01.11.2025");
+  await expect(page.locator("#newestMemberList .newest-member-photo")).toBeVisible();
 
   await page.locator("#overview-tab").click();
   await expect(page.locator("#overviewGrid")).toContainText("Müller");

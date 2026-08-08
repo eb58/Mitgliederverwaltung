@@ -2,6 +2,7 @@ import Chart from "chart.js/auto";
 import { germanCollator, interestGroupMap } from "./member-config.js";
 import {
   formatMemberName,
+  getNewestMembers,
   getRoundBirthdays,
   getUpcomingBirthday,
   isActiveMember,
@@ -31,6 +32,29 @@ export const createDashboard = ({
 }) => {
   let ageHistogramChart = null;
   let interestGroupChart = null;
+
+  const createMemberPhoto = (member, className) => {
+    const photo = document.createElement("div");
+    photo.className = `${className} member-photo member-photo--fallback`;
+    setFallbackPhoto(photo);
+    photo.classList.add(className);
+    resolveMemberPhotoDataUrl(member).then(photoDataUrl => {
+      if (!photoDataUrl) return;
+      const image = document.createElement("img");
+      image.className = "member-photo__image";
+      image.alt = `Passfoto von ${formatMemberName(member)}`;
+      image.addEventListener("error", () => {
+        setFallbackPhoto(photo);
+        photo.classList.add(className);
+      }, { once: true });
+      photo.className = `${className} member-photo`;
+      photo.title = image.alt;
+      photo.setAttribute("aria-label", image.alt);
+      photo.replaceChildren(image);
+      image.src = photoDataUrl;
+    }).catch(() => {});
+    return photo;
+  };
 
   const renderAgeChart = (buckets, total) => {
     const canvas = document.getElementById("ageChart");
@@ -131,25 +155,7 @@ export const createDashboard = ({
         }
       });
 
-      const photo = document.createElement("div");
-      photo.className = "birthday-photo member-photo member-photo--fallback";
-      setFallbackPhoto(photo);
-      photo.classList.add("birthday-photo");
-      resolveMemberPhotoDataUrl(item.member).then(photoDataUrl => {
-        if (!photoDataUrl) return;
-        const image = document.createElement("img");
-        image.className = "member-photo__image";
-        image.alt = `Passfoto von ${formatMemberName(item.member)}`;
-        image.addEventListener("error", () => {
-          setFallbackPhoto(photo);
-          photo.classList.add("birthday-photo");
-        }, { once: true });
-        photo.className = "birthday-photo member-photo";
-        photo.title = image.alt;
-        photo.setAttribute("aria-label", image.alt);
-        photo.replaceChildren(image);
-        image.src = photoDataUrl;
-      }).catch(() => {});
+      const photo = createMemberPhoto(item.member, "birthday-photo");
 
       const person = document.createElement("div");
       person.className = "birthday-person";
@@ -182,6 +188,38 @@ export const createDashboard = ({
     "Keine runden Geburtstage in den nächsten 6 Monaten",
     item => `${item.age}. Geburtstag`
   );
+
+  const renderNewestMembers = members => {
+    const container = document.getElementById("newestMemberList");
+    if (!container) return;
+    container.innerHTML = "";
+    const newestMembers = getNewestMembers(members);
+    if (!newestMembers.length) {
+      const empty = document.createElement("div");
+      empty.className = "birthday-empty";
+      empty.textContent = "Keine Eintrittsdaten vorhanden";
+      container.appendChild(empty);
+      return;
+    }
+    newestMembers.forEach(member => {
+      const row = document.createElement("button");
+      const photo = createMemberPhoto(member, "newest-member-photo");
+      const text = document.createElement("span");
+      const name = document.createElement("strong");
+      const details = document.createElement("span");
+      const age = calculateAge(member.geburtstag);
+      row.type = "button";
+      row.className = "newest-member-row";
+      row.title = `${formatMemberName(member)} öffnen`;
+      row.addEventListener("click", () => openMemberModal(member.id));
+      text.className = "newest-member-row__text";
+      name.textContent = formatMemberName(member);
+      details.textContent = `${age === null ? "Alter unbekannt" : `${age} Jahre`} · Eintritt ${formatDateDE(member.eintrittsdatum)}`;
+      text.append(name, details);
+      row.append(photo, text);
+      container.appendChild(row);
+    });
+  };
 
   const refresh = () => {
     const activeMembers = state.members.filter(isActiveMember);
@@ -241,6 +279,7 @@ export const createDashboard = ({
     renderInterestGroupChart(groupRows, total);
     renderBirthdayList(clubMembers, today);
     renderRoundBirthdayList(clubMembers, today);
+    renderNewestMembers(clubMembers);
   };
 
   const downloadRoundBirthdayList = () => {

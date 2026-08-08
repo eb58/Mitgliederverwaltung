@@ -125,6 +125,12 @@ export const compareIsoDateToFilterDate = (filterDate, cellValue) => {
   return 0;
 };
 
+export const getNewestMembers = (members, limit = 12) => members
+  .filter(member => parseIsoDate(member.eintrittsdatum))
+  .toSorted((a, b) => b.eintrittsdatum.localeCompare(a.eintrittsdatum)
+    || germanCollator.compare(formatMemberName(a), formatMemberName(b)))
+  .slice(0, limit);
+
 export const getNextBirthday = (member, today = new Date()) => {
   if (!member.geburtstag || typeof member.geburtstag !== "string") return null;
   const [birthYear, month, day] = member.geburtstag.split("-").map(Number);
