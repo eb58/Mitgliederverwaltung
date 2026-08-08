@@ -20,8 +20,8 @@ http://localhost/mitgliederverwaltung/
 Die Mitgliederverwaltung liefert nur ihre App-Artefakte und ihr Datenbankschema:
 
 - Frontend-Build nach `C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung`
-- PHP-API aus `php-api/`
-- MySQL-Schema aus `db/schema.mysql.sql`
+- PHP-API aus `server/`
+- MySQL-Schema aus `server/db/schema.mysql.sql`
 
 ## Voraussetzungen
 
@@ -53,7 +53,7 @@ C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung
 Gemeinsamen Webcontainer mit der lokalen Ergaenzung starten oder neu erstellen:
 
 ```powershell
-docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\docker-compose.local.yml up -d --no-deps --force-recreate web
+docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\server\docker-compose.local.yml up -d --no-deps --force-recreate web
 ```
 
 Die Anwendung ist danach erreichbar unter:
@@ -70,7 +70,7 @@ Der gemeinsame Webserver muss die PHP-API unter diesem Pfad sehen:
 C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung\php-api
 ```
 
-`docker-compose.local.yml` bindet `php-api/` direkt an dieser Stelle ein. Aenderungen am Backend sind deshalb ohne Kopieren und ohne Container-Neustart verfuegbar.
+`server/docker-compose.local.yml` bindet `server/` direkt an dieser Stelle ein. Aenderungen am Backend sind deshalb ohne Kopieren und ohne Container-Neustart verfuegbar.
 
 Die API liest ihre Datenbankkonfiguration aus Umgebungsvariablen:
 
@@ -95,7 +95,7 @@ mitgliederverwaltung
 Das zusammengefasste Initialschema liegt im Projekt:
 
 ```text
-db/schema.mysql.sql
+server/db/schema.mysql.sql
 ```
 
 Es erstellt:
@@ -117,7 +117,7 @@ docker exec gradi-db mariadb -uroot -pchangeme!! -e "CREATE DATABASE IF NOT EXIS
 Danach das Schema zuerst unveraendert in den Container kopieren und dort importieren:
 
 ```powershell
-docker cp .\db\schema.mysql.sql gradi-db:/tmp/mitgliederverwaltung-schema.sql
+docker cp .\server\db\schema.mysql.sql gradi-db:/tmp/mitgliederverwaltung-schema.sql
 docker exec gradi-db sh -c "mariadb --default-character-set=utf8mb4 -uroot -pchangeme!! mitgliederverwaltung < /tmp/mitgliederverwaltung-schema.sql"
 ```
 
@@ -131,7 +131,7 @@ changeme!!
 
 ## Admin-Benutzer
 
-`db/schema.mysql.sql` enthaelt einen lokalen Entwicklungsbenutzer:
+`server/db/schema.mysql.sql` enthaelt einen lokalen Entwicklungsbenutzer:
 
 ```text
 admin / passwd
@@ -140,7 +140,7 @@ admin / passwd
 Die Anwendung verlangt bei unsicheren Standardpasswoertern eine Passwortaenderung nach dem Login. Einen Benutzer kannst du auch per PHP-Skript setzen:
 
 ```powershell
-php php-api/create-user.php admin dein-passwort admin
+php server/create-user.php admin dein-passwort admin
 ```
 
 Im Container entsprechend:
@@ -171,7 +171,7 @@ http://localhost/mitgliederverwaltung/
 
 ## Hinweise
 
-- `docker-compose.local.yml` erweitert die Compose-Datei des Gratulationsdienstes; sie startet keinen zweiten Webserver.
+- `server/docker-compose.local.yml` erweitert die Compose-Datei des Gratulationsdienstes; sie startet keinen zweiten Webserver.
 - Der lokale Webserver ist der gemeinsame Docker-Container.
 - Das SQL-Schema bleibt im Projekt, damit Neuinstallationen reproduzierbar sind.
 - Nach Frontend-Aenderungen reicht `npm.cmd run build`.

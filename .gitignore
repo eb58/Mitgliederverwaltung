@@ -4,8 +4,8 @@ node_modules/
 dist/
 dist-check/
 .vite/
-playwright-report/
-test-results/
+tests/playwright-report/
+tests/results/
 .playwright/
 .deploy/
 .electron-builder-cache/
@@ -25,10 +25,10 @@ backup*.sql
 tmp/
 docker/
 lib/*.jar
-db/changelog/data/
-php-api/config.local.php
-php-api/setup-user-once.php
+server/db/changelog/data/
+server/config.local.php
+server/setup-user-once.php
 member-api.config.json
-db/import/
-tools/phpunit.phar
-.phpunit.result.cache
+server/db/import/
+tests/tools/phpunit.phar
+tests/.cache/

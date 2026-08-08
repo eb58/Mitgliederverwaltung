@@ -1,9 +1,9 @@
 services:
   web:
     volumes:
-      - ../../Mitgliederverwaltung/apache-local.conf:/etc/apache2/sites-available/000-default.conf:ro
+      - ../../Mitgliederverwaltung/server/apache-local.conf:/etc/apache2/sites-available/000-default.conf:ro
       - ./src/mitgliederverwaltung:/var/www/html/mitgliederverwaltung
-      - ../../Mitgliederverwaltung/php-api:/var/www/html/mitgliederverwaltung/php-api
+      - ../../Mitgliederverwaltung/server:/var/www/html/mitgliederverwaltung/php-api
     environment:
       MEMBER_DB_HOST: db
       MEMBER_DB_PORT: 3306

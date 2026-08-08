@@ -9,34 +9,39 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$buildDir = "..\Gratulationsdienst\docker\src\mitgliederverwaltung"
-$deployDir = ".deploy\mitgliederverwaltung"
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$buildDir = Join-Path $projectRoot "..\Gratulationsdienst\docker\src\mitgliederverwaltung"
+$deployDir = Join-Path $projectRoot ".deploy\mitgliederverwaltung"
 $apiFiles = @(
-    "php-api\.htaccess",
-    "php-api\apache-root.htaccess",
-    "php-api\config.php",
-    "php-api\config.local.example.php",
-    "php-api\create-user.php",
-    "php-api\index.php",
-    "php-api\lib.php",
-    "php-api\README.md"
+    ".htaccess",
+    "apache-root.htaccess",
+    "config.php",
+    "config.local.example.php",
+    "create-user.php",
+    "index.php",
+    "lib.php",
+    "README.md"
 )
 $sshOpt = "-o UpdateHostKeys=no"
 $remoteApp = "${Webroot}/${AppPath}"
 $remoteApi = "${remoteApp}/php-api"
 
 Write-Host "Baue App..." -ForegroundColor Cyan
-npm.cmd run build
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Build fehlgeschlagen." -ForegroundColor Red
-    exit 1
+Push-Location $projectRoot
+try {
+    npm.cmd run build
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Build fehlgeschlagen." -ForegroundColor Red
+        exit 1
+    }
+} finally {
+    Pop-Location
 }
 
 Write-Host "Bereite Deploy-Paket vor..." -ForegroundColor Cyan
 if (Test-Path $deployDir) {
-    $workspace = (Resolve-Path ".").Path
     $resolvedDeployDir = (Resolve-Path $deployDir).Path
-    if (!$resolvedDeployDir.StartsWith($workspace, [System.StringComparison]::OrdinalIgnoreCase)) {
+    if (!$resolvedDeployDir.StartsWith($projectRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Deploy-Verzeichnis liegt ausserhalb des Projekts: $resolvedDeployDir"
     }
     Remove-Item -LiteralPath $resolvedDeployDir -Recurse -Force
@@ -48,7 +53,7 @@ Copy-Item -Path "$buildDir\index.html" -Destination $deployDir -Force
 
 New-Item -ItemType Directory -Path "$deployDir\php-api" | Out-Null
 foreach ($file in $apiFiles) {
-    Copy-Item -Path $file -Destination "$deployDir\php-api" -Force
+    Copy-Item -Path (Join-Path $PSScriptRoot $file) -Destination "$deployDir\php-api" -Force
 }
 
 if ($SkipUpload) {

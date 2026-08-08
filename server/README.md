@@ -1,4 +1,4 @@
-# PHP-API fuer die Mitgliederverwaltung
+# Server der Mitgliederverwaltung
 
 Diese API stellt die Backend-Endpunkte der Mitgliederverwaltung bereit:
 
@@ -37,10 +37,10 @@ GET    /health
 
 Voraussetzungen: PHP 8.0 oder neuer, PDO MySQL und Apache `mod_rewrite`.
 
-1. Das Frontend mit `npm.cmd run build` bauen und anschließend `index.html`, `assets/`, `vendor/` und `php-api/` in das Verzeichnis `mitgliederverwaltung/` hochladen. Alternativ kann dafür das Skript `deploy.ps1` im Projektwurzelverzeichnis verwendet werden.
-2. Den Inhalt von `php-api/apache-root.htaccess` in die `.htaccess` im Webroot uebernehmen.
-3. `php-api/config.local.example.php` als `mitgliederverwaltung/php-api/config.local.php` kopieren und DB-Zugangsdaten eintragen.
-4. Die Datei `../db/schema.mysql.sql` aus dem Repository auf der Webhoster-Datenbank einspielen.
+1. Das Frontend mit `npm.cmd run build` bauen und anschließend `index.html`, `assets/` sowie die PHP-Laufzeitdateien aus `server/` in den Zielordner `mitgliederverwaltung/php-api/` hochladen. Alternativ kann dafür `server/deploy.ps1` verwendet werden.
+2. Den Inhalt von `server/apache-root.htaccess` in die `.htaccess` im Webroot uebernehmen.
+3. `server/config.local.example.php` als `mitgliederverwaltung/php-api/config.local.php` kopieren und DB-Zugangsdaten eintragen.
+4. Die Datei `server/db/schema.mysql.sql` aus dem Repository auf der Webhoster-Datenbank einspielen.
 5. PHP-kompatiblen Login-User anlegen:
 
 ```bash
@@ -49,7 +49,7 @@ php mitgliederverwaltung/php-api/create-user.php admin dein-passwort
 
 Die PHP-API verwendet `password_hash()`/`password_verify()`.
 
-Wenn die Datenbank bereits existiert, muss sie dem Schema in `../db/schema.mysql.sql` entsprechen. Fehlende Schemaerweiterungen sind vor dem Betrieb manuell einzuspielen, zum Beispiel über phpMyAdmin.
+Wenn die Datenbank bereits existiert, muss sie dem Schema in `server/db/schema.mysql.sql` entsprechen. Fehlende Schemaerweiterungen sind vor dem Betrieb manuell einzuspielen, zum Beispiel über phpMyAdmin.
 
 ## Betrieb ohne mod_rewrite
 
@@ -61,7 +61,7 @@ Wenn `mod_rewrite` beim Hoster nicht funktioniert, kann die API direkt ueber `in
 }
 ```
 
-Die Datei `../member-api.config.example.json` ist als Vorlage im Repository enthalten.
+Die Datei `config/member-api.config.example.json` ist als Vorlage im Repository enthalten.
 
 ## Schnelltest
 

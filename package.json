@@ -12,9 +12,9 @@
     "test:unit": "node --test tests/unit/*.test.js",
     "test:coverage": "node --test --experimental-test-coverage tests/unit/*.test.js",
     "test:unit:watch": "node --test --watch tests/unit/*.test.js",
-    "test:php": "node tools/ensure-phpunit.mjs && php tools/phpunit.phar --configuration phpunit.xml",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
+    "test:php": "node tests/tools/ensure-phpunit.mjs && php tests/tools/phpunit.phar --configuration tests/phpunit.xml",
+    "test:e2e": "playwright test --config tests/playwright.config.js",
+    "test:e2e:ui": "playwright test --config tests/playwright.config.js --ui",
     "hooks:install": "git config core.hooksPath .githooks"
   },
   "devDependencies": {

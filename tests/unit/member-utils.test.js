@@ -22,7 +22,7 @@ import {
   percent,
   roundCurrency,
   sumPaymentsInBusinessYear
-} from "../../member-utils.js";
+} from "../../src/member-utils.js";
 
 describe("Datumslogik", () => {
   it("bestimmt das Geschäftsjahr von November bis Oktober", () => {

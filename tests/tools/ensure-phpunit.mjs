@@ -26,4 +26,4 @@ const download = url => new Promise((resolve, reject) => {
 
 console.log("Lade PHPUnit herunter (einmalig, nicht Teil des Repos)...");
 await download("https://phar.phpunit.de/phpunit-11.phar");
-console.log("PHPUnit bereit unter tools/phpunit.phar");
+console.log("PHPUnit bereit unter tests/tools/phpunit.phar");

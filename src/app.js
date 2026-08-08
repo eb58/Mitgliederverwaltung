@@ -4,7 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { Modal, Tab } from "bootstrap";
 import { AllCommunityModule, ModuleRegistry, createGrid as createAgGrid, themeQuartz } from "ag-grid-community";
 import Chart from "chart.js/auto";
-import "./styles.css";
+import "../styles.css";
 import {
   asBoolean,
   calculateAge,

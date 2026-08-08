@@ -1,4 +1,4 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/../../php-api/lib.php';
+require __DIR__ . '/../../server/lib.php';

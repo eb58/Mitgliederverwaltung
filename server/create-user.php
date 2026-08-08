@@ -10,7 +10,7 @@ if (PHP_SAPI !== 'cli') {
 
 [$script, $username, $password] = array_pad($argv, 3, null);
 if (!$username || !$password) {
-    fwrite(STDERR, "Usage: php php-api/create-user.php <username> <password> [role]\n");
+    fwrite(STDERR, "Usage: php server/create-user.php <username> <password> [role]\n");
     exit(1);
 }
 
