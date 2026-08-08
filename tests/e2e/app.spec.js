@@ -139,13 +139,25 @@ test("Spaltenfilter sind sichtbar und lassen sich zurücksetzen", async ({ page 
 
   const nameFloatingFilter = page.locator('#overviewGrid .ag-floating-filter[col-id="name"]');
   const nameFilter = nameFloatingFilter.getByRole("textbox");
+  const clearButton = nameFloatingFilter.getByRole("button", { name: "Filter löschen" });
   await expect(nameFilter).toBeVisible();
-  await nameFilter.fill("Müller");
-  await expect(page.locator("#overviewGrid .ag-center-cols-container")).toContainText("Müller");
-  await expect(page.locator("#overviewGrid .ag-center-cols-container")).not.toContainText("Gästefreund");
+  await expect(clearButton).toHaveCount(0);
+  await nameFilter.fill("Kein Treffer");
+  await expect(page.locator("#overviewGrid .ag-center-cols-container")).not.toContainText("Müller");
+  await expect(clearButton).toBeVisible();
 
+  await clearButton.click();
+  await expect(clearButton).toHaveCount(0);
+  await expect(nameFilter).toHaveValue("");
+  await expect(page.locator("#overviewGrid .ag-center-cols-container")).toContainText("Müller");
+
+  await nameFilter.fill("Müller");
   await nameFloatingFilter.getByRole("button", { name: "Filtermenü öffnen" }).click();
-  await expect(page.getByRole("button", { name: "Zurücksetzen", exact: true })).toBeVisible();
+  const resetButton = page.getByRole("button", { name: "Zurücksetzen", exact: true });
+  await expect(resetButton).toBeVisible();
+  await resetButton.click();
+  await expect(resetButton).toBeHidden();
+  await expect(nameFilter).toHaveValue("");
 });
 
 test("Vereinsmaske stapelt Ausweis direkt unter Funktion", async ({ page }) => {

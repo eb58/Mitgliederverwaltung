@@ -270,6 +270,49 @@ const initGrids = () => {
   gridApis.guests = createGrid("guests", "guestsGrid", getGuestsColumns(), { rowClassRules: {} });
 };
 
+const wireGridFilterControls = (gridDiv, api) => {
+  const syncClearButtons = () => {
+    const filterModel = api.getFilterModel();
+    gridDiv.querySelectorAll(".ag-floating-filter[col-id]").forEach(floatingFilter => {
+      const columnId = floatingFilter.getAttribute("col-id");
+      const existingButton = floatingFilter.querySelector(":scope > .ag-floating-filter-clear-button");
+      if (!Object.hasOwn(filterModel, columnId)) {
+        existingButton?.remove();
+        return;
+      }
+      if (existingButton) return;
+
+      const clearButton = document.createElement("button");
+      clearButton.type = "button";
+      clearButton.className = "ag-floating-filter-clear-button";
+      clearButton.title = "Filter löschen";
+      clearButton.setAttribute("aria-label", "Filter löschen");
+      clearButton.textContent = "×";
+      floatingFilter.insertBefore(clearButton, floatingFilter.querySelector(":scope > .ag-floating-filter-button"));
+    });
+  };
+
+  gridDiv.addEventListener("click", async event => {
+    const target = event.target instanceof Element ? event.target : null;
+    const clearButton = target?.closest(".ag-floating-filter-clear-button");
+    if (clearButton) {
+      const columnId = clearButton.closest(".ag-floating-filter")?.getAttribute("col-id");
+      if (!columnId) return;
+      await api.setColumnFilterModel(columnId, null);
+      api.onFilterChanged();
+      return;
+    }
+
+    const resetButton = target?.closest(".ag-filter-apply-panel-button");
+    if (resetButton?.textContent.trim() === gridLocaleText.resetFilter) {
+      setTimeout(() => api.hidePopupMenu(), 0);
+    }
+  });
+  api.addEventListener("filterChanged", syncClearButtons);
+  api.addEventListener("virtualColumnsChanged", syncClearButtons);
+  syncClearButtons();
+};
+
 const createGrid = (gridKey, containerId, columnDefs, overrides = {}) => {
   const gridDiv = document.getElementById(containerId);
   const theme = createGridTheme();
@@ -310,6 +353,7 @@ const createGrid = (gridKey, containerId, columnDefs, overrides = {}) => {
   };
 
   const api = createAgGrid(gridDiv, options);
+  wireGridFilterControls(gridDiv, api);
   restoreGridColumnState(gridKey, api);
   return api;
 };

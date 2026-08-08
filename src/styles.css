@@ -361,6 +361,30 @@ body {
   border-color: var(--accent);
 }
 
+.ag-floating-filter-clear-button {
+  align-items: center;
+  align-self: center;
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 24px;
+  font-size: 1.25rem;
+  height: 24px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+
+.ag-floating-filter-clear-button:hover,
+.ag-floating-filter-clear-button:focus-visible {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  outline: none;
+}
+
 .search-input:focus,
 .form-control:focus,
 .form-select:focus {
