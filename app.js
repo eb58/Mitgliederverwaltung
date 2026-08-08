@@ -1,5 +1,10 @@
 "use strict";
 
+import "bootstrap/dist/css/bootstrap.min.css";
+import { Modal, Tab } from "bootstrap";
+import { AllCommunityModule, ModuleRegistry, createGrid as createAgGrid, themeQuartz } from "ag-grid-community";
+import Chart from "chart.js/auto";
+import "./styles.css";
 import {
   asBoolean,
   calculateAge,
@@ -21,6 +26,8 @@ import {
   roundCurrency,
   sumPaymentsInBusinessYear
 } from "./member-utils.js";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 const interestGroups = [];
 
@@ -248,8 +255,7 @@ const gridLocaleText = {
   ariaDateFilterInput: "Datumsfiltereingabe"
 };
 
-const createGridTheme = () => globalThis.agGrid?.themeQuartz?.withParams
-  ? globalThis.agGrid.themeQuartz.withParams({
+const createGridTheme = () => themeQuartz.withParams({
     accentColor: "#12807c",
     borderColor: "#d5e1de",
     browserColorScheme: "light",
@@ -260,8 +266,7 @@ const createGridTheme = () => globalThis.agGrid?.themeQuartz?.withParams
     rowHoverColor: "#eaf7f5",
     selectedRowBackgroundColor: "#d8efe8",
     wrapperBorderRadius: 16
-  })
-  : undefined;
+  });
 
 const computerGroupPatterns = [
   "computer",
@@ -345,7 +350,7 @@ const loadMemberApiBrowserConfig = async () => {
 const initApp = async () => {
   setAppShellVisible(false);
   await loadMemberApiBrowserConfig();
-  loginModal = new bootstrap.Modal(document.getElementById("loginModal"), {
+  loginModal = new Modal(document.getElementById("loginModal"), {
     backdrop: "static",
     keyboard: false
   });
@@ -356,9 +361,9 @@ const initApp = async () => {
   state.nextId = getNextId(state.members);
 
   buildMemberForm();
-  memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
-  userAdminModal = new bootstrap.Modal(document.getElementById("userAdminModal"));
-  referenceDataModal = new bootstrap.Modal(document.getElementById("referenceDataModal"));
+  memberModal = new Modal(document.getElementById("memberModal"));
+  userAdminModal = new Modal(document.getElementById("userAdminModal"));
+  referenceDataModal = new Modal(document.getElementById("referenceDataModal"));
   buildReferenceDataAdmin();
   initGrids();
   wireUi();
@@ -371,15 +376,15 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("Initialisierung fehlgeschlagen.", error);
     state.members = [];
     state.nextId = getNextId(state.members);
-    loginModal = new bootstrap.Modal(document.getElementById("loginModal"), {
+    loginModal = new Modal(document.getElementById("loginModal"), {
       backdrop: "static",
       keyboard: false
     });
     wireLoginForm();
     buildMemberForm();
-    memberModal = new bootstrap.Modal(document.getElementById("memberModal"));
-    userAdminModal = new bootstrap.Modal(document.getElementById("userAdminModal"));
-    referenceDataModal = new bootstrap.Modal(document.getElementById("referenceDataModal"));
+    memberModal = new Modal(document.getElementById("memberModal"));
+    userAdminModal = new Modal(document.getElementById("userAdminModal"));
+    referenceDataModal = new Modal(document.getElementById("referenceDataModal"));
     buildReferenceDataAdmin();
     initGrids();
     wireUi();
@@ -1153,7 +1158,7 @@ const createGrid = (gridKey, containerId, columnDefs, overrides = {}) => {
     ...overrides
   };
 
-  const api = agGrid.createGrid(gridDiv, options);
+  const api = createAgGrid(gridDiv, options);
   restoreGridColumnState(gridKey, api);
   return api;
 };
@@ -1923,9 +1928,7 @@ const createRecentChangeEntry = item => {
 
 const resetMemberFormTabs = () => {
   const firstTab = document.querySelector("#memberFormTabs .nav-link");
-  if (firstTab && window.bootstrap) {
-    bootstrap.Tab.getOrCreateInstance(firstTab).show();
-  }
+  if (firstTab) Tab.getOrCreateInstance(firstTab).show();
 };
 
 const applyPaidAmountDefault = checkboxKey => {
@@ -2271,7 +2274,7 @@ const showOpenClubPayments = () => {
   refreshAllViews();
 
   const paymentsTab = document.getElementById("payments-tab");
-  bootstrap.Tab.getOrCreateInstance(paymentsTab).show();
+  Tab.getOrCreateInstance(paymentsTab).show();
 };
 
 const updatePaymentComputerGroupToggle = () => {
@@ -2509,9 +2512,7 @@ const showOverviewWithFilter = filterModel => {
   overviewApi?.onFilterChanged?.();
 
   const overviewTab = document.getElementById("overview-tab");
-  if (overviewTab && window.bootstrap) {
-    bootstrap.Tab.getOrCreateInstance(overviewTab).show();
-  }
+  if (overviewTab) Tab.getOrCreateInstance(overviewTab).show();
 };
 
 const showOverviewForInterestGroup = group => {
