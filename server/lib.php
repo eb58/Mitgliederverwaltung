@@ -106,15 +106,31 @@ function requestPath(): string
     return '/' . ltrim($path, '/');
 }
 
-function readJsonBody(): array
+function assertMethodAllowed(string $method, array $allowed): void
 {
-    $raw = file_get_contents('php://input') ?: '';
+    if (!in_array($method, $allowed, true)) {
+        throw new ApiError('Methode nicht erlaubt.', 405);
+    }
+}
+
+function decodeJsonBody(string $raw): array
+{
     if ($raw === '') return [];
     $payload = json_decode($raw, true);
     if (!is_array($payload)) {
         throw new ApiError('Ungueltiger JSON-Body.', 400);
     }
     return $payload;
+}
+
+function readJsonBody(): array
+{
+    return decodeJsonBody(file_get_contents('php://input') ?: '');
+}
+
+function clampListLimit(mixed $value, int $default, int $max): int
+{
+    return min(max((int) ($value ?? $default), 1), $max);
 }
 
 function bearerToken(): string
@@ -257,6 +273,7 @@ function isPasswordChangeRequiredForUser(array $user, ?string $password = null):
 function handleSession(): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['POST', 'GET', 'DELETE']);
     if ($method === 'POST') {
         $body = readJsonBody();
         $statement = db()->prepare('SELECT id, username, password_hash, role, active FROM app_user WHERE username = ?');
@@ -290,16 +307,11 @@ function handleSession(): void
         }
         noContent();
     }
-
-    throw new ApiError('Methode nicht erlaubt.', 405);
 }
 
 function handleSessionPassword(array $currentUser): void
 {
-    $method = $_SERVER['REQUEST_METHOD'];
-    if (!in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
-        throw new ApiError('Methode nicht erlaubt.', 405);
-    }
+    assertMethodAllowed($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'PATCH']);
 
     $body = readJsonBody();
     $password = (string) ($body['password'] ?? $body['newPassword'] ?? '');
@@ -340,6 +352,7 @@ function handleUsersCollection(array $currentUser): void
 {
     requireAdmin($currentUser);
     $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'POST']);
 
     if ($method === 'GET') {
         $rows = db()->query('SELECT id, username, role, active FROM app_user ORDER BY username')->fetchAll();
@@ -363,8 +376,6 @@ function handleUsersCollection(array $currentUser): void
         $id = (int) db()->lastInsertId();
         jsonResponse(['user' => findUserById($id)], 201);
     }
-
-    throw new ApiError('Methode nicht erlaubt.', 405);
 }
 
 function findUserById(int $id): ?array
@@ -375,10 +386,22 @@ function findUserById(int $id): ?array
     return $user ? publicUser($user) : null;
 }
 
+function assertUserStaysUsable(array $currentUser, int $id, string $role, bool $active): void
+{
+    if ($id !== (int) $currentUser['id']) return;
+    if (!$active) {
+        throw new ApiError('Der eigene Benutzer kann nicht deaktiviert werden.', 400);
+    }
+    if ($role !== 'admin') {
+        throw new ApiError('Der eigene Benutzer muss Admin bleiben.', 400);
+    }
+}
+
 function handleUserResource(array $currentUser, int $id): void
 {
     requireAdmin($currentUser);
     $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['PUT', 'PATCH', 'DELETE']);
 
     if ($method === 'PUT' || $method === 'PATCH') {
         $existing = findUserById($id);
@@ -386,12 +409,7 @@ function handleUserResource(array $currentUser, int $id): void
         $body = readJsonBody();
         $role = normalizeUserRole($body['role'] ?? $existing['role']);
         $active = array_key_exists('active', $body) ? (bool) $body['active'] : (bool) $existing['active'];
-        if ($id === (int) $currentUser['id'] && !$active) {
-            throw new ApiError('Der eigene Benutzer kann nicht deaktiviert werden.', 400);
-        }
-        if ($id === (int) $currentUser['id'] && $role !== 'admin') {
-            throw new ApiError('Der eigene Benutzer muss Admin bleiben.', 400);
-        }
+        assertUserStaysUsable($currentUser, $id, $role, $active);
 
         $password = (string) ($body['password'] ?? '');
         if ($password !== '') {
@@ -413,8 +431,6 @@ function handleUserResource(array $currentUser, int $id): void
         if ($statement->rowCount() === 0) throw new ApiError('Benutzer nicht gefunden.', 404);
         noContent();
     }
-
-    throw new ApiError('Methode nicht erlaubt.', 405);
 }
 
 function referenceDefinitions(): array
@@ -453,9 +469,7 @@ function listReferenceItems(string $type, bool $includeInactive = false): array
 
 function handleReferenceDataOverview(array $currentUser): void
 {
-    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-        throw new ApiError('Methode nicht erlaubt.', 405);
-    }
+    assertMethodAllowed($_SERVER['REQUEST_METHOD'], ['GET']);
     $payload = [];
     foreach (referenceDefinitions() as $type => $definition) {
         $payload[$definition['listKey']] = listReferenceItems($type);
@@ -463,9 +477,8 @@ function handleReferenceDataOverview(array $currentUser): void
     jsonResponse($payload);
 }
 
-function readReferenceItemPayload(): array
+function parseReferenceItemPayload(array $body): array
 {
-    $body = readJsonBody();
     $id = (int) ($body['id'] ?? 0);
     $label = trim((string) ($body['label'] ?? $body['name'] ?? ''));
     if ($id <= 0 || $label === '') {
@@ -474,10 +487,25 @@ function readReferenceItemPayload(): array
     return ['id' => $id, 'label' => $label];
 }
 
+function readReferenceItemPayload(): array
+{
+    return parseReferenceItemPayload(readJsonBody());
+}
+
+function parseReferenceLabel(array $body): string
+{
+    $label = trim((string) ($body['label'] ?? $body['name'] ?? ''));
+    if ($label === '') {
+        throw new ApiError('Bezeichnung ist erforderlich.', 400);
+    }
+    return $label;
+}
+
 function handleReferenceDataCollection(array $currentUser, string $type): void
 {
     $definition = referenceDefinition($type);
     $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'POST']);
     if ($method === 'GET') {
         requireAdmin($currentUser);
         jsonResponse(['items' => listReferenceItems($type, true)]);
@@ -497,21 +525,18 @@ function handleReferenceDataCollection(array $currentUser, string $type): void
         $statement->execute([$item['id'], $item['label']]);
         jsonResponse(['item' => $item + ['active' => true]], 201);
     }
-    throw new ApiError('Methode nicht erlaubt.', 405);
 }
 
 function handleReferenceDataResource(array $currentUser, string $type, int $id): void
 {
     $definition = referenceDefinition($type);
     $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['PUT', 'PATCH', 'DELETE']);
     if ($method === 'PUT' || $method === 'PATCH') {
         requireAdmin($currentUser);
         $hasActiveColumn = tableHasColumn($definition['table'], 'active');
         $body = readJsonBody();
-        $label = trim((string) ($body['label'] ?? $body['name'] ?? ''));
-        if ($label === '') {
-            throw new ApiError('Bezeichnung ist erforderlich.', 400);
-        }
+        $label = parseReferenceLabel($body);
         $activeSelect = $hasActiveColumn ? 'active' : '1 AS active';
         $exists = db()->prepare("SELECT id, {$activeSelect} FROM {$definition['table']} WHERE id = ?");
         $exists->execute([$id]);
@@ -537,7 +562,6 @@ function handleReferenceDataResource(array $currentUser, string $type, int $id):
         }
         noContent();
     }
-    throw new ApiError('Methode nicht erlaubt.', 405);
 }
 
 function memberFields(): array
@@ -846,9 +870,7 @@ function auditMemberChange(int $memberId, string $action, array $changes, array 
 
 function handleMemberChanges(int $id): void
 {
-    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-        throw new ApiError('Methode nicht erlaubt.', 405);
-    }
+    assertMethodAllowed($_SERVER['REQUEST_METHOD'], ['GET']);
     if (!findMemberById($id)) throw new ApiError('Mitglied nicht gefunden.', 404);
     if (!tableExists('mitglied_aenderung')) {
         jsonResponse(['changes' => []]);
@@ -894,14 +916,12 @@ function memberChangeRowToApi(array $row): array
 
 function handleRecentMemberChanges(): void
 {
-    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-        throw new ApiError('Methode nicht erlaubt.', 405);
-    }
+    assertMethodAllowed($_SERVER['REQUEST_METHOD'], ['GET']);
     if (!tableExists('mitglied_aenderung')) {
         jsonResponse(['changes' => []]);
     }
 
-    $limit = min(max((int) ($_GET['limit'] ?? 100), 1), 200);
+    $limit = clampListLimit($_GET['limit'] ?? null, 100, 200);
     $statement = db()->prepare(
         'SELECT a.id, a.mitglied_id, a.aktion, a.geaendert_am, a.geaendert_von_user_id, a.geaendert_von_name,
                 a.aenderungen_json, m.id AS mitglied_existiert, m.name, m.vorname
@@ -915,20 +935,25 @@ function handleRecentMemberChanges(): void
     jsonResponse(['changes' => array_map('memberChangeRowToApi', $statement->fetchAll())]);
 }
 
+function buildMemberSearchFilter(mixed $search): array
+{
+    $term = trim((string) ($search ?? ''));
+    if ($term === '') return ['where' => '', 'params' => []];
+    $value = '%' . $term . '%';
+    return [
+        'where' => ' WHERE (m.name LIKE ? OR m.vorname LIKE ? OR m.email LIKE ? OR m.telefon LIKE ? OR m.handy LIKE ?)',
+        'params' => array_fill(0, 5, $value),
+    ];
+}
+
 function handleMembersCollection(array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'POST']);
     if ($method === 'GET') {
-        $limit = min(max((int) ($_GET['limit'] ?? 50), 1), 500);
+        $limit = clampListLimit($_GET['limit'] ?? null, 50, 500);
         $offset = max((int) ($_GET['offset'] ?? 0), 0);
-        $params = [];
-        $where = '';
-        $search = trim((string) ($_GET['search'] ?? ''));
-        if ($search !== '') {
-            $where = ' WHERE (m.name LIKE ? OR m.vorname LIKE ? OR m.email LIKE ? OR m.telefon LIKE ? OR m.handy LIKE ?)';
-            $value = '%' . $search . '%';
-            $params = [$value, $value, $value, $value, $value];
-        }
+        ['where' => $where, 'params' => $params] = buildMemberSearchFilter($_GET['search'] ?? '');
         $statement = db()->prepare(baseSelect() . $where . ' ORDER BY m.name, m.vorname LIMIT ? OFFSET ?');
         $statement->execute([...$params, $limit, $offset]);
         jsonResponse(['members' => array_map('rowToMember', $statement->fetchAll())]);
@@ -955,13 +980,12 @@ function handleMembersCollection(array $currentUser): void
         }
         jsonResponse(['member' => findMemberById((int) $member['id'])], 201);
     }
-
-    throw new ApiError('Methode nicht erlaubt.', 405);
 }
 
 function handleMemberResource(int $id, array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'PUT', 'PATCH', 'DELETE']);
     if ($method === 'GET') {
         $member = findMemberById($id);
         if (!$member) throw new ApiError('Mitglied nicht gefunden.', 404);
@@ -1013,8 +1037,6 @@ function handleMemberResource(int $id, array $currentUser): void
         }
         noContent();
     }
-
-    throw new ApiError('Methode nicht erlaubt.', 405);
 }
 
 function insertMember(array $member): void
@@ -1056,9 +1078,32 @@ function syncJoinTable(string $table, string $idColumn, int $memberId, array $id
     db()->prepare("INSERT INTO {$table} (mitglied_id, {$idColumn}) VALUES {$placeholders}")->execute($values);
 }
 
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+function parsePhotoJsonPayload(array $body): array
+{
+    $content = base64_decode((string) ($body['base64'] ?? ''), true);
+    if ($content === false || $content === '') {
+        throw new ApiError('base64 ist erforderlich.', 400);
+    }
+    return [
+        'fileName' => (string) ($body['fileName'] ?? 'passbild.jpg'),
+        'mimeType' => (string) ($body['mimeType'] ?? 'image/jpeg'),
+        'content' => $content,
+    ];
+}
+
+function assertPhotoSize(string $content): void
+{
+    if (strlen($content) > MAX_PHOTO_BYTES) {
+        throw new ApiError('Passbild darf maximal 5 MB gross sein.', 400);
+    }
+}
+
 function handleMemberPhoto(int $id, array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'PUT', 'DELETE']);
     if ($method === 'GET') {
         $statement = db()->prepare('SELECT dateiname, mime_type, sha256, inhalt FROM mitglied_passbild WHERE mitglied_id = ?');
         $statement->execute([$id]);
@@ -1084,20 +1129,13 @@ function handleMemberPhoto(int $id, array $currentUser): void
         $hadPhoto = (bool) $photoStatement->fetchColumn();
         $contentType = $_SERVER['CONTENT_TYPE'] ?? 'application/octet-stream';
         if (str_starts_with($contentType, 'application/json')) {
-            $body = readJsonBody();
-            $fileName = (string) ($body['fileName'] ?? 'passbild.jpg');
-            $mimeType = (string) ($body['mimeType'] ?? 'image/jpeg');
-            $content = base64_decode((string) ($body['base64'] ?? ''), true);
-            if ($content === false || $content === '') throw new ApiError('base64 ist erforderlich.', 400);
+            ['fileName' => $fileName, 'mimeType' => $mimeType, 'content' => $content] = parsePhotoJsonPayload(readJsonBody());
         } else {
             $fileName = rawurldecode((string) ($_SERVER['HTTP_X_FILE_NAME'] ?? 'passbild.jpg')) ?: 'passbild.jpg';
             $mimeType = explode(';', $contentType)[0] ?: 'application/octet-stream';
             $content = file_get_contents('php://input') ?: '';
         }
-        $maxBytes = 5 * 1024 * 1024;
-        if (strlen($content) > $maxBytes) {
-            throw new ApiError('Passbild darf maximal 5 MB gross sein.', 400);
-        }
+        assertPhotoSize($content);
         $sha = hash('sha256', $content);
         db()->prepare(
             "INSERT INTO mitglied_passbild (mitglied_id, dateiname, mime_type, groesse_bytes, sha256, inhalt)
@@ -1131,6 +1169,4 @@ function handleMemberPhoto(int $id, array $currentUser): void
         ]], $currentUser);
         noContent();
     }
-
-    throw new ApiError('Methode nicht erlaubt.', 405);
 }
