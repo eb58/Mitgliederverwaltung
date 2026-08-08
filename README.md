@@ -177,6 +177,12 @@ npm.cmd run test:e2e
 
 Die Unit-Tests unter `tests/unit/` prüfen die Datums-, Währungs-, Alters-, Geschäftsjahres- und URL-Logik. Die Playwright-Tests unter `tests/e2e/` starten automatisch einen Vite-Server und simulieren die API im Browser. Sie verändern deshalb weder die lokale noch die produktive Mitgliederdatenbank.
 
+Der versionierte Pre-Commit-Hook führt vor jedem Commit die vollständige Test-Suite aus und bricht den Commit bei einem Fehler ab. Er wird einmalig aktiviert mit:
+
+```powershell
+npm.cmd run hooks:install
+```
+
 Unter Windows verwendet Playwright den installierten Microsoft Edge. In einer CI- oder Linux-Umgebung muss einmalig der Chromium-Browser installiert werden:
 
 ```bash
