@@ -133,7 +133,7 @@ Für klassisches Webhosting werden diese Dateien und Ordner ausgeliefert:
 - PHP-Laufzeitdateien aus `server/` im Zielordner `php-api/`, ohne `config.local.php`
 - optional `member-api.config.json`
 
-Vor dem Upload entfernt das Skript alte Frontend-Bundles, das nicht mehr benötigte `vendor/`-Verzeichnis und veraltete API-Dateien vom Ziel. Die Datei `server/config.local.php` enthält lokale Zugangsdaten und wird bewusst nicht deployed. Auf dem Webserver muss `php-api/config.local.php` einmalig aus `server/config.local.example.php` erstellt werden. Die Details zur PHP-API, Rewrite-Regeln, Benutzeranlage und Schnelltests stehen in [server/README.md](server/README.md).
+Vor dem Upload leert das Skript das Zielverzeichnis bis auf `php-api/` und darin `config.local.php`, damit keine Reste älterer Stände liegen bleiben. Die Datei `server/config.local.php` enthält lokale Zugangsdaten und wird bewusst nicht deployed. Auf dem Webserver muss `php-api/config.local.php` einmalig aus `server/config.local.example.php` erstellt werden. Die Details zur PHP-API, Rewrite-Regeln, Benutzeranlage und Schnelltests stehen in [server/README.md](server/README.md).
 
 ## Projektstruktur
 

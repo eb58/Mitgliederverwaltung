@@ -62,7 +62,9 @@ if ($SkipUpload) {
 }
 
 Write-Host "Bereinige Zielverzeichnisse..." -ForegroundColor Cyan
-ssh -p $Port $sshOpt "${User}@${Server}" "mkdir -p '${remoteApi}' && rm -rf '${remoteApp}/assets' '${remoteApp}/vendor' && find '${remoteApi}' -mindepth 1 -maxdepth 1 ! -name 'config.local.php' -exec rm -rf -- {} \;"
+# App-Verzeichnis per Whitelist leeren statt nur assets/vendor: sonst bleiben Altlasten
+# frueherer Strukturen liegen (app.js, styles.css aus der Zeit vor dem Vite-Bundling).
+ssh -p $Port $sshOpt "${User}@${Server}" "mkdir -p '${remoteApi}' && find '${remoteApp}' -mindepth 1 -maxdepth 1 ! -name 'php-api' -exec rm -rf -- {} \; && find '${remoteApi}' -mindepth 1 -maxdepth 1 ! -name 'config.local.php' -exec rm -rf -- {} \;"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Remote-Verzeichnisse konnten nicht vorbereitet werden." -ForegroundColor Red
     exit 1
