@@ -183,6 +183,7 @@ const wireUi = () => {
   document.getElementById("logoutBtn").addEventListener("click", auth.logout);
   document.getElementById("changePasswordBtn").addEventListener("click", auth.openPasswordChange);
   document.getElementById("metricTotalBtn").addEventListener("click", () => showOverviewWithFilter(null));
+  document.getElementById("metricGuestCountBtn").addEventListener("click", showGuestOverview);
   document.getElementById("metricClubOpenBtn").addEventListener("click", showOpenClubPayments);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
@@ -913,6 +914,14 @@ const showOverviewWithFilter = filterModel => {
 
   const overviewTab = document.getElementById("overview-tab");
   if (overviewTab) Tab.getOrCreateInstance(overviewTab).show();
+};
+
+const showGuestOverview = () => {
+  clearGlobalSearch();
+  clearGridFilters(gridApis.guests);
+
+  const guestsTab = document.getElementById("guests-tab");
+  if (guestsTab) Tab.getOrCreateInstance(guestsTab).show();
 };
 
 const showOverviewForInterestGroup = group => {

@@ -132,6 +132,12 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await expect(page.locator("#newestMemberList")).toContainText("Eintritt 01.11.2025");
   await expect(page.locator("#newestMemberList .newest-member-photo")).toBeVisible();
 
+  await page.locator("#metricGuestCountBtn").click();
+  await expect(page.locator("#guests-tab")).toHaveClass(/active/);
+  await expect(page.locator("#guestsGrid")).toContainText("Gästefreund");
+  await expect(page.locator("#guestsGrid")).toContainText("Bert");
+
+  await page.locator("#dashboard-tab").click();
   await page.locator("#metricTotalBtn").click();
   await expect(page.locator("#overview-tab")).toHaveClass(/active/);
   await expect(page.locator("#overviewGrid")).toContainText("Müller");
