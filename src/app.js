@@ -182,6 +182,7 @@ const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => memberForm.open(null));
   document.getElementById("logoutBtn").addEventListener("click", auth.logout);
   document.getElementById("changePasswordBtn").addEventListener("click", auth.openPasswordChange);
+  document.getElementById("metricTotalBtn").addEventListener("click", () => showOverviewWithFilter(null));
   document.getElementById("metricClubOpenBtn").addEventListener("click", showOpenClubPayments);
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);

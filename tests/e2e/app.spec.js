@@ -132,7 +132,8 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await expect(page.locator("#newestMemberList")).toContainText("Eintritt 01.11.2025");
   await expect(page.locator("#newestMemberList .newest-member-photo")).toBeVisible();
 
-  await page.locator("#overview-tab").click();
+  await page.locator("#metricTotalBtn").click();
+  await expect(page.locator("#overview-tab")).toHaveClass(/active/);
   await expect(page.locator("#overviewGrid")).toContainText("Müller");
   await expect(page.locator("#overviewGrid")).toContainText("Anna");
   await expect(page.locator('#overviewGrid [role="columnheader"][col-id="eintrittsdatum"]')).toContainText("Eintrittsdatum");
