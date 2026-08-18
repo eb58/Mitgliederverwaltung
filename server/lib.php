@@ -1033,7 +1033,7 @@ function handleMembersCollection(array $currentUser): void
         $limit = clampListLimit($_GET['limit'] ?? null, 50, 500);
         $offset = max((int) ($_GET['offset'] ?? 0), 0);
         ['where' => $where, 'params' => $params] = buildMemberSearchFilter($_GET['search'] ?? '');
-        $statement = db()->prepare(baseSelect() . $where . ' ORDER BY m.name, m.vorname LIMIT ? OFFSET ?');
+        $statement = db()->prepare(baseSelect() . $where . ' ORDER BY m.name, m.vorname, m.id LIMIT ? OFFSET ?');
         $statement->execute([...$params, $limit, $offset]);
         jsonResponse(['members' => array_map('rowToMember', $statement->fetchAll())]);
     }

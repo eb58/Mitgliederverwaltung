@@ -40,6 +40,22 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertSame(['C'], array_column($members, 'name'));
     }
 
+    public function testMembersCollectionUsesIdAsStablePaginationTieBreaker(): void
+    {
+        TestDatabase::insertMemberRow(3, 'Müller', 'Anna');
+        TestDatabase::insertMemberRow(1, 'Müller', 'Anna');
+        TestDatabase::insertMemberRow(2, 'Müller', 'Anna');
+
+        $this->request('GET', null, ['limit' => '2']);
+        $firstPage = $this->capture(static fn() => handleMembersCollection(self::ADMIN))->payload['members'];
+
+        $this->request('GET', null, ['limit' => '2', 'offset' => '2']);
+        $secondPage = $this->capture(static fn() => handleMembersCollection(self::ADMIN))->payload['members'];
+
+        $this->assertSame([1.0, 2.0], array_column($firstPage, 'id'));
+        $this->assertSame([3.0], array_column($secondPage, 'id'));
+    }
+
     public function testMembersCollectionSearchesAcrossNameAndContactColumns(): void
     {
         TestDatabase::insertMemberRow(1, 'Müller', 'Anna', ['email' => 'anna@example.test']);

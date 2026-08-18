@@ -97,10 +97,9 @@ export const createAuth = ({
     if (loginWaitResolve) {
       loginWaitResolve(true);
       loginWaitResolve = null;
-    } else {
-      await reloadMembers();
+      return;
     }
-    setAppShellVisible(true);
+    await reloadMembers();
   };
 
   const login = async (username, password) => {

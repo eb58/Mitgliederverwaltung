@@ -54,7 +54,7 @@ const json = (route, body, status = 200) => route.fulfill({
   body: JSON.stringify(body)
 });
 
-const mockMemberApi = async page => {
+const mockMemberApi = async (page, { initialDataGate = null } = {}) => {
   const currentReferenceData = structuredClone(referenceData);
   const collections = {
     "interest-groups": { key: "interestGroups", labelKey: "label" },
@@ -74,7 +74,10 @@ const mockMemberApi = async page => {
       });
     }
     if (apiPath === "/api/session" && request.method() === "DELETE") return json(route, null, 204);
-    if (apiPath === "/api/reference-data") return json(route, currentReferenceData);
+    if (apiPath === "/api/reference-data") {
+      await initialDataGate;
+      return json(route, currentReferenceData);
+    }
     const collectionMatch = apiPath.match(/^\/api\/reference-data\/([a-z-]+)$/);
     if (collectionMatch && request.method() === "GET") {
       const collection = collections[collectionMatch[1]];
@@ -93,7 +96,10 @@ const mockMemberApi = async page => {
     }
     if (apiPath === "/api/member-changes") return json(route, { changes: [] });
     if (/^\/api\/members\/\d+\/changes$/.test(apiPath)) return json(route, { changes: [] });
-    if (apiPath === "/api/members" && request.method() === "GET") return json(route, { members });
+    if (apiPath === "/api/members" && request.method() === "GET") {
+      await initialDataGate;
+      return json(route, { members });
+    }
     if (apiPath === "/api/members" && request.method() === "POST") {
       return json(route, { member: { ...request.postDataJSON(), id: 3 } }, 201);
     }
@@ -142,6 +148,24 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await clubOpenToggle.click();
   await expect(computerToggle).toHaveAttribute("aria-pressed", "true");
   await expect(clubOpenToggle).toHaveAttribute("aria-pressed", "true");
+});
+
+test("Dashboard wird erst mit vollständig geladenen Startdaten angezeigt", async ({ page }) => {
+  let releaseInitialData;
+  const initialDataGate = new Promise(resolve => { releaseInitialData = resolve; });
+  await mockMemberApi(page, { initialDataGate });
+  await page.goto("./");
+  await page.locator("#loginUsername").fill("admin");
+  await page.locator("#loginPassword").fill("passwd");
+  await page.locator('#loginForm button[type="submit"]').click();
+
+  await expect(page.locator("#loginModal")).not.toHaveClass(/show/);
+  await expect(page.locator("#appShell")).toBeHidden();
+
+  releaseInitialData();
+  await expect(page.locator("#appShell")).toBeVisible();
+  await expect(page.locator("#metricTotal")).toHaveText("1");
+  await expect(page.locator("#groupChart")).toBeVisible();
 });
 
 test("Navigation und Dialogaktionen bleiben auf kleinen Bildschirmen erreichbar", async ({ page }) => {
