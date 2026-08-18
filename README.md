@@ -9,7 +9,6 @@ Die Anwendung besteht aus einem statischen Frontend und einer schlanken PHP-API:
 - `index.html` und `src/`: Browser-Oberfläche, von Vite mit den Frontend-Abhängigkeiten gebündelt
 - `public/assets/`: statische Bilder und App-Icon
 - `server/`: PHP-Backend, Datenbankschema sowie lokale Server- und Deployment-Konfiguration
-- `config/member-api.config.example.json`: Vorlage für eine abweichende API-Adresse
 
 Das Frontend kann lokal mit Vite entwickelt werden. Im Hosting-Betrieb werden die gebauten oder statischen Dateien zusammen mit der PHP-API ausgeliefert.
 
@@ -100,15 +99,9 @@ Eine ausführlichere Schritt-für-Schritt-Anleitung steht in [docs/INSTALLATIONS
 
 ## API-Konfiguration
 
-Standardmäßig erwartet das Frontend die API relativ zur Anwendung. Wenn die API an einer anderen Adresse liegt oder ohne `mod_rewrite` betrieben wird, kann eine lokale Konfiguration angelegt werden:
+Das Frontend spricht die API immer relativ zur Anwendung unter `php-api/index.php` an, also direkt an `mod_rewrite` vorbei. Antwortet diese Adresse nicht, probiert `src/member-api.js` die aus `location.origin` abgeleitete Variante als Rückfallebene. Eine Konfigurationsdatei ist dafür nicht nötig.
 
-```json
-{
-  "memberApiBaseUrl": "https://deine-domain.example/mitgliederverwaltung/php-api/index.php"
-}
-```
-
-Als Vorlage liegt `config/member-api.config.example.json` im Repository.
+Soll die API auf einer anderen Domain liegen, gehört die Adresse zur Buildzeit ins Bundle (`PHP_MEMBER_API_BASE_PATH` in `src/member-api.js` bzw. eine Vite-Umgebungsvariable) – nicht in eine Datei, die der Browser bei jedem Start zusätzlich laden muss.
 
 ## Deployment
 
@@ -131,7 +124,6 @@ Für klassisches Webhosting werden diese Dateien und Ordner ausgeliefert:
 - `index.html`
 - `assets/`
 - PHP-Laufzeitdateien aus `server/` im Zielordner `php-api/`, ohne `config.local.php`
-- optional `member-api.config.json`
 
 Vor dem Upload leert das Skript das Zielverzeichnis bis auf `php-api/` und darin `config.local.php`, damit keine Reste älterer Stände liegen bleiben. Die Datei `server/config.local.php` enthält lokale Zugangsdaten und wird bewusst nicht deployed. Auf dem Webserver muss `php-api/config.local.php` einmalig aus `server/config.local.example.php` erstellt werden. Die Details zur PHP-API, Rewrite-Regeln, Benutzeranlage und Schnelltests stehen in [server/README.md](server/README.md).
 
@@ -141,7 +133,6 @@ Vor dem Upload leert das Skript das Zielverzeichnis bis auf `php-api/` und darin
 .
 |-- index.html                     # App-Shell und Modals
 |-- package.json                   # Vite-Skripte und Frontend-Abhängigkeiten
-|-- config/                        # optionale Frontend-Konfigurationen
 |-- docs/                          # Installations- und Betriebsanleitungen
 |-- public/
 |   `-- assets/                    # App-Icon und Bilder

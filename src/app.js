@@ -57,7 +57,6 @@ const {
   deleteReferenceItem: deleteReferenceItemViaApi,
   fetchMemberPhotoObjectUrl,
   invalidateMemberPhotoCache,
-  loadBrowserConfig: loadMemberApiBrowserConfig,
   loadMemberChanges: loadMemberChangesViaApi,
   loadMembers: loadMembersFromApi,
   loadRecentMemberChanges: loadRecentMemberChangesViaApi,
@@ -140,7 +139,6 @@ const {
 
 const initApp = async () => {
   setAppShellVisible(false);
-  await loadMemberApiBrowserConfig();
   auth.init();
   await auth.ensureAuthenticated();
   const [, loadedMembers] = await Promise.all([referenceAdmin.load(), loadStoredMembers()]);

@@ -2,10 +2,8 @@ import { fieldDefinitions } from "./member-config.js";
 import { normalizeMember } from "./member-domain.js";
 import { createMemberApiUrlForBase } from "./member-utils.js";
 
-const MEMBER_API_BROWSER_CONFIG_FILE_NAME = "member-api.config.json";
 const PHP_MEMBER_API_BASE_PATH = "/mitgliederverwaltung/php-api/index.php";
 const MEMBER_API_PAGE_SIZE = 500;
-const isLocalBrowserHost = () => ["localhost", "127.0.0.1", "::1"].includes(globalThis.location.hostname);
 const defaultBaseUrl = () => globalThis.location.protocol.startsWith("http")
   ? new URL(PHP_MEMBER_API_BASE_PATH, globalThis.location.origin).toString()
   : "https://senioren-luebars.berlin/mitgliederverwaltung/php-api/index.php";
@@ -13,18 +11,6 @@ const defaultBaseUrl = () => globalThis.location.protocol.startsWith("http")
 export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
   let baseUrl = defaultBaseUrl();
   const memberPhotoCache = new Map();
-
-  const loadBrowserConfig = async () => {
-    if (!globalThis.location.protocol.startsWith("http") || isLocalBrowserHost()) return;
-    try {
-      const response = await fetch(MEMBER_API_BROWSER_CONFIG_FILE_NAME, { cache: "no-store" });
-      if (!response.ok) return;
-      const configuredBaseUrl = String((await response.json()).memberApiBaseUrl || "").trim();
-      if (configuredBaseUrl) baseUrl = configuredBaseUrl;
-    } catch (error) {
-      console.warn("API-Browser-Konfiguration konnte nicht gelesen werden.", error);
-    }
-  };
 
   const createUrl = (path, params = {}) => createMemberApiUrlForBase(baseUrl, path, params);
   // X-Auth-Token zusaetzlich, weil manche Hoster den Authorization-Header nicht an PHP durchreichen.
@@ -162,7 +148,6 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     deleteReferenceItem: (type, id) => request(`/api/reference-data/${type}/${id}`, { method: "DELETE" }),
     fetchMemberPhotoObjectUrl,
     invalidateMemberPhotoCache,
-    loadBrowserConfig,
     loadMemberChanges,
     loadMembers,
     loadRecentMemberChanges: () => request("/api/member-changes", { params: { limit: 100 } }),

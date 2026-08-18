@@ -53,15 +53,8 @@ Wenn die Datenbank bereits existiert, muss sie dem Schema in `server/db/schema.m
 
 ## Betrieb ohne mod_rewrite
 
-Wenn `mod_rewrite` beim Hoster nicht funktioniert, kann die API direkt ueber `index.php` angesprochen werden. Lege neben `index.html` im Verzeichnis `mitgliederverwaltung/` eine Datei `member-api.config.json` an:
-
-```json
-{
-  "memberApiBaseUrl": "https://deine-domain.example/mitgliederverwaltung/php-api/index.php"
-}
-```
-
-Die Datei `config/member-api.config.example.json` ist als Vorlage im Repository enthalten.
+Dafuer ist nichts einzurichten: Das Frontend spricht `php-api/index.php` von vornherein direkt an,
+die Rewrite-Regeln sind nur Komfort fuer huebschere URLs.
 
 ## Authorization-Header beim Hoster
 
