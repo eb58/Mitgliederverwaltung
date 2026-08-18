@@ -63,6 +63,29 @@ Wenn `mod_rewrite` beim Hoster nicht funktioniert, kann die API direkt ueber `in
 
 Die Datei `config/member-api.config.example.json` ist als Vorlage im Repository enthalten.
 
+## Authorization-Header beim Hoster
+
+Login funktioniert, aber jeder weitere Aufruf antwortet mit `401 Anmeldung erforderlich`?
+Dann reicht der Hoster den `Authorization`-Header nicht an PHP durch (typisch fuer
+FastCGI/CGI, sobald die `.htaccess` im API-Ordner fehlt oder nicht ausgewertet wird).
+
+Abhilfe, in dieser Reihenfolge:
+
+1. `server/.htaccess` muss im Ordner `mitgliederverwaltung/php-api/` liegen - sie setzt
+   `HTTP_AUTHORIZATION` per `SetEnvIf` und `RewriteRule`.
+2. Der Client sendet das Token zusaetzlich als `X-Auth-Token`; dieser Header kommt auch
+   ohne `.htaccess` an. Dafuer muss das Frontend neu gebaut und hochgeladen sein.
+3. Erlaubt der Hoster `AllowOverride FileInfo`, ist `CGIPassAuth On` die sauberste Loesung
+   (in `server/.htaccess` auskommentiert vorbereitet).
+
+Pruefen laesst sich das ueber `/health`: Der Endpunkt meldet `tokenReceived`, also ob das
+mitgeschickte Token den PHP-Prozess erreicht hat.
+
+```bash
+curl -H "Authorization: Bearer testtoken" https://deine-domain.example/mitgliederverwaltung/php-api/index.php/health
+# {"status":"ok","sapi":"...","tokenReceived":true}
+```
+
 ## Schnelltest
 
 ```bash

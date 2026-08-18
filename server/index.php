@@ -11,7 +11,8 @@ try {
 
     $path = requestPath();
     if ($path === '/health') {
-        jsonResponse(['status' => 'ok']);
+        // tokenReceived zeigt, ob der Hoster Authorization bzw. X-Auth-Token durchreicht.
+        jsonResponse(['status' => 'ok', 'sapi' => PHP_SAPI, 'tokenReceived' => bearerToken() !== '']);
     }
 
     if ($path === '/api/session') {

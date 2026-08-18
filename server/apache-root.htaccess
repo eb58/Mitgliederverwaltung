@@ -1,4 +1,8 @@
 RewriteEngine On
+
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 RewriteRule ^mitgliederverwaltung/api(/.*)?$ mitgliederverwaltung/php-api/index.php [QSA,L]
 RewriteRule ^mitgliederverwaltung/health$ mitgliederverwaltung/php-api/index.php [QSA,L]
 

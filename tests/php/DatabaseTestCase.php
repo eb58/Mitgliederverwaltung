@@ -17,14 +17,14 @@ abstract class DatabaseTestCase extends TestCase
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_GET = [];
         requestBody('');
-        unset($_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_SERVER['HTTP_IF_NONE_MATCH'], $_SERVER['CONTENT_TYPE'], $_SERVER['HTTP_X_FILE_NAME']);
+        unset($_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_SERVER['HTTP_X_AUTH_TOKEN'], $_SERVER['HTTP_IF_NONE_MATCH'], $_SERVER['CONTENT_TYPE'], $_SERVER['HTTP_X_FILE_NAME']);
     }
 
     protected function tearDown(): void
     {
         requestBody(null);
         $_GET = [];
-        unset($_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_SERVER['HTTP_IF_NONE_MATCH'], $_SERVER['CONTENT_TYPE'], $_SERVER['HTTP_X_FILE_NAME']);
+        unset($_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_SERVER['HTTP_X_AUTH_TOKEN'], $_SERVER['HTTP_IF_NONE_MATCH'], $_SERVER['CONTENT_TYPE'], $_SERVER['HTTP_X_FILE_NAME']);
     }
 
     protected function request(string $method, array $body = null, array $query = []): void

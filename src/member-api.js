@@ -27,6 +27,8 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
   };
 
   const createUrl = (path, params = {}) => createMemberApiUrlForBase(baseUrl, path, params);
+  // X-Auth-Token zusaetzlich, weil manche Hoster den Authorization-Header nicht an PHP durchreichen.
+  const authHeaders = token => (token ? { Authorization: `Bearer ${token}`, "X-Auth-Token": token } : {});
   const getBaseUrlCandidates = () => {
     const candidates = [baseUrl, defaultBaseUrl()];
     if (globalThis.location.protocol.startsWith("http")) {
@@ -38,7 +40,7 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
   const request = async (path, { method = "GET", params = {}, body = null, requiresAuth = true, authToken = "" } = {}) => {
     const options = { method, headers: {} };
     const token = authToken || getAuthToken();
-    if (requiresAuth && token) options.headers.Authorization = `Bearer ${token}`;
+    if (requiresAuth) Object.assign(options.headers, authHeaders(token));
     if (body !== null) {
       options.headers["Content-Type"] = "application/json";
       options.body = JSON.stringify(body);
@@ -111,7 +113,7 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     if (cachedPhoto) return cachedPhoto;
     const photoPromise = fetch(createUrl(`/api/members/${memberId}/photo`), {
       cache: "force-cache",
-      headers: { Authorization: `Bearer ${getAuthToken()}` }
+      headers: authHeaders(getAuthToken())
     }).then(async response => response.ok ? URL.createObjectURL(await response.blob()) : null).catch(error => {
       memberPhotoCache.delete(memberId);
       throw error;
@@ -137,7 +139,7 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     const response = await fetch(createUrl(`/api/members/${memberId}/photo`), {
       method: "PUT",
       headers: {
-        Authorization: `Bearer ${getAuthToken()}`,
+        ...authHeaders(getAuthToken()),
         "Content-Type": file.type || "application/octet-stream",
         "X-File-Name": encodeURIComponent(file.name)
       },

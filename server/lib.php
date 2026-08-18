@@ -86,7 +86,7 @@ function sendCorsHeaders(): void
 {
     header('Access-Control-Allow-Origin: ' . config()['cors_origin']);
     header('Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS');
-    header('Access-Control-Allow-Headers: Authorization,Content-Type,X-File-Name');
+    header('Access-Control-Allow-Headers: Authorization,Content-Type,X-Auth-Token,X-File-Name');
 }
 
 /**
@@ -194,14 +194,28 @@ function clampListLimit(mixed $value, int $default, int $max): int
     return min(max((int) ($value ?? $default), 1), $max);
 }
 
+function authorizationHeader(): string
+{
+    foreach (['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION', 'REDIRECT_REDIRECT_HTTP_AUTHORIZATION'] as $key) {
+        if (!empty($_SERVER[$key])) return (string) $_SERVER[$key];
+    }
+    if (function_exists('apache_request_headers')) {
+        $headers = array_change_key_case(apache_request_headers());
+        return (string) ($headers['authorization'] ?? '');
+    }
+    return '';
+}
+
+/**
+ * Etliche Hoster reichen den Authorization-Header nicht an PHP durch (FastCGI/CGI
+ * entfernt ihn, wenn .htaccess ihn nicht explizit weiterreicht). Der Client sendet
+ * das Token deshalb zusaetzlich als X-Auth-Token - der Header kommt immer an.
+ */
 function bearerToken(): string
 {
-    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
-    if (!$header && function_exists('apache_request_headers')) {
-        $headers = apache_request_headers();
-        $header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-    }
-    return preg_match('/^Bearer\s+(.+)$/i', $header, $matches) ? $matches[1] : '';
+    return preg_match('/^Bearer\s+(.+)$/i', authorizationHeader(), $matches)
+        ? trim($matches[1])
+        : trim((string) ($_SERVER['HTTP_X_AUTH_TOKEN'] ?? ''));
 }
 
 function base64UrlEncode(string $bytes): string
@@ -214,22 +228,28 @@ function tokenHash(string $token): string
     return hash('sha256', $token);
 }
 
+/**
+ * Ablaufzeit in SQL berechnen: Bei unterschiedlichen Zeitzonen von PHP und
+ * Datenbank waere eine in PHP berechnete Zeit gegenueber NOW() sofort abgelaufen.
+ */
+function sessionExpiresAtSql(): string
+{
+    return 'DATE_ADD(NOW(), INTERVAL ' . (int) config()['auth']['session_ttl_seconds'] . ' SECOND)';
+}
+
 function createSession(array $user): string
 {
     $token = base64UrlEncode(random_bytes(32));
-    $expiresAt = (new DateTimeImmutable())
-        ->modify('+' . config()['auth']['session_ttl_seconds'] . ' seconds')
-        ->format('Y-m-d H:i:s');
     if (tableHasColumn('app_session', 'password_change_required')) {
         $statement = db()->prepare(
-            'INSERT INTO app_session (token_hash, user_id, password_change_required, expires_at) VALUES (?, ?, ?, ?)'
+            'INSERT INTO app_session (token_hash, user_id, password_change_required, expires_at) VALUES (?, ?, ?, ' . sessionExpiresAtSql() . ')'
         );
-        $statement->execute([tokenHash($token), $user['id'], !empty($user['passwordChangeRequired']) ? 1 : 0, $expiresAt]);
+        $statement->execute([tokenHash($token), $user['id'], !empty($user['passwordChangeRequired']) ? 1 : 0]);
         return $token;
     }
 
-    $statement = db()->prepare('INSERT INTO app_session (token_hash, user_id, expires_at) VALUES (?, ?, ?)');
-    $statement->execute([tokenHash($token), $user['id'], $expiresAt]);
+    $statement = db()->prepare('INSERT INTO app_session (token_hash, user_id, expires_at) VALUES (?, ?, ' . sessionExpiresAtSql() . ')');
+    $statement->execute([tokenHash($token), $user['id']]);
     return $token;
 }
 
@@ -254,10 +274,8 @@ function requireAuth(): array
         throw new ApiError('Anmeldung erforderlich.', 401);
     }
 
-    $expiresAt = (new DateTimeImmutable())
-        ->modify('+' . config()['auth']['session_ttl_seconds'] . ' seconds')
-        ->format('Y-m-d H:i:s');
-    db()->prepare('UPDATE app_session SET expires_at = ? WHERE token_hash = ?')->execute([$expiresAt, tokenHash($token)]);
+    db()->prepare('UPDATE app_session SET expires_at = ' . sessionExpiresAtSql() . ' WHERE token_hash = ?')
+        ->execute([tokenHash($token)]);
     return [
         'id' => (int) $user['id'],
         'username' => $user['username'],

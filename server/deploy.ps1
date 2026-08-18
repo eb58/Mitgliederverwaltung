@@ -76,7 +76,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Lade PHP-API hoch..." -ForegroundColor Cyan
-scp -P $Port $sshOpt "$deployDir\php-api\*" "${User}@${Server}:${remoteApi}/"
+# Dateien einzeln auflisten statt "*": scp expandiert Wildcards POSIX-artig und
+# liesse dabei Punktdateien wie .htaccess aus - dann fehlt der Authorization-Passthrough.
+$uploadFiles = $apiFiles | ForEach-Object { Join-Path "$deployDir\php-api" $_ }
+scp -P $Port $sshOpt @uploadFiles "${User}@${Server}:${remoteApi}/"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "API-Upload fehlgeschlagen." -ForegroundColor Red
     exit 1

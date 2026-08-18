@@ -156,12 +156,23 @@ final class HandlerLogicTest extends TestCase
 
     public function testBearerTokenIsEmptyWithoutOrWithForeignScheme(): void
     {
-        unset($_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
+        unset($_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_SERVER['HTTP_X_AUTH_TOKEN']);
         $this->assertSame('', bearerToken());
 
         $_SERVER['HTTP_AUTHORIZATION'] = 'Basic abc';
         $this->assertSame('', bearerToken());
         unset($_SERVER['HTTP_AUTHORIZATION']);
+    }
+
+    public function testBearerTokenFallsBackToAuthTokenHeader(): void
+    {
+        unset($_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
+        $_SERVER['HTTP_X_AUTH_TOKEN'] = ' abc.def ';
+        $this->assertSame('abc.def', bearerToken());
+
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer vorrang';
+        $this->assertSame('vorrang', bearerToken());
+        unset($_SERVER['HTTP_AUTHORIZATION'], $_SERVER['HTTP_X_AUTH_TOKEN']);
     }
 
     public function testPublicUserCastsTypesAndDropsPasswordHash(): void
