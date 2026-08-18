@@ -54,8 +54,9 @@ const json = (route, body, status = 200) => route.fulfill({
   body: JSON.stringify(body)
 });
 
-const mockMemberApi = async (page, { initialDataGate = null } = {}) => {
+const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0 } = {}) => {
   const currentReferenceData = structuredClone(referenceData);
+  let remainingReferenceDataFailures = referenceDataFailures;
   const collections = {
     "interest-groups": { key: "interestGroups", labelKey: "label" },
     "functions": { key: "functions", labelKey: "label" },
@@ -76,6 +77,10 @@ const mockMemberApi = async (page, { initialDataGate = null } = {}) => {
     if (apiPath === "/api/session" && request.method() === "DELETE") return json(route, null, 204);
     if (apiPath === "/api/reference-data") {
       await initialDataGate;
+      if (remainingReferenceDataFailures > 0) {
+        remainingReferenceDataFailures -= 1;
+        return json(route, { error: "Stammdaten vorübergehend nicht erreichbar" }, 503);
+      }
       return json(route, currentReferenceData);
     }
     const collectionMatch = apiPath.match(/^\/api\/reference-data\/([a-z-]+)$/);
@@ -173,6 +178,18 @@ test("Dashboard wird erst mit vollständig geladenen Startdaten angezeigt", asyn
   await expect(page.locator("#appShell")).toBeVisible();
   await expect(page.locator("#metricTotal")).toHaveText("1");
   await expect(page.locator("#groupChart")).toBeVisible();
+});
+
+test("vorübergehend fehlende Stammdaten werden erneut geladen", async ({ page }) => {
+  await mockMemberApi(page, { referenceDataFailures: 1 });
+  await page.goto("./");
+  await page.locator("#loginUsername").fill("admin");
+  await page.locator("#loginPassword").fill("passwd");
+  await page.locator('#loginForm button[type="submit"]').click();
+
+  await expect(page.locator("#appShell")).toBeVisible();
+  await expect(page.locator("#metricComputerTotal")).toHaveText("1");
+  await expect(page.locator("#metricComputerPaid")).toHaveText("1 (100%)");
 });
 
 test("neun Dashboard-Kacheln öffnen die passenden Detailansichten", async ({ page }) => {

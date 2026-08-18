@@ -20,6 +20,7 @@ import {
   parseLegacyCurrency,
   parseLegacyDate,
   percent,
+  retryAsync,
   roundCurrency,
   sumPaymentsInBusinessYear
 } from "../../src/member-utils.js";
@@ -190,5 +191,32 @@ describe("API- und Listenhilfen", () => {
   it("berechnet Prozentwerte defensiv", () => {
     expect(percent(1, 3)).toBe(33);
     expect(percent(4, 0)).toBe(0);
+  });
+
+  it("wiederholt vorübergehend fehlgeschlagene asynchrone Vorgänge", async () => {
+    let attempts = 0;
+    const result = await retryAsync(async () => {
+      attempts += 1;
+      if (attempts < 3) throw new Error("vorübergehend");
+      return "geladen";
+    }, { attempts: 3, delayMs: 0 });
+
+    expect(result).toBe("geladen");
+    expect(attempts).toBe(3);
+  });
+
+  it("reicht den letzten Fehler nach allen Versuchen weiter", async () => {
+    let attempts = 0;
+    let caughtError = null;
+    try {
+      await retryAsync(async () => {
+        attempts += 1;
+        throw new Error("dauerhaft");
+      }, { attempts: 2, delayMs: 0 });
+    } catch (error) {
+      caughtError = error;
+    }
+    expect(caughtError?.message).toBe("dauerhaft");
+    expect(attempts).toBe(2);
   });
 });

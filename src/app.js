@@ -13,7 +13,8 @@ import {
   formatIsoDate,
   getBirthDateRangeForAgeBucket,
   getNextId,
-  normalizeGroupText
+  normalizeGroupText,
+  retryAsync
 } from "./member-utils.js";
 import { createMemberApi } from "./member-api.js";
 import { createMemberForm } from "./member-form.js";
@@ -142,8 +143,11 @@ const initApp = async () => {
   setAppShellVisible(false);
   auth.init();
   await auth.ensureAuthenticated();
-  const [, loadedMembers] = await Promise.all([referenceAdmin.load(), loadStoredMembers()]);
-  state.members = loadedMembers || [];
+  const [, loadedMembers] = await Promise.all([
+    retryAsync(referenceAdmin.load),
+    retryAsync(loadMembersFromApi)
+  ]);
+  state.members = loadedMembers;
   state.nextId = getNextId(state.members);
 
   memberForm.init();
@@ -989,13 +993,4 @@ const resolveMemberPhotoDataUrl = async member => {
     return fetchMemberPhotoObjectUrl(member.id);
   }
   return null;
-};
-
-const loadStoredMembers = async () => {
-  try {
-    return await loadMembersFromApi();
-  } catch (error) {
-    console.warn("Mitgliederdaten konnten nicht ueber die API geladen werden.", error);
-    return null;
-  }
 };

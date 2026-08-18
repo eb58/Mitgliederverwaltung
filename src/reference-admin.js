@@ -44,11 +44,12 @@ export const createReferenceAdmin = ({
   };
 
   const load = async () => {
-    try {
-      applyData(await loadAll());
-    } catch (error) {
-      console.warn("Stammdaten konnten nicht ueber die API geladen werden.", error);
+    const data = await loadAll();
+    const requiredCollections = ["interestGroups", "seniorClubs", "exitReasons", "functions"];
+    if (!requiredCollections.every(key => Array.isArray(data?.[key]))) {
+      throw new Error("Stammdaten-Antwort ist unvollstaendig.");
     }
+    applyData(data);
   };
 
   const loadAdminData = async () => {
