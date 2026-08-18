@@ -38,7 +38,8 @@ import {
   isActiveMember,
   isComputerGroupMember,
   isGuestMember,
-  isOpenClubPaymentMember
+  isOpenClubPaymentMember,
+  matchesPaymentMetricFilter
 } from "./member-domain.js";
 import { gridApis, state } from "./state.js";
 import { createUserAdmin } from "./user-admin.js";
@@ -184,7 +185,13 @@ const wireUi = () => {
   document.getElementById("changePasswordBtn").addEventListener("click", auth.openPasswordChange);
   document.getElementById("metricTotalBtn").addEventListener("click", () => showOverviewWithFilter(null));
   document.getElementById("metricGuestCountBtn").addEventListener("click", showGuestOverview);
+  document.getElementById("metricClubPaidBtn").addEventListener("click", () => showPayments({ metricFilter: "club-paid" }));
   document.getElementById("metricClubOpenBtn").addEventListener("click", showOpenClubPayments);
+  document.getElementById("metricComputerTotalBtn").addEventListener("click", () => showPayments({ computerGroupsOnly: true }));
+  document.getElementById("metricComputerPaidBtn").addEventListener("click", () => showPayments({ computerGroupsOnly: true, metricFilter: "computer-paid" }));
+  document.getElementById("metricComputerOpenBtn").addEventListener("click", () => showPayments({ computerGroupsOnly: true, metricFilter: "computer-open" }));
+  document.getElementById("metricMaleCountBtn").addEventListener("click", () => showOverviewForGender("m"));
+  document.getElementById("metricFemaleCountBtn").addEventListener("click", () => showOverviewForGender("w"));
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
   document.getElementById("downloadMembersBtn").addEventListener("click", downloadMembers);
@@ -364,6 +371,7 @@ const getOverviewColumns = () => [
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
+  { headerName: "Geschlecht", field: "geschlecht", hide: true },
   { headerName: "Email", field: "email", minWidth: 220 },
   { headerName: "Handy", field: "handy", minWidth: 150 },
   { headerName: "Geburtstag", field: "geburtstag", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { buttons: ["reset"], comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 140 },
@@ -561,6 +569,7 @@ const paidStatusCellRenderer = params => {
 };
 
 const togglePaymentComputerGroups = () => {
+  state.paymentMetricFilter = null;
   state.showOnlyPaymentComputerGroups = !state.showOnlyPaymentComputerGroups;
   updatePaymentComputerGroupToggle();
   updatePaymentClubOpenToggle();
@@ -568,6 +577,7 @@ const togglePaymentComputerGroups = () => {
 };
 
 const togglePaymentClubOpen = () => {
+  state.paymentMetricFilter = null;
   const shouldShowOpenOnly = !state.showOnlyOpenClubPayments;
   state.showOnlyOpenClubPayments = shouldShowOpenOnly;
   if (shouldShowOpenOnly) {
@@ -579,9 +589,10 @@ const togglePaymentClubOpen = () => {
   refreshAllViews();
 };
 
-const showOpenClubPayments = () => {
-  state.showOnlyPaymentComputerGroups = false;
-  state.showOnlyOpenClubPayments = true;
+const showPayments = ({ computerGroupsOnly = false, clubOpenOnly = false, metricFilter = null } = {}) => {
+  state.showOnlyPaymentComputerGroups = computerGroupsOnly;
+  state.showOnlyOpenClubPayments = clubOpenOnly;
+  state.paymentMetricFilter = metricFilter;
   clearGlobalSearch();
   clearGridFilters(gridApis.payments);
   updatePaymentComputerGroupToggle();
@@ -591,6 +602,8 @@ const showOpenClubPayments = () => {
   const paymentsTab = document.getElementById("payments-tab");
   Tab.getOrCreateInstance(paymentsTab).show();
 };
+
+const showOpenClubPayments = () => showPayments({ clubOpenOnly: true });
 
 const updatePaymentComputerGroupToggle = () => {
   const button = document.getElementById("togglePaymentComputerGroupsBtn");
@@ -605,7 +618,8 @@ const updatePaymentClubOpenToggle = () => {
 const filterPaymentMembers = members => {
   return members
     .filter(member => !state.showOnlyPaymentComputerGroups || isComputerGroupMember(member))
-    .filter(member => !state.showOnlyOpenClubPayments || isOpenClubPaymentMember(member));
+    .filter(member => !state.showOnlyOpenClubPayments || isOpenClubPaymentMember(member))
+    .filter(member => matchesPaymentMetricFilter(member, state.paymentMetricFilter));
 };
 
 const downloadTextFile = (fileName, lines) => {
@@ -898,6 +912,7 @@ const clearAllFilters = () => {
   Object.values(gridApis).forEach(clearGridFilters);
   state.showOnlyPaymentComputerGroups = false;
   state.showOnlyOpenClubPayments = false;
+  state.paymentMetricFilter = null;
   updatePaymentComputerGroupToggle();
   updatePaymentClubOpenToggle();
   refreshAllViews();
@@ -923,6 +938,14 @@ const showGuestOverview = () => {
   const guestsTab = document.getElementById("guests-tab");
   if (guestsTab) Tab.getOrCreateInstance(guestsTab).show();
 };
+
+const showOverviewForGender = gender => showOverviewWithFilter({
+  geschlecht: {
+    filterType: "text",
+    type: "equals",
+    filter: gender
+  }
+});
 
 const showOverviewForInterestGroup = group => {
   if (!group?.label) return;

@@ -175,6 +175,32 @@ test("Dashboard wird erst mit vollständig geladenen Startdaten angezeigt", asyn
   await expect(page.locator("#groupChart")).toBeVisible();
 });
 
+test("neun Dashboard-Kacheln öffnen die passenden Detailansichten", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await expect(page.locator("#dashboard-pane .metric-box--button")).toHaveCount(9);
+
+  const openMetric = async (buttonId, tabId) => {
+    await page.locator("#dashboard-tab").click();
+    await page.locator(buttonId).click();
+    await expect(page.locator(tabId)).toHaveClass(/active/);
+  };
+
+  await openMetric("#metricClubPaidBtn", "#payments-tab");
+  await expect(page.locator("#paymentsGrid")).toContainText("Müller");
+  await openMetric("#metricClubOpenBtn", "#payments-tab");
+  await expect(page.locator("#paymentsGrid .ag-row")).toHaveCount(0);
+  await openMetric("#metricComputerTotalBtn", "#payments-tab");
+  await expect(page.locator("#paymentsGrid")).toContainText("Müller");
+  await openMetric("#metricComputerPaidBtn", "#payments-tab");
+  await expect(page.locator("#paymentsGrid")).toContainText("Müller");
+  await openMetric("#metricComputerOpenBtn", "#payments-tab");
+  await expect(page.locator("#paymentsGrid .ag-row")).toHaveCount(0);
+  await openMetric("#metricMaleCountBtn", "#overview-tab");
+  await expect(page.locator("#overviewGrid .ag-row")).toHaveCount(0);
+  await openMetric("#metricFemaleCountBtn", "#overview-tab");
+  await expect(page.locator("#overviewGrid")).toContainText("Müller");
+});
+
 test("Navigation und Dialogaktionen bleiben auf kleinen Bildschirmen erreichbar", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 });
   await openAuthenticatedApp(page);

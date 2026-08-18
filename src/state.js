@@ -6,6 +6,7 @@ export const state = {
   editingId: null,
   showOnlyPaymentComputerGroups: false,
   showOnlyOpenClubPayments: false,
+  paymentMetricFilter: null,
   recentChanges: [],
   currentUser: null,
   authToken: localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || ""

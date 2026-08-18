@@ -92,6 +92,12 @@ export const isComputerGroupMember = member => {
   const text = normalizeGroupText(getMemberInterestGroupText(member));
   return computerGroupPatterns.some(pattern => text.includes(pattern));
 };
+export const matchesPaymentMetricFilter = (member, filter) => {
+  if (filter === "club-paid") return asBoolean(member.beitragClubBezahlt);
+  if (filter === "computer-paid") return asBoolean(member.beitragComputerBezahlt);
+  if (filter === "computer-open") return !asBoolean(member.beitragComputerBezahlt);
+  return true;
+};
 
 export const formatInterestGroups = groupIds => !groupIds?.length
   ? ""

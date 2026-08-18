@@ -33,6 +33,7 @@ import {
   isComputerGroupMember,
   isGuestMember,
   isOpenClubPaymentMember,
+  matchesPaymentMetricFilter,
   normalizeMember
 } from "../../src/member-domain.js";
 
@@ -166,6 +167,22 @@ describe("Mitgliedsstatus", () => {
     expect(isOpenClubPaymentMember({ clubzugehoerigkeit: MEMBER_CLUB_ID, beitragClubBezahlt: false })).toBe(true);
     expect(isOpenClubPaymentMember({ clubzugehoerigkeit: MEMBER_CLUB_ID, beitragClubBezahlt: -1 })).toBe(false);
     expect(isOpenClubPaymentMember({ clubzugehoerigkeit: 3, beitragClubBezahlt: false })).toBe(false);
+  });
+});
+
+describe("Dashboard-Beitragsfilter", () => {
+  const paidMember = { beitragClubBezahlt: true, beitragComputerBezahlt: true };
+  const openMember = { beitragClubBezahlt: false, beitragComputerBezahlt: false };
+
+  it("filtert bezahlte und offene Beiträge", () => {
+    expect(matchesPaymentMetricFilter(paidMember, "club-paid")).toBe(true);
+    expect(matchesPaymentMetricFilter(openMember, "club-paid")).toBe(false);
+    expect(matchesPaymentMetricFilter(paidMember, "computer-paid")).toBe(true);
+    expect(matchesPaymentMetricFilter(openMember, "computer-open")).toBe(true);
+  });
+
+  it("lässt Mitglieder ohne Dashboard-Filter durch", () => {
+    expect(matchesPaymentMetricFilter(openMember, null)).toBe(true);
   });
 });
 
