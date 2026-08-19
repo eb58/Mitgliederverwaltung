@@ -348,7 +348,7 @@ const createGrid = (gridKey, containerId, columnDefs, overrides = {}) => {
   const theme = createGridTheme();
   const options = {
     ...(theme ? { theme } : {}),
-    columnDefs,
+    columnDefs: hasSavedGridColumnState(gridKey) || columnDefs.some(col => col.sort) ? columnDefs : columnDefs.map(col => col.field === "name" ? { ...col, sort: "asc" } : col),
     rowData: [],
     defaultColDef: {
       sortable: true,
@@ -358,9 +358,6 @@ const createGrid = (gridKey, containerId, columnDefs, overrides = {}) => {
       resizable: true,
       minWidth: 120
     },
-    sortModel: [
-      { colId: "name", sort: "asc" }
-    ],
     pagination: true,
     paginationPageSize: 50,
     rowHeight: 48,
