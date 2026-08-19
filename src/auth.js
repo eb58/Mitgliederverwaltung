@@ -1,5 +1,4 @@
 import { Modal } from "bootstrap";
-import { getNextId } from "./member-utils.js";
 import { AUTH_TOKEN_STORAGE_KEY, state } from "./state.js";
 
 const PASSWORD_VISIBILITY_MS = 1000;
@@ -7,7 +6,7 @@ const PASSWORD_VISIBILITY_MS = 1000;
 export const createAuth = ({
   changeOwnPassword,
   clearMemberPhotoCache,
-  loadMembers,
+  onAuthenticated,
   refreshAllViews,
   request,
   setAppShellVisible,
@@ -84,13 +83,6 @@ export const createAuth = ({
     clearMemberPhotoCache();
   };
 
-  const reloadMembers = async () => {
-    state.members = await loadMembers();
-    state.nextId = getNextId(state.members);
-    setAppShellVisible(true);
-    refreshAllViews();
-  };
-
   const finishLogin = async () => {
     loginModal.hide();
     showLoginForm();
@@ -99,7 +91,7 @@ export const createAuth = ({
       loginWaitResolve = null;
       return;
     }
-    await reloadMembers();
+    await onAuthenticated();
   };
 
   const login = async (username, password) => {

@@ -97,7 +97,7 @@ const referenceAdmin = createReferenceAdmin({
 const auth = createAuth({
   changeOwnPassword: changeOwnPasswordViaApi,
   clearMemberPhotoCache,
-  loadMembers: loadMembersFromApi,
+  onAuthenticated: () => loadAppData(),
   refreshAllViews: () => refreshAllViews(),
   request: requestMemberApi,
   setAppShellVisible: visible => setAppShellVisible(visible),
@@ -139,39 +139,57 @@ const {
   showOverviewForInterestGroup: group => showOverviewForInterestGroup(group)
 });
 
-const initApp = async () => {
-  setAppShellVisible(false);
-  auth.init();
-  await auth.ensureAuthenticated();
+let uiInitialized = false;
+// Erst nach dem Laden der Stammdaten aufrufen: memberForm.build() baut die Auswahlfelder daraus.
+const initUiOnce = () => {
+  if (uiInitialized) return;
+  uiInitialized = true;
+  memberForm.init();
+  userAdmin.init();
+  referenceAdmin.init();
+  initGrids();
+  wireUi();
+};
+
+// Gemeinsamer Pfad fuer den Erststart und jede erneute Anmeldung, damit nach einem
+// Sitzungsablauf nicht nur die Mitglieder, sondern auch die Stammdaten wieder geladen werden.
+const loadAppData = async () => {
   const [, loadedMembers] = await Promise.all([
     retryAsync(referenceAdmin.load),
     retryAsync(loadMembersFromApi)
   ]);
   state.members = loadedMembers;
   state.nextId = getNextId(state.members);
-
-  memberForm.init();
-  userAdmin.init();
-  referenceAdmin.init();
-  initGrids();
-  wireUi();
+  initUiOnce();
   refreshAllViews();
   setAppShellVisible(true);
+};
+
+const showStartupError = message => {
+  const element = document.getElementById("startupError");
+  if (!element) return;
+  element.textContent = message;
+  element.hidden = false;
+};
+
+const initApp = async () => {
+  setAppShellVisible(false);
+  auth.init();
+  await auth.ensureAuthenticated();
+  await loadAppData();
 };
 
 document.addEventListener("DOMContentLoaded", () => {
   initApp().catch(error => {
     console.error("Initialisierung fehlgeschlagen.", error);
+    if (error?.sessionExpired) return;
     state.members = [];
     state.nextId = getNextId(state.members);
     auth.init();
-    memberForm.init();
-    userAdmin.init();
-    referenceAdmin.init();
-    initGrids();
-    wireUi();
+    initUiOnce();
     refreshAllViews();
     renderRecentChanges([], { message: "\u00c4nderungen konnten nicht geladen werden." });
+    showStartupError(`Die Anwendung konnte nicht vollstaendig geladen werden: ${error?.message || "Unbekannter Fehler"}`);
   });
 });
 

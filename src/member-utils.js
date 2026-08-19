@@ -132,7 +132,7 @@ export const retryAsync = async (operation, { attempts = 3, delayMs = 250 } = {}
     try {
       return await operation();
     } catch (error) {
-      if (attempt >= attempts) throw error;
+      if (error?.sessionExpired || attempt >= attempts) throw error;
       await new Promise(resolve => setTimeout(resolve, delayMs));
       return run(attempt + 1);
     }

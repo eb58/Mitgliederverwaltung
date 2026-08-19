@@ -1,5 +1,8 @@
 services:
   web:
+    # Port 80 gehoert dem Gratulationsdienst-Dev-Container; 8080 deckt sich mit dem Vite-Proxy.
+    ports: !override
+      - '8080:80'
     volumes:
       - ../../Mitgliederverwaltung/server/apache-local.conf:/etc/apache2/sites-available/000-default.conf:ro
       - ./src/mitgliederverwaltung:/var/www/html/mitgliederverwaltung

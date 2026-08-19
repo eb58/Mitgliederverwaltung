@@ -84,8 +84,13 @@ docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\server\do
 Die Anwendung ist danach erreichbar unter:
 
 ```text
-http://localhost/mitgliederverwaltung/
+http://localhost:8080/mitgliederverwaltung/
 ```
+
+Der Container veroeffentlicht Port 8080 statt 80, weil der Dev-Container des Gratulationsdienstes
+(`docker-compose.dev.yml`) Port 80 belegt. Laeuft dieser mit, scheitert ein Start auf Port 80 mit
+`Bind for 0.0.0.0:80 failed: port is already allocated`. Der Vite-Proxy in `vite.config.js` zeigt
+auf denselben Port, `npm run dev` nutzt also dieselbe API.
 
 Nach Frontend-Änderungen reicht `npm.cmd run build` und ein Neuladen im Browser. Änderungen unter `server/` sind durch den direkten Mount sofort verfügbar.
 

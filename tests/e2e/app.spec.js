@@ -54,7 +54,7 @@ const json = (route, body, status = 200) => route.fulfill({
   body: JSON.stringify(body)
 });
 
-const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0 } = {}) => {
+const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0, staleToken = "" } = {}) => {
   const currentReferenceData = structuredClone(referenceData);
   let remainingReferenceDataFailures = referenceDataFailures;
   const collections = {
@@ -75,6 +75,11 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
       });
     }
     if (apiPath === "/api/session" && request.method() === "DELETE") return json(route, null, 204);
+    if (apiPath === "/api/session" && request.method() === "GET") {
+      return staleToken && (request.headers()["x-auth-token"] || "") === staleToken
+        ? json(route, { error: "Anmeldung erforderlich." }, 401)
+        : json(route, { user: { id: 1, username: "admin", role: "admin", passwordChangeRequired: false } });
+    }
     if (apiPath === "/api/reference-data") {
       await initialDataGate;
       if (remainingReferenceDataFailures > 0) {
@@ -357,6 +362,26 @@ test("abgelaufene Sitzung zeigt Hinweis und führt zurück zum Login", async ({ 
   await expect(page.locator("#loginModal")).toHaveClass(/show/);
   await expect(page.locator("#loginError")).toHaveText("Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.");
   await expect(page.locator("#appShell")).toBeHidden();
+});
+
+test("abgelaufenes Token beim Start lädt nach erneuter Anmeldung auch die Stammdaten", async ({ page }) => {
+  await mockMemberApi(page, { staleToken: "abgelaufenes-token" });
+  await page.addInitScript(() => localStorage.setItem("mitgliederverwaltung:authToken", "abgelaufenes-token"));
+  await page.goto("./");
+
+  await expect(page.locator("#loginModal")).toHaveClass(/show/);
+  await page.locator("#loginUsername").fill("admin");
+  await page.locator("#loginPassword").fill("passwd");
+  await page.locator('#loginForm button[type="submit"]').click();
+  await expect(page.locator("#appShell")).toBeVisible();
+
+  // Ohne geladene Stammdaten bliebe interestGroupMap leer und die Kachel stuende auf 0.
+  await expect(page.locator("#metricComputerTotal")).toHaveText("1");
+  await expect(page.locator("#metricComputerPaid")).toHaveText("1 (100%)");
+
+  // Ohne initGrids() bliebe die Mitgliederliste leer.
+  await page.locator("#overview-tab").click();
+  await expect(page.locator("#overviewGrid")).toContainText("Müller");
 });
 
 test("Interessengruppen-Chips sind priorisiert sortiert und lassen sich ab-/anwählen", async ({ page }) => {

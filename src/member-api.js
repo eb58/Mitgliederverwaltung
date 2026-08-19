@@ -62,12 +62,13 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
       throw new Error("API hat kein JSON geliefert. Bitte API-Adresse pruefen.");
     }
     if (!response.ok) {
-      if (response.status === 401 && requiresAuth && token) {
-        onSessionExpired();
-        return new Promise(() => {});
-      }
-      const error = new Error(payload?.error || `API-Fehler ${response.status}`);
+      // Bei 401 den Aufrufer scheitern lassen, nicht haengen: ein nie aufgeloestes Promise
+      // haette den Start blockiert, bevor Stammdaten und Grids initialisiert sind.
+      const isSessionExpired = response.status === 401 && requiresAuth && Boolean(token);
+      if (isSessionExpired) onSessionExpired();
+      const error = new Error(payload?.error || (isSessionExpired ? "Sitzung abgelaufen." : `API-Fehler ${response.status}`));
       error.statusCode = response.status;
+      error.sessionExpired = isSessionExpired;
       throw error;
     }
     return payload;
