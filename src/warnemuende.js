@@ -6,6 +6,7 @@ import { MAX_SEATS, mealOptions, numberParticipants, summarizeMeals, toParticipa
 export const createWarnemuendeAdmin = ({
   createGrid,
   createParticipant,
+  deleteParticipant,
   loadParticipants,
   updateParticipant
 }) => {
@@ -82,6 +83,19 @@ export const createWarnemuendeAdmin = ({
     }
   };
 
+  const handleDelete = async participant => {
+    if (!confirm(`${participant.vorname} ${participant.name} endgültig aus der Liste löschen? Für eine Absage bitte abbrechen und den Absage-Schalter benutzen.`)) return;
+    try {
+      setError("");
+      await deleteParticipant(participant.id);
+      participants = participants.filter(entry => entry.id !== participant.id);
+      render();
+      showToast(`${participant.vorname} ${participant.name} gelöscht.`);
+    } catch (error) {
+      setError(error.message || "Teilnehmer konnte nicht gelöscht werden.");
+    }
+  };
+
   const handleSubmit = async event => {
     event.preventDefault();
     const form = event.target;
@@ -153,13 +167,46 @@ export const createWarnemuendeAdmin = ({
     }
   });
 
-  const getCancelColumn = () => ({
+  const createRowActionButton = (title, iconMarkup, onClick) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "edit-icon-btn";
+    button.title = title;
+    button.setAttribute("aria-label", title);
+    button.innerHTML = iconMarkup;
+    button.addEventListener("click", onClick);
+    return button;
+  };
+
+  const CANCEL_ICON = `
+    <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+      <circle cx="12" cy="12" r="9"></circle>
+      <line x1="6" y1="18" x2="18" y2="6"></line>
+    </svg>
+  `;
+  const UNDO_ICON = `
+    <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+      <polyline points="9 14 4 14 4 19"></polyline>
+      <path d="M4 14a8 8 0 1 0 2.3-5.7"></path>
+    </svg>
+  `;
+  const DELETE_ICON = `
+    <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+      <path d="M5 7h14"></path>
+      <path d="M10 11v6"></path>
+      <path d="M14 11v6"></path>
+      <path d="M6 7l1 13h10l1-13"></path>
+      <path d="M9 7V4h6v3"></path>
+    </svg>
+  `;
+
+  const getActionColumn = () => ({
     headerName: "",
-    colId: "absage",
+    colId: "aktionen",
     pinned: "right",
-    width: 68,
-    minWidth: 68,
-    maxWidth: 68,
+    width: 108,
+    minWidth: 108,
+    maxWidth: 108,
     cellClass: "edit-cell",
     headerClass: "edit-header",
     editable: false,
@@ -168,26 +215,17 @@ export const createWarnemuendeAdmin = ({
     suppressMovable: true,
     cellRenderer: params => {
       const cancelled = Boolean(params.data?.abgesagt);
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "edit-icon-btn";
-      button.title = cancelled ? "Absage zurücknehmen" : "Teilnehmer absagen";
-      button.setAttribute("aria-label", button.title);
-      button.innerHTML = cancelled
-        ? `
-          <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-            <polyline points="9 14 4 14 4 19"></polyline>
-            <path d="M4 14a8 8 0 1 0 2.3-5.7"></path>
-          </svg>
-        `
-        : `
-          <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-            <circle cx="12" cy="12" r="9"></circle>
-            <line x1="6" y1="18" x2="18" y2="6"></line>
-          </svg>
-        `;
-      button.addEventListener("click", () => toggleCancelled(params.data));
-      return button;
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+      actions.append(
+        createRowActionButton(
+          cancelled ? "Absage zurücknehmen" : "Teilnehmer absagen",
+          cancelled ? UNDO_ICON : CANCEL_ICON,
+          () => toggleCancelled(params.data)
+        ),
+        createRowActionButton("Teilnehmer löschen", DELETE_ICON, () => handleDelete(params.data))
+      );
+      return actions;
     }
   });
 
@@ -229,7 +267,7 @@ export const createWarnemuendeAdmin = ({
       minWidth: 120
     },
     { headerName: "Bemerkung", field: "bemerkung", minWidth: 180, flex: 1 },
-    getCancelColumn()
+    getActionColumn()
   ];
 
   const setMealField = (formSelector, containerId, meal) => {

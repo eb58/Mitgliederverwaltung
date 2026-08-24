@@ -924,6 +924,13 @@ body {
   color: #4b5660;
 }
 
+.row-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Abgesagte bleiben sichtbar, zaehlen aber nicht mehr mit. */
 .grid-host .ag-row.warnemuende-abgesagt-row .ag-cell {
   color: var(--muted);

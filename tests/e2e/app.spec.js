@@ -494,7 +494,7 @@ test("Events-Gruppe klappt Weihnachtsessen und Warnemünde auf und markiert den 
   await expect(page.locator(".sidebar__group")).not.toHaveClass(/sidebar__group--active/);
 });
 
-test("Warnemünde-Teilnehmer lassen sich anlegen, ändern und absagen", async ({ page }) => {
+test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
   await page.locator("#warnemuende-tab").click();
@@ -548,4 +548,10 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern und absagen", async ({
   await grid.locator('[row-id="2"]').getByRole("button", { name: "Absage zurücknehmen" }).click();
   await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("2");
   await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 1 · bezahlt: 1");
+
+  // Loeschen bleibt fuer Fehleintraege moeglich - endgueltig, deshalb mit Rueckfrage.
+  page.on("dialog", dialog => dialog.accept());
+  await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer löschen" }).click();
+  await expect(grid).not.toContainText("Gästefreund");
+  await expect(summary).toHaveText("1 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
 });
