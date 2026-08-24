@@ -137,36 +137,6 @@ export const createWarnemuendeAdmin = ({
     return group;
   };
 
-  const getEditColumn = () => ({
-    headerName: "",
-    colId: "bearbeiten",
-    pinned: "left",
-    width: 68,
-    minWidth: 68,
-    maxWidth: 68,
-    cellClass: "edit-cell",
-    headerClass: "edit-header",
-    editable: false,
-    sortable: false,
-    filter: false,
-    suppressMovable: true,
-    cellRenderer: params => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "edit-icon-btn";
-      button.title = "Teilnehmer bearbeiten";
-      button.setAttribute("aria-label", "Teilnehmer bearbeiten");
-      button.innerHTML = `
-        <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-          <path d="M4 20h4.8L19.1 9.7l-4.8-4.8L4 15.2V20z"></path>
-          <path d="M15.7 3.5l4.8 4.8"></path>
-        </svg>
-      `;
-      button.addEventListener("click", () => openEdit(params.data));
-      return button;
-    }
-  });
-
   const createRowActionButton = (title, iconMarkup, onClick) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -178,6 +148,12 @@ export const createWarnemuendeAdmin = ({
     return button;
   };
 
+  const EDIT_ICON = `
+    <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+      <path d="M4 20h4.8L19.1 9.7l-4.8-4.8L4 15.2V20z"></path>
+      <path d="M15.7 3.5l4.8 4.8"></path>
+    </svg>
+  `;
   const CANCEL_ICON = `
     <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
       <circle cx="12" cy="12" r="9"></circle>
@@ -203,10 +179,10 @@ export const createWarnemuendeAdmin = ({
   const getActionColumn = () => ({
     headerName: "",
     colId: "aktionen",
-    pinned: "right",
-    width: 108,
-    minWidth: 108,
-    maxWidth: 108,
+    pinned: "left",
+    width: 148,
+    minWidth: 148,
+    maxWidth: 148,
     cellClass: "edit-cell",
     headerClass: "edit-header",
     editable: false,
@@ -218,6 +194,7 @@ export const createWarnemuendeAdmin = ({
       const actions = document.createElement("div");
       actions.className = "row-actions";
       actions.append(
+        createRowActionButton("Teilnehmer bearbeiten", EDIT_ICON, () => openEdit(params.data)),
         createRowActionButton(
           cancelled ? "Absage zurücknehmen" : "Teilnehmer absagen",
           cancelled ? UNDO_ICON : CANCEL_ICON,
@@ -245,7 +222,7 @@ export const createWarnemuendeAdmin = ({
       filter: false,
       suppressMovable: true
     },
-    getEditColumn(),
+    getActionColumn(),
     { headerName: "Name", field: "name", minWidth: 150 },
     { headerName: "Vorname", field: "vorname", minWidth: 150 },
     {
@@ -266,8 +243,7 @@ export const createWarnemuendeAdmin = ({
       cellEditor: "agCheckboxCellEditor",
       minWidth: 120
     },
-    { headerName: "Bemerkung", field: "bemerkung", minWidth: 180, flex: 1 },
-    getActionColumn()
+    { headerName: "Bemerkung", field: "bemerkung", minWidth: 180, flex: 1 }
   ];
 
   const setMealField = (formSelector, containerId, meal) => {
