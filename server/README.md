@@ -55,8 +55,8 @@ php mitgliederverwaltung/php-api/create-user.php admin dein-passwort
 
 Die PHP-API verwendet `password_hash()`/`password_verify()`.
 
-Die Teilnehmerliste fuer Warnemuende wird als `server/db/warnemuende-teilnehmer.seed.sql` erzeugt und einmalig
-nach dem Schema eingespielt. Die Datei enthaelt Personendaten und ist deshalb nicht Teil des Repositorys.
+Die Teilnehmerliste fuer Warnemuende wird nicht mitgeliefert: Sie enthaelt Personendaten und wird ueber
+`/api/warnemuende-participants` bzw. direkt in der Oberflaeche gepflegt.
 
 Wenn die Datenbank bereits existiert, muss sie dem Schema in `server/db/schema.mysql.sql` entsprechen. Fehlende Schemaerweiterungen sind vor dem Betrieb manuell einzuspielen, zum Beispiel über phpMyAdmin.
 

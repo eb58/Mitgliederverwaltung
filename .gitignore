@@ -35,5 +35,5 @@ tests/.cache/
 
 # Teilnehmerdaten der Warnemuende-Fahrt bleiben lokal (Personendaten)
 warnemuende_teilnehmerliste_abgleich.csv
-server/db/warnemuende-teilnehmer.seed.sql
+server/db/*.seed.sql
 output/
