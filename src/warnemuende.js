@@ -1,7 +1,8 @@
 import { Modal } from "bootstrap";
-import { retryAsync } from "./member-utils.js";
+import { formatIsoDate, retryAsync } from "./member-utils.js";
 import { showToast } from "./ui.js";
 import { MAX_SEATS, mealOptions, numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } from "./warnemuende-domain.js";
+import { buildWarnemuendePdf, pdfToBytes } from "./warnemuende-pdf.js";
 
 export const createWarnemuendeAdmin = ({
   createGrid,
@@ -115,6 +116,17 @@ export const createWarnemuendeAdmin = ({
     } catch (error) {
       setError(error.message || "Teilnehmer konnte nicht gelöscht werden.");
     }
+  };
+
+  // Druckfassung in Anmeldereihenfolge - unabhaengig davon, wie die Tabelle gerade sortiert ist.
+  const exportPdf = () => {
+    const pdf = pdfToBytes(buildWarnemuendePdf(sortByAnmeldung(participants)));
+    const url = URL.createObjectURL(new Blob([pdf], { type: "application/pdf" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `warnemuende-teilnehmerliste-${formatIsoDate(new Date())}.pdf`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleSubmit = async event => {
@@ -378,6 +390,7 @@ export const createWarnemuendeAdmin = ({
       stopEditingWhenCellsLoseFocus: true
     });
     document.getElementById("warnemuendeForm")?.addEventListener("submit", handleSubmit);
+    document.getElementById("warnemuendeExportBtn")?.addEventListener("click", exportPdf);
     editModal = editModal || new Modal(document.getElementById("warnemuendeEditModal"));
     document.getElementById("warnemuendeEditForm")?.addEventListener("submit", handleEditSubmit);
     render();

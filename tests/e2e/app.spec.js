@@ -528,6 +528,25 @@ test("veralteter Spaltenzustand aus dem Browser überschreibt die Reihenfolge ni
   expect(number?.x).toBeLessThan(name?.x);
 });
 
+test("Teilnehmerliste lässt sich als PDF herunterladen", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#events-group-toggle").click();
+  await page.locator("#warnemuende-tab").click();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#warnemuendeExportBtn").click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(/^warnemuende-teilnehmerliste-\d{4}-\d{2}-\d{2}\.pdf$/);
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  const pdf = Buffer.concat(chunks).toString("latin1");
+  expect(pdf.startsWith("%PDF-1.4")).toBeTruthy();
+  expect(pdf).toContain(String.raw`(Teilnehmerliste Warnem\374nde) Tj`);
+  expect(pdf).toContain(String.raw`(M\374ller) Tj`);
+});
+
 test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
