@@ -1268,7 +1268,9 @@ function normalizeWarnemuendeMeal(mixed $value): string
 {
     $text = trim((string) $value);
     foreach (warnemuendeMealOptions() as $option) {
-        if (mb_stripos($text, $option) === 0) return $option;
+        // stripos genuegt: die Gerichtsnamen sind ASCII, nur die Endungen der
+        // Papierliste ("Rinderbaeckchen") tragen Umlaute - und mbstring ist beim Hoster nicht sicher da.
+        if (stripos($text, $option) === 0) return $option;
     }
     throw new ApiError('Essensauswahl muss ' . implode(', ', warnemuendeMealOptions()) . ' sein.', 400);
 }
