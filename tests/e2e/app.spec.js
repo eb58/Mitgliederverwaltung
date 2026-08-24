@@ -550,6 +550,11 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   await expect(grid).toContainText("Gästefreund");
   await expect(grid.locator('[row-id="2"] [col-id="bemerkung"]')).toHaveText("kommt später");
   await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("2");
+
+  // Die Nummer ist eine Platzangabe: nicht sortierbar, die Liste bleibt in Anmeldereihenfolge.
+  await grid.locator('[col-id="nr"].ag-header-cell').first().click();
+  await expect(grid.locator('.ag-center-cols-container [row-index="0"] [col-id="name"]')).toHaveText("Müller");
+  await expect(grid.locator('[row-id="1"] [col-id="nr"]')).toHaveText("1");
   await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 1 · Vegie: 0 · bezahlt: 0");
 
   await grid.locator('[row-id="2"] [col-id="bezahlt"] input[type="checkbox"]').click();

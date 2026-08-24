@@ -252,10 +252,10 @@ export const createWarnemuendeAdmin = ({
     {
       headerName: "Nr.",
       field: "nr",
-      sort: "asc",
+      // Die Nummer ist eine Platzangabe (voll ab Platz 49), kein Sortierkriterium:
+      // die Zeilen stehen in Anmeldereihenfolge, so wie sie geliefert werden.
+      sortable: false,
       valueFormatter: params => params.value ?? "",
-      // Abgesagte haben keine Nummer, sollen aber an ihrem Platz in der Anmeldereihenfolge bleiben.
-      comparator: (valueA, valueB, nodeA, nodeB) => (nodeA.data?.position || 0) - (nodeB.data?.position || 0),
       pinned: "left",
       width: 88,
       minWidth: 88,
@@ -344,6 +344,8 @@ export const createWarnemuendeAdmin = ({
   const init = () => {
     buildForm();
     gridApi = createGrid("warnemuende", "warnemuendeGrid", getColumns(), {
+      // Unveraendert uebernehmen: ohne eigene Sortierung wuerde createGrid sonst nach Namen sortieren.
+      columnDefs: getColumns(),
       // Ohne Blaettern bleiben die Nachruecker am Ende der Liste sichtbar.
       pagination: false,
       rowClassRules: {
