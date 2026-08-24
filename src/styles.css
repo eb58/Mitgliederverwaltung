@@ -142,10 +142,9 @@ body {
 #mainTabs #overview-tab { order: 3; }
 #mainTabs #payments-tab { order: 4; }
 #mainTabs #guests-tab { order: 5; }
-#mainTabs #christmas-tab { order: 6; }
-#mainTabs #warnemuende-tab { order: 7; }
-#mainTabs #historical-tab { order: 8; }
-#mainTabs #changes-tab { order: 9; }
+#mainTabs #historical-tab { order: 6; }
+#mainTabs #changes-tab { order: 7; }
+#mainTabs .sidebar__group { order: 8; }
 
 .sidebar__nav .nav-link {
   display: flex;
@@ -178,6 +177,55 @@ body {
   border-color: transparent;
   font-weight: 700;
   box-shadow: 0 4px 14px rgba(18, 128, 124, 0.4);
+}
+
+.sidebar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.sidebar__group-chevron {
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--sidebar-transition), opacity var(--sidebar-transition);
+}
+
+.sidebar__group-toggle[aria-expanded="true"] .sidebar__group-chevron {
+  transform: rotate(180deg);
+}
+
+/* Zeigt an, dass ein Punkt der zugeklappten Gruppe gerade offen ist. */
+.sidebar__group--active > .sidebar__group-toggle[aria-expanded="false"] {
+  color: #ffffff;
+  background: rgba(18, 128, 124, 0.45);
+}
+
+.sidebar__group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-left: 0.85rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  margin-left: 0.85rem;
+}
+
+.sidebar--collapsed .sidebar__group-chevron {
+  opacity: 0;
+  width: 0;
+}
+
+.sidebar--collapsed .sidebar__group-items {
+  padding-left: 0;
+  margin-left: 0;
+  border-left: 0;
 }
 
 .sidebar__nav-icon {

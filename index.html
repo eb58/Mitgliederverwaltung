@@ -44,14 +44,24 @@
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           <span class="sidebar__nav-label">Clubbeitrag</span>
         </button>
-        <button class="nav-link sidebar__nav-item" id="christmas-tab" data-bs-toggle="tab" data-bs-target="#christmas-pane" type="button" role="tab" aria-controls="christmas-pane" aria-selected="false">
-          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-          <span class="sidebar__nav-label">Weihnachtsessen</span>
-        </button>
-        <button class="nav-link sidebar__nav-item" id="warnemuende-tab" data-bs-toggle="tab" data-bs-target="#warnemuende-pane" type="button" role="tab" aria-controls="warnemuende-pane" aria-selected="false">
-          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 20c1.8 0 1.8-1.5 3.7-1.5S7.4 20 9.2 20s1.8-1.5 3.7-1.5S14.6 20 16.4 20s1.8-1.5 3.6-1.5"/><path d="M12 16V7"/><path d="M12 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/><path d="M6 12h12"/></svg>
-          <span class="sidebar__nav-label">Warnem&uuml;nde</span>
-        </button>
+        <div class="sidebar__group" role="presentation">
+          <button class="nav-link sidebar__nav-item sidebar__group-toggle" id="events-group-toggle" type="button"
+            aria-expanded="false" aria-controls="events-group">
+            <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+            <span class="sidebar__nav-label">Events</span>
+            <svg class="sidebar__group-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="sidebar__group-items" id="events-group" role="presentation" hidden>
+          <button class="nav-link sidebar__nav-item" id="christmas-tab" data-bs-toggle="tab" data-bs-target="#christmas-pane" type="button" role="tab" aria-controls="christmas-pane" aria-selected="false">
+            <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+            <span class="sidebar__nav-label">Weihnachtsessen</span>
+          </button>
+          <button class="nav-link sidebar__nav-item" id="warnemuende-tab" data-bs-toggle="tab" data-bs-target="#warnemuende-pane" type="button" role="tab" aria-controls="warnemuende-pane" aria-selected="false">
+            <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 20c1.8 0 1.8-1.5 3.7-1.5S7.4 20 9.2 20s1.8-1.5 3.7-1.5S14.6 20 16.4 20s1.8-1.5 3.6-1.5"/><path d="M12 16V7"/><path d="M12 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/><path d="M6 12h12"/></svg>
+            <span class="sidebar__nav-label">Warnem&uuml;nde</span>
+          </button>
+          </div>
+        </div>
         <button class="nav-link sidebar__nav-item" id="historical-tab" data-bs-toggle="tab" data-bs-target="#historical-pane" type="button" role="tab" aria-controls="historical-pane" aria-selected="false">
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span class="sidebar__nav-label">Ehemalige</span>

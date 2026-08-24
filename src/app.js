@@ -240,9 +240,12 @@ const wireUi = () => {
   updatePaymentClubOpenToggle();
   updateGlobalSearchVisibility();
 
+  wireSidebarGroups();
+
   document.querySelectorAll('#mainTabs button[data-bs-toggle="tab"]').forEach(tabButton => {
     tabButton.addEventListener("shown.bs.tab", event => {
       updateGlobalSearchVisibility(event.target.dataset.bsTarget);
+      syncSidebarGroups(event.target);
       if (event.target.dataset.bsTarget === "#changes-pane") {
         refreshRecentChanges({ force: true });
       }
@@ -277,7 +280,11 @@ const wireUi = () => {
   mobileMenuToggle.addEventListener("click", () => setMobileMenuOpen(!sidebar.classList.contains("sidebar--mobile-open")));
   sidebarBackdrop.addEventListener("click", () => setMobileMenuOpen(false));
   sidebar.addEventListener("click", event => {
-    if (isMobileLayout() && event.target.closest("button") && event.target !== sidebarToggle) setMobileMenuOpen(false);
+    const button = event.target.closest("button");
+    // Das Auf- und Zuklappen einer Gruppe ist noch keine Navigation - sonst waere das
+    // Menue auf dem Handy zu, bevor die Unterpunkte sichtbar werden.
+    if (!button || button === sidebarToggle || button.classList.contains("sidebar__group-toggle")) return;
+    if (isMobileLayout()) setMobileMenuOpen(false);
   });
   document.addEventListener("keydown", event => {
     if (event.key === "Escape" && sidebar.classList.contains("sidebar--mobile-open")) {
@@ -288,6 +295,60 @@ const wireUi = () => {
   window.addEventListener("resize", () => setMobileMenuOpen(false));
   setMobileMenuOpen(false);
 
+};
+
+const SIDEBAR_GROUP_STORAGE_PREFIX = "mitgliederverwaltung:sidebarGroup:";
+
+// Die Navigation scrollt bei kleinen Fenstern; ein frisch geoeffneter Punkt
+// darf nicht unterhalb des sichtbaren Bereichs liegen.
+const revealInSidebar = element => element?.scrollIntoView({ block: "nearest" });
+
+const setSidebarGroupOpen = (group, open, { remember = true } = {}) => {
+  const toggle = group.querySelector(".sidebar__group-toggle");
+  const items = group.querySelector(".sidebar__group-items");
+  if (!toggle || !items) return;
+  items.hidden = !open;
+  toggle.setAttribute("aria-expanded", String(open));
+  if (!remember) return;
+  try {
+    localStorage.setItem(`${SIDEBAR_GROUP_STORAGE_PREFIX}${items.id}`, String(open));
+  } catch (error) {
+    console.warn("Zustand der Navigationsgruppe konnte nicht gespeichert werden.", error);
+  }
+};
+
+// Haelt die Gruppe offen, solange einer ihrer Punkte aktiv ist - sonst verschwaende
+// ein Klick auf eine Dashboard-Kachel den gerade geoeffneten Tab aus der Navigation.
+const syncSidebarGroups = activeTab => {
+  document.querySelectorAll("#mainTabs .sidebar__group").forEach(group => {
+    const containsActiveTab = group.contains(activeTab);
+    group.classList.toggle("sidebar__group--active", containsActiveTab);
+    if (containsActiveTab) {
+      setSidebarGroupOpen(group, true);
+      revealInSidebar(activeTab);
+    }
+  });
+};
+
+const wireSidebarGroups = () => {
+  document.querySelectorAll("#mainTabs .sidebar__group").forEach(group => {
+    const toggle = group.querySelector(".sidebar__group-toggle");
+    const items = group.querySelector(".sidebar__group-items");
+    if (!toggle || !items) return;
+    let wasOpen = false;
+    try {
+      wasOpen = localStorage.getItem(`${SIDEBAR_GROUP_STORAGE_PREFIX}${items.id}`) === "true";
+    } catch (error) {
+      wasOpen = false;
+    }
+    setSidebarGroupOpen(group, wasOpen, { remember: false });
+    toggle.addEventListener("click", () => {
+      const open = items.hidden;
+      setSidebarGroupOpen(group, open);
+      if (open) revealInSidebar(items.lastElementChild);
+    });
+  });
+  syncSidebarGroups(document.querySelector("#mainTabs .nav-link.active"));
 };
 
 const updateGlobalSearchVisibility = activeTarget => {

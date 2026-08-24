@@ -462,8 +462,41 @@ test("neues Mitglied wird mit Formulardaten an die API gesendet", async ({ page 
   await expect(page.locator("#memberModal")).not.toHaveClass(/show/);
 });
 
+test("Events-Gruppe klappt Weihnachtsessen und Warnemünde auf und markiert den aktiven Punkt", async ({ page }) => {
+  await openAuthenticatedApp(page);
+
+  const changesPosition = await page.locator("#changes-tab").boundingBox();
+  const eventsPosition = await page.locator("#events-group-toggle").boundingBox();
+  expect(changesPosition?.y).toBeLessThan(eventsPosition?.y);
+
+  const toggle = page.locator("#events-group-toggle");
+  const group = page.locator("#events-group");
+  await expect(group).toBeHidden();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+  await toggle.click();
+  await expect(group).toBeVisible();
+  await expect(page.locator("#christmas-tab")).toBeVisible();
+  await expect(page.locator("#warnemuende-tab")).toBeVisible();
+
+  await page.locator("#christmas-tab").click();
+  await expect(page.locator("#christmas-pane")).toBeVisible();
+
+  // Zugeklappt mit aktivem Unterpunkt: der Gruppeneintrag zeigt, wo man gerade ist.
+  await toggle.click();
+  await expect(group).toBeHidden();
+  await expect(page.locator(".sidebar__group")).toHaveClass(/sidebar__group--active/);
+
+  await toggle.click();
+  await expect(group).toBeVisible();
+
+  await page.locator("#overview-tab").click();
+  await expect(page.locator(".sidebar__group")).not.toHaveClass(/sidebar__group--active/);
+});
+
 test("Warnemünde-Teilnehmer lassen sich anlegen, ändern und entfernen", async ({ page }) => {
   await openAuthenticatedApp(page);
+  await page.locator("#events-group-toggle").click();
   await page.locator("#warnemuende-tab").click();
 
   const grid = page.locator("#warnemuendeGrid");
