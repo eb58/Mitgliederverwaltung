@@ -32,3 +32,8 @@ member-api.config.json
 server/db/import/
 tests/tools/phpunit.phar
 tests/.cache/
+
+# Teilnehmerdaten der Warnemuende-Fahrt bleiben lokal (Personendaten)
+warnemuende_teilnehmerliste_abgleich.csv
+server/db/warnemuende-teilnehmer.seed.sql
+output/

@@ -48,6 +48,10 @@
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
           <span class="sidebar__nav-label">Weihnachtsessen</span>
         </button>
+        <button class="nav-link sidebar__nav-item" id="warnemuende-tab" data-bs-toggle="tab" data-bs-target="#warnemuende-pane" type="button" role="tab" aria-controls="warnemuende-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 20c1.8 0 1.8-1.5 3.7-1.5S7.4 20 9.2 20s1.8-1.5 3.7-1.5S14.6 20 16.4 20s1.8-1.5 3.6-1.5"/><path d="M12 16V7"/><path d="M12 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/><path d="M6 12h12"/></svg>
+          <span class="sidebar__nav-label">Warnem&uuml;nde</span>
+        </button>
         <button class="nav-link sidebar__nav-item" id="historical-tab" data-bs-toggle="tab" data-bs-target="#historical-pane" type="button" role="tab" aria-controls="historical-pane" aria-selected="false">
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span class="sidebar__nav-label">Ehemalige</span>
@@ -322,6 +326,20 @@
           <div id="christmasGrid" class="grid-host"></div>
         </div>
 
+        <div class="tab-pane fade" id="warnemuende-pane" role="tabpanel" aria-labelledby="warnemuende-tab" tabindex="0">
+          <form id="warnemuendeForm" class="grid-toolbar warnemuende-toolbar">
+            <span id="warnemuendeSummary" class="warnemuende-summary" aria-live="polite"></span>
+            <input class="form-control warnemuende-toolbar__input" name="name" type="text" placeholder="Name" aria-label="Name" required>
+            <input class="form-control warnemuende-toolbar__input" name="vorname" type="text" placeholder="Vorname" aria-label="Vorname" required>
+            <input type="hidden" name="essensauswahl" value="Zander">
+            <div id="warnemuendeEssensauswahl"></div>
+            <input class="form-control warnemuende-toolbar__input" name="bemerkung" type="text" placeholder="Bemerkung" aria-label="Bemerkung">
+            <button class="btn btn-primary" type="submit">Hinzuf&uuml;gen</button>
+          </form>
+          <div id="warnemuendeError" class="alert alert-danger" role="alert" hidden></div>
+          <div id="warnemuendeGrid" class="grid-host grid-host--with-toolbar"></div>
+        </div>
+
         <div class="tab-pane fade" id="historical-pane" role="tabpanel" aria-labelledby="historical-tab" tabindex="0">
           <div id="historicalGrid" class="grid-host"></div>
         </div>
@@ -408,6 +426,47 @@
               <tbody id="userTableBody"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="warnemuendeEditModal" tabindex="-1" aria-labelledby="warnemuendeEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="warnemuendeEditModalLabel">Teilnehmer bearbeiten</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schlie&szlig;en"></button>
+        </div>
+        <div class="modal-body">
+          <form id="warnemuendeEditForm" class="warnemuende-edit-form">
+            <div>
+              <label class="form-label" for="warnemuendeEditName">Name</label>
+              <input id="warnemuendeEditName" class="form-control" name="name" type="text" required>
+            </div>
+            <div>
+              <label class="form-label" for="warnemuendeEditVorname">Vorname</label>
+              <input id="warnemuendeEditVorname" class="form-control" name="vorname" type="text" required>
+            </div>
+            <div>
+              <span class="form-label d-block">Essensauswahl</span>
+              <input type="hidden" name="essensauswahl" value="Zander">
+              <div id="warnemuendeEditEssensauswahl"></div>
+            </div>
+            <div class="form-check">
+              <input id="warnemuendeEditBezahlt" class="form-check-input" name="bezahlt" type="checkbox">
+              <label class="form-check-label" for="warnemuendeEditBezahlt">bezahlt</label>
+            </div>
+            <div>
+              <label class="form-label" for="warnemuendeEditBemerkung">Bemerkung</label>
+              <input id="warnemuendeEditBemerkung" class="form-control" name="bemerkung" type="text">
+            </div>
+            <div class="warnemuende-edit-form__actions">
+              <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Abbrechen</button>
+              <button class="btn btn-primary" type="submit">Speichern</button>
+            </div>
+          </form>
+          <div id="warnemuendeEditError" class="login-error mt-3" role="alert" hidden></div>
         </div>
       </div>
     </div>

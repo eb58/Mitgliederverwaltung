@@ -202,3 +202,18 @@ CREATE TABLE mitglied_aenderung (
   INDEX idx_mitglied_aenderung_geaendert_am (geaendert_am),
   CONSTRAINT fk_mitglied_aenderung_user FOREIGN KEY (geaendert_von_user_id) REFERENCES app_user (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE warnemuende_teilnehmer (
+  id INT NOT NULL AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  vorname VARCHAR(120) NOT NULL,
+  essensauswahl ENUM('Zander', 'Rind', 'Vegie') NOT NULL DEFAULT 'Zander',
+  bezahlt TINYINT(1) NOT NULL DEFAULT 0,
+  bemerkung TEXT NULL,
+  mitglied_id INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_warnemuende_teilnehmer_name (name, vorname),
+  CONSTRAINT fk_warnemuende_teilnehmer_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

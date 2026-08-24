@@ -24,6 +24,12 @@ POST   /api/users
 PUT    /api/users/{id}
 PATCH  /api/users/{id}
 DELETE /api/users/{id}
+GET    /api/warnemuende-participants
+POST   /api/warnemuende-participants
+GET    /api/warnemuende-participants/{id}
+PUT    /api/warnemuende-participants/{id}
+PATCH  /api/warnemuende-participants/{id}
+DELETE /api/warnemuende-participants/{id}
 GET    /api/reference-data
 GET    /api/reference-data/{type}
 POST   /api/reference-data/{type}
@@ -48,6 +54,9 @@ php mitgliederverwaltung/php-api/create-user.php admin dein-passwort
 ```
 
 Die PHP-API verwendet `password_hash()`/`password_verify()`.
+
+Die Teilnehmerliste fuer Warnemuende wird als `server/db/warnemuende-teilnehmer.seed.sql` erzeugt und einmalig
+nach dem Schema eingespielt. Die Datei enthaelt Personendaten und ist deshalb nicht Teil des Repositorys.
 
 Wenn die Datenbank bereits existiert, muss sie dem Schema in `server/db/schema.mysql.sql` entsprechen. Fehlende Schemaerweiterungen sind vor dem Betrieb manuell einzuspielen, zum Beispiel über phpMyAdmin.
 

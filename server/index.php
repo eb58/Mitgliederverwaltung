@@ -49,6 +49,14 @@ try {
         handleReferenceDataResource($user, $matches[1], (int) $matches[2]);
     }
 
+    if ($path === '/api/warnemuende-participants') {
+        handleWarnemuendeCollection();
+    }
+
+    if (preg_match('#^/api/warnemuende-participants/(\d+)$#', $path, $matches)) {
+        handleWarnemuendeResource((int) $matches[1]);
+    }
+
     if ($path === '/api/members') {
         handleMembersCollection($user);
     }

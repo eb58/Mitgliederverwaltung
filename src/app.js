@@ -44,6 +44,7 @@ import {
 } from "./member-domain.js";
 import { gridApis, state } from "./state.js";
 import { createUserAdmin } from "./user-admin.js";
+import { createWarnemuendeAdmin } from "./warnemuende.js";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -55,8 +56,10 @@ const {
   createMember: createMemberViaApi,
   createReferenceItem: createReferenceItemViaApi,
   createUser: createUserViaApi,
+  createWarnemuendeParticipant: createWarnemuendeParticipantViaApi,
   deactivateUser: deactivateUserViaApi,
   deleteReferenceItem: deleteReferenceItemViaApi,
+  deleteWarnemuendeParticipant: deleteWarnemuendeParticipantViaApi,
   fetchMemberPhotoObjectUrl,
   invalidateMemberPhotoCache,
   loadMemberChanges: loadMemberChangesViaApi,
@@ -65,10 +68,12 @@ const {
   loadReferenceData: loadReferenceDataFromApi,
   loadReferenceItems: loadReferenceItemsFromApi,
   loadUsers: loadUsersFromApi,
+  loadWarnemuendeParticipants: loadWarnemuendeParticipantsFromApi,
   request: requestMemberApi,
   updateMember: updateMemberViaApi,
   updateReferenceItem: updateReferenceItemViaApi,
   updateUser: updateUserViaApi,
+  updateWarnemuendeParticipant: updateWarnemuendeParticipantViaApi,
   uploadMemberPhoto: uploadMemberPhotoViaApi
 } = createMemberApi({
   getAuthToken: () => state.authToken,
@@ -92,6 +97,14 @@ const referenceAdmin = createReferenceAdmin({
     refreshAllViews();
   },
   updateItem: updateReferenceItemViaApi
+});
+
+const warnemuendeAdmin = createWarnemuendeAdmin({
+  createGrid: (gridKey, containerId, columnDefs, overrides) => createGrid(gridKey, containerId, columnDefs, overrides),
+  createParticipant: createWarnemuendeParticipantViaApi,
+  deleteParticipant: deleteWarnemuendeParticipantViaApi,
+  loadParticipants: loadWarnemuendeParticipantsFromApi,
+  updateParticipant: updateWarnemuendeParticipantViaApi
 });
 
 const auth = createAuth({
@@ -156,7 +169,8 @@ const initUiOnce = () => {
 const loadAppData = async () => {
   const [, loadedMembers] = await Promise.all([
     retryAsync(referenceAdmin.load),
-    retryAsync(loadMembersFromApi)
+    retryAsync(loadMembersFromApi),
+    warnemuendeAdmin.load()
   ]);
   state.members = loadedMembers;
   state.nextId = getNextId(state.members);
@@ -298,6 +312,7 @@ const initGrids = () => {
   gridApis.christmas = createGrid("christmas", "christmasGrid", getChristmasColumns());
   gridApis.historical = createGrid("historical", "historicalGrid", getHistoricalColumns());
   gridApis.guests = createGrid("guests", "guestsGrid", getGuestsColumns(), { rowClassRules: {} });
+  gridApis.warnemuende = warnemuendeAdmin.init();
 };
 
 const wireGridFilterControls = (gridDiv, api) => {

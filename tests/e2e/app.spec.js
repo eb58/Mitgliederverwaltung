@@ -56,6 +56,7 @@ const json = (route, body, status = 200) => route.fulfill({
 
 const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0, staleToken = "" } = {}) => {
   const currentReferenceData = structuredClone(referenceData);
+  const participants = [{ id: 1, name: "Müller", vorname: "Anna", essensauswahl: "Zander", bezahlt: false, bemerkung: "", mitgliedId: 1 }];
   let remainingReferenceDataFailures = referenceDataFailures;
   const collections = {
     "interest-groups": { key: "interestGroups", labelKey: "label" },
@@ -103,6 +104,26 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
       if (!item) return json(route, { error: "Stammdatensatz nicht gefunden" }, 404);
       item[collection.labelKey] = request.postDataJSON().label;
       return json(route, { item: { id: item.id, label: item[collection.labelKey], active: true } });
+    }
+    if (apiPath === "/api/warnemuende-participants" && request.method() === "GET") {
+      await initialDataGate;
+      return json(route, { participants });
+    }
+    if (apiPath === "/api/warnemuende-participants" && request.method() === "POST") {
+      const participant = { id: Math.max(0, ...participants.map(entry => entry.id)) + 1, ...request.postDataJSON() };
+      participants.push(participant);
+      return json(route, { participant }, 201);
+    }
+    const participantMatch = apiPath.match(/^\/api\/warnemuende-participants\/(\d+)$/);
+    if (participantMatch) {
+      const index = participants.findIndex(entry => entry.id === Number(participantMatch[1]));
+      if (index < 0) return json(route, { error: "Teilnehmer nicht gefunden." }, 404);
+      if (request.method() === "DELETE") {
+        participants.splice(index, 1);
+        return json(route, null, 204);
+      }
+      participants[index] = { ...participants[index], ...request.postDataJSON() };
+      return json(route, { participant: participants[index] });
     }
     if (apiPath === "/api/member-changes") return json(route, { changes: [] });
     if (/^\/api\/members\/\d+\/changes$/.test(apiPath)) return json(route, { changes: [] });
@@ -439,4 +460,53 @@ test("neues Mitglied wird mit Formulardaten an die API gesendet", async ({ page 
 
   expect(request.postDataJSON()).toMatchObject({ name: "Schäfer", vorname: "Erika", clubzugehoerigkeit: 9 });
   await expect(page.locator("#memberModal")).not.toHaveClass(/show/);
+});
+
+test("Warnemünde-Teilnehmer lassen sich anlegen, ändern und entfernen", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#warnemuende-tab").click();
+
+  const grid = page.locator("#warnemuendeGrid");
+  const summary = page.locator("#warnemuendeSummary");
+  await expect(grid).toContainText("Müller");
+  await expect(grid.locator('[row-id="1"] [col-id="nr"]')).toHaveText("1");
+  await expect(summary).toHaveText("1 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
+
+  const form = page.locator("#warnemuendeForm");
+  await form.locator('[name="name"]').fill("Gästefreund");
+  await form.locator('[name="vorname"]').fill("Bert");
+  await form.getByRole("button", { name: "Rind", exact: true }).click();
+  await form.locator('[name="bemerkung"]').fill("kommt später");
+  await form.getByRole("button", { name: "Hinzufügen" }).click();
+
+  await expect(grid).toContainText("Gästefreund");
+  await expect(grid.locator('[row-id="2"] [col-id="bemerkung"]')).toHaveText("kommt später");
+  await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("2");
+  await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 1 · Vegie: 0 · bezahlt: 0");
+
+  await grid.locator('[row-id="2"] [col-id="bezahlt"] input[type="checkbox"]').click();
+  await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 1 · Vegie: 0 · bezahlt: 1");
+
+  const mealCell = grid.locator('[row-id="2"] [col-id="essensauswahl"]');
+  await expect(mealCell.getByRole("button", { name: "Rind", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await mealCell.getByRole("button", { name: "Vegie", exact: true }).click();
+  await expect(mealCell.getByRole("button", { name: "Vegie", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 1 · bezahlt: 1");
+
+  const editModal = page.locator("#warnemuendeEditModal");
+  await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer bearbeiten" }).click();
+  await expect(editModal).toHaveClass(/show/);
+  await expect(editModal.locator('[name="vorname"]')).toHaveValue("Bert");
+  await editModal.locator('[name="vorname"]').fill("Berta");
+  await editModal.locator('[name="bemerkung"]').fill("sitzt vorne");
+  await editModal.getByRole("button", { name: "Speichern" }).click();
+
+  await expect(editModal).not.toHaveClass(/show/);
+  await expect(grid.locator('[row-id="2"] [col-id="vorname"]')).toHaveText("Berta");
+  await expect(grid.locator('[row-id="2"] [col-id="bemerkung"]')).toHaveText("sitzt vorne");
+
+  page.on("dialog", dialog => dialog.accept());
+  await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer entfernen" }).click();
+  await expect(grid).not.toContainText("Gästefreund");
+  await expect(summary).toHaveText("1 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
 });

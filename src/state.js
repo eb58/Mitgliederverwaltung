@@ -19,7 +19,8 @@ export const gridApis = {
   payments: null,
   christmas: null,
   historical: null,
-  guests: null
+  guests: null,
+  warnemuende: null
 };
 
 export { AUTH_TOKEN_STORAGE_KEY };

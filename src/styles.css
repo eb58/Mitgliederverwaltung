@@ -143,8 +143,9 @@ body {
 #mainTabs #payments-tab { order: 4; }
 #mainTabs #guests-tab { order: 5; }
 #mainTabs #christmas-tab { order: 6; }
-#mainTabs #historical-tab { order: 7; }
-#mainTabs #changes-tab { order: 8; }
+#mainTabs #warnemuende-tab { order: 7; }
+#mainTabs #historical-tab { order: 8; }
+#mainTabs #changes-tab { order: 9; }
 
 .sidebar__nav .nav-link {
   display: flex;
@@ -671,6 +672,81 @@ body {
   margin-bottom: 0.75rem;
 }
 
+.warnemuende-toolbar {
+  align-items: center;
+}
+
+.warnemuende-toolbar__input {
+  width: auto;
+  max-width: 170px;
+}
+
+.meal-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.meal-chip {
+  appearance: none;
+  min-height: 30px;
+  padding: 0.15rem 0.75rem;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.meal-chip:hover,
+.meal-chip:focus-visible {
+  color: var(--accent-dark);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(18, 128, 124, 0.12);
+  outline: 0;
+}
+
+.meal-chip.is-selected {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border-color: #8fbeb6;
+  font-weight: 700;
+}
+
+.grid-host .meal-cell {
+  display: flex;
+  align-items: center;
+}
+
+.warnemuende-edit-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.warnemuende-edit-form > div:nth-child(3),
+.warnemuende-edit-form > div:nth-child(5) {
+  grid-column: 1 / -1;
+}
+
+.warnemuende-edit-form__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.2rem;
+}
+
+.warnemuende-summary {
+  margin-right: auto;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
 .guest-toggle {
   border-color: var(--border-strong);
   color: var(--accent-dark);
@@ -794,6 +870,23 @@ body {
 
 .grid-host .ag-row.guest-row .ag-cell {
   color: #4b5660;
+}
+
+.grid-host .ag-row.warnemuende-nachruecker-row {
+  background-color: #fdf2f2;
+  border-color: #f0cfcf;
+}
+
+.grid-host .ag-row.warnemuende-nachruecker-row.ag-row-hover {
+  background-color: #fbe6e6;
+}
+
+.grid-host .ag-row.warnemuende-nachruecker-row .ag-cell {
+  color: #6b4a4a;
+}
+
+.grid-host .ag-row.warnemuende-nachruecker-row .ag-cell:first-child {
+  box-shadow: inset 5px 0 0 #b4453f;
 }
 
 .grid-host .ag-row.guest-row .ag-cell:first-child {

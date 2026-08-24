@@ -1249,3 +1249,118 @@ function handleMemberPhoto(int $id, array $currentUser): void
         noContent();
     }
 }
+
+function warnemuendeMealOptions(): array
+{
+    return ['Zander', 'Rind', 'Vegie'];
+}
+
+/** Akzeptiert auch die Schreibweisen der Papierliste ("Zanderfilet", "Rinderbäckchen"). */
+function normalizeWarnemuendeMeal(mixed $value): string
+{
+    $text = trim((string) $value);
+    foreach (warnemuendeMealOptions() as $option) {
+        if (mb_stripos($text, $option) === 0) return $option;
+    }
+    throw new ApiError('Essensauswahl muss ' . implode(', ', warnemuendeMealOptions()) . ' sein.', 400);
+}
+
+function normalizeWarnemuendeInput(array $payload, bool $partial = false): array
+{
+    $unknown = array_diff(array_keys($payload), ['id', 'name', 'vorname', 'essensauswahl', 'bezahlt', 'bemerkung', 'mitgliedId']);
+    if ($unknown) throw new ApiError('Unbekannte Felder: ' . implode(', ', $unknown), 400);
+
+    $participant = [];
+    foreach (['name', 'vorname'] as $field) {
+        if ($partial && !array_key_exists($field, $payload)) continue;
+        $participant[$field] = trim((string) ($payload[$field] ?? ''));
+        if ($participant[$field] === '') throw new ApiError('Name und Vorname sind erforderlich.', 400);
+    }
+    if (!$partial || array_key_exists('essensauswahl', $payload)) {
+        $participant['essensauswahl'] = normalizeWarnemuendeMeal($payload['essensauswahl'] ?? 'Zander');
+    }
+    if (!$partial || array_key_exists('bezahlt', $payload)) {
+        $participant['bezahlt'] = (bool) ($payload['bezahlt'] ?? false);
+    }
+    if (!$partial || array_key_exists('bemerkung', $payload)) {
+        $participant['bemerkung'] = trim((string) ($payload['bemerkung'] ?? ''));
+    }
+    if (!$partial || array_key_exists('mitgliedId', $payload)) {
+        $mitgliedId = (int) ($payload['mitgliedId'] ?? 0);
+        $participant['mitgliedId'] = $mitgliedId > 0 ? $mitgliedId : null;
+    }
+    return $participant;
+}
+
+function assertWarnemuendeMemberExists(?int $mitgliedId): void
+{
+    if ($mitgliedId === null) return;
+    $statement = db()->prepare('SELECT 1 FROM mitglied WHERE id = ?');
+    $statement->execute([$mitgliedId]);
+    if (!$statement->fetchColumn()) throw new ApiError('Unbekannte DB-ID: ' . $mitgliedId, 400);
+}
+
+function warnemuendeRowToApi(array $row): array
+{
+    return [
+        'id' => (int) $row['id'],
+        'name' => (string) $row['name'],
+        'vorname' => (string) $row['vorname'],
+        'essensauswahl' => (string) $row['essensauswahl'],
+        'bezahlt' => (bool) $row['bezahlt'],
+        'bemerkung' => (string) ($row['bemerkung'] ?? ''),
+        'mitgliedId' => $row['mitglied_id'] === null ? null : (int) $row['mitglied_id'],
+    ];
+}
+
+function findWarnemuendeParticipantById(int $id): ?array
+{
+    $statement = db()->prepare('SELECT id, name, vorname, essensauswahl, bezahlt, bemerkung, mitglied_id FROM warnemuende_teilnehmer WHERE id = ?');
+    $statement->execute([$id]);
+    $row = $statement->fetch();
+    return $row ? warnemuendeRowToApi($row) : null;
+}
+
+function handleWarnemuendeCollection(): void
+{
+    $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'POST']);
+    if ($method === 'GET') {
+        $rows = db()->query('SELECT id, name, vorname, essensauswahl, bezahlt, bemerkung, mitglied_id FROM warnemuende_teilnehmer ORDER BY name, vorname, id')->fetchAll();
+        jsonResponse(['participants' => array_map('warnemuendeRowToApi', $rows)]);
+    }
+
+    if ($method === 'POST') {
+        $participant = normalizeWarnemuendeInput(readJsonBody());
+        assertWarnemuendeMemberExists($participant['mitgliedId']);
+        $statement = db()->prepare('INSERT INTO warnemuende_teilnehmer (name, vorname, essensauswahl, bezahlt, bemerkung, mitglied_id) VALUES (?, ?, ?, ?, ?, ?)');
+        $statement->execute([$participant['name'], $participant['vorname'], $participant['essensauswahl'], (int) $participant['bezahlt'], $participant['bemerkung'], $participant['mitgliedId']]);
+        jsonResponse(['participant' => findWarnemuendeParticipantById((int) db()->lastInsertId())], 201);
+    }
+}
+
+function handleWarnemuendeResource(int $id): void
+{
+    $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'PUT', 'PATCH', 'DELETE']);
+    $existing = findWarnemuendeParticipantById($id);
+    if (!$existing) throw new ApiError('Teilnehmer nicht gefunden.', 404);
+
+    if ($method === 'GET') {
+        jsonResponse(['participant' => $existing]);
+    }
+
+    if ($method === 'PUT' || $method === 'PATCH') {
+        $patch = normalizeWarnemuendeInput(readJsonBody(), $method === 'PATCH');
+        $participant = array_replace($existing, $patch);
+        assertWarnemuendeMemberExists($participant['mitgliedId']);
+        db()->prepare('UPDATE warnemuende_teilnehmer SET name = ?, vorname = ?, essensauswahl = ?, bezahlt = ?, bemerkung = ?, mitglied_id = ? WHERE id = ?')
+            ->execute([$participant['name'], $participant['vorname'], $participant['essensauswahl'], (int) $participant['bezahlt'], $participant['bemerkung'], $participant['mitgliedId'], $id]);
+        jsonResponse(['participant' => findWarnemuendeParticipantById($id)]);
+    }
+
+    if ($method === 'DELETE') {
+        db()->prepare('DELETE FROM warnemuende_teilnehmer WHERE id = ?')->execute([$id]);
+        noContent();
+    }
+}
