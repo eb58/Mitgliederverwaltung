@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
 
-import { MAX_SEATS, mealOptions, numberParticipants, summarizeMeals, toParticipantPayload } from "../../src/warnemuende-domain.js";
+import { MAX_SEATS, mealOptions, numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } from "../../src/warnemuende-domain.js";
 
 describe("warnemuende", () => {
   it("bietet genau die drei Essensauswahlen der Teilnehmerliste", () => {
@@ -12,13 +12,17 @@ describe("warnemuende", () => {
     expect(MAX_SEATS).toBe(49);
   });
 
-  it("nummeriert in Anmeldereihenfolge statt nach Namen", () => {
+  it("nummeriert von oben nach unten in der uebergebenen Reihenfolge", () => {
     const numbered = numberParticipants([
       { id: 30, name: "Abel" },
       { id: 7, name: "Zander" }
     ]);
 
-    expect(numbered.map(participant => [participant.nr, participant.name])).toEqual([[1, "Zander"], [2, "Abel"]]);
+    expect(numbered.map(participant => [participant.nr, participant.name])).toEqual([[1, "Abel"], [2, "Zander"]]);
+  });
+
+  it("sortiert die Anmeldereihenfolge nach id", () => {
+    expect(sortByAnmeldung([{ id: 30 }, { id: 7 }]).map(participant => participant.id)).toEqual([7, 30]);
   });
 
   it("markiert alles ab Platz 50 als Nachruecker", () => {
@@ -40,6 +44,7 @@ describe("warnemuende", () => {
 
   it("laesst durch eine Absage den ersten Nachruecker aufruecken", () => {
     const participants = Array.from({ length: 50 }, (unused, index) => ({ id: index + 1 }));
+
     expect(numberParticipants(participants)[49].nachruecker).toBe(true);
 
     participants[0].abgesagt = true;

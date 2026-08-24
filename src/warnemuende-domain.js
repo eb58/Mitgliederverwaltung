@@ -1,20 +1,22 @@
 export const mealOptions = ["Zander", "Rind", "Vegie"];
 export const MAX_SEATS = 49;
 
-const isMitfahrend = participant => !participant.abgesagt;
+const isMitfahrend = participant => !participant?.abgesagt;
 
 /**
- * Nummeriert in Anmeldereihenfolge (id), nicht nach der gerade sichtbaren Sortierung:
- * an der Nummer haengt, wer mitfaehrt und wer nachrueckt. Abgesagte behalten ihren
- * Platz in der Liste, zaehlen aber nicht mit - dadurch rueckt ein Nachruecker auf.
+ * Zaehlt die Liste in der uebergebenen Reihenfolge von oben nach unten durch - also
+ * so, wie sie gerade angezeigt wird. Abgesagte behalten ihren Platz in der Liste,
+ * bekommen aber keine Nummer; dadurch rueckt der erste Nachruecker auf.
  */
 export const numberParticipants = participants => {
   let platz = 0;
-  return [...participants].sort((a, b) => a.id - b.id).map((participant, index) => {
+  return participants.map(participant => {
     const nr = isMitfahrend(participant) ? ++platz : null;
-    return { ...participant, position: index + 1, nr, nachruecker: nr !== null && nr > MAX_SEATS };
+    return { ...participant, nr, nachruecker: nr !== null && nr > MAX_SEATS };
   });
 };
+
+export const sortByAnmeldung = participants => [...participants].sort((a, b) => a.id - b.id);
 
 export const summarizeMeals = participants =>
   mealOptions.map(option => `${option}: ${participants.filter(participant => isMitfahrend(participant) && participant.essensauswahl === option).length}`).join(" · ");

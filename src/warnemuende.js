@@ -1,7 +1,7 @@
 import { Modal } from "bootstrap";
 import { retryAsync } from "./member-utils.js";
 import { showToast } from "./ui.js";
-import { MAX_SEATS, mealOptions, numberParticipants, summarizeMeals, toParticipantPayload } from "./warnemuende-domain.js";
+import { MAX_SEATS, mealOptions, numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } from "./warnemuende-domain.js";
 
 export const createWarnemuendeAdmin = ({
   createGrid,
@@ -16,6 +16,9 @@ export const createWarnemuendeAdmin = ({
   let participants = [];
   let editModal = null;
   let editingId = null;
+  // Nummer und Nachrueckerstatus haengen an der angezeigten Reihenfolge, nicht am Datensatz:
+  // deshalb je Zeile gemerkt und bei jeder Sortierung neu vergeben.
+  let displayNumbers = new Map();
 
   const setMessage = (elementId, message) => {
     const element = document.getElementById(elementId);
@@ -27,20 +30,36 @@ export const createWarnemuendeAdmin = ({
   const setError = message => setMessage("warnemuendeError", message);
   const setEditError = message => setMessage("warnemuendeEditError", message);
 
-  const render = () => {
-    const rows = numberParticipants(participants);
-    gridApi?.setGridOption("rowData", rows);
+  const updateSummary = () => {
     const summary = document.getElementById("warnemuendeSummary");
+    if (!summary) return;
     const mitfahrend = participants.filter(participant => !participant.abgesagt);
     const abgesagt = participants.length - mitfahrend.length;
-    const nachruecker = rows.filter(row => row.nachruecker).length;
-    if (summary) summary.textContent = [
+    const nachruecker = [...displayNumbers.values()].filter(entry => entry.nachruecker).length;
+    summary.textContent = [
       `${mitfahrend.length} Teilnehmer`,
       ...(abgesagt ? [`${abgesagt} abgesagt`] : []),
       ...(nachruecker ? [`${nachruecker} Nachrücker ab Platz ${MAX_SEATS + 1}`] : []),
       summarizeMeals(participants),
       `bezahlt: ${mitfahrend.filter(participant => participant.bezahlt).length}`
     ].join(" · ");
+  };
+
+  const renumberDisplayedRows = api => {
+    const nodes = [];
+    api.forEachNodeAfterFilterAndSort(node => nodes.push(node));
+    const numbered = numberParticipants(nodes.map(node => node.data || {}));
+    displayNumbers = new Map(nodes.map((node, index) => [node.id, numbered[index]]));
+    api.refreshCells({ columns: ["nr"], force: true });
+    api.redrawRows();
+    updateSummary();
+  };
+
+  const rowNumbering = node => displayNumbers.get(node?.id);
+
+  const render = () => {
+    gridApi?.setGridOption("rowData", sortByAnmeldung(participants));
+    updateSummary();
   };
 
   // Faengt seine Ladefehler selbst ab: eine fehlende Teilnehmertabelle soll den Start
@@ -251,17 +270,18 @@ export const createWarnemuendeAdmin = ({
     getActionColumn(),
     {
       headerName: "Nr.",
-      field: "nr",
-      // Die Nummer ist eine Platzangabe (voll ab Platz 49), kein Sortierkriterium:
-      // die Zeilen stehen in Anmeldereihenfolge, so wie sie geliefert werden.
+      colId: "nr",
+      // Reine Platzangabe (voll ab Platz 49): zaehlt die angezeigte Liste von oben
+      // nach unten durch und steht deshalb weder in den Daten noch in der Datenbank.
       sortable: false,
+      filter: false,
+      valueGetter: params => rowNumbering(params.node)?.nr ?? null,
       valueFormatter: params => params.value ?? "",
       pinned: "left",
       width: 88,
       minWidth: 88,
       maxWidth: 88,
       editable: false,
-      filter: false,
       suppressMovable: true
     },
     { headerName: "Name", field: "name", minWidth: 150 },
@@ -349,11 +369,12 @@ export const createWarnemuendeAdmin = ({
       // Ohne Blaettern bleiben die Nachruecker am Ende der Liste sichtbar.
       pagination: false,
       rowClassRules: {
-        "warnemuende-nachruecker-row": params => Boolean(params.data?.nachruecker),
+        "warnemuende-nachruecker-row": params => Boolean(rowNumbering(params.node)?.nachruecker),
         "warnemuende-abgesagt-row": params => Boolean(params.data?.abgesagt)
       },
       onRowDoubleClicked: event => openEdit(event.data),
       onCellValueChanged: handleCellValueChanged,
+      onModelUpdated: event => renumberDisplayedRows(event.api),
       stopEditingWhenCellsLoseFocus: true
     });
     document.getElementById("warnemuendeForm")?.addEventListener("submit", handleSubmit);

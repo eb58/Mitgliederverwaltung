@@ -555,6 +555,15 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   await grid.locator('[col-id="nr"].ag-header-cell').first().click();
   await expect(grid.locator('.ag-center-cols-container [row-index="0"] [col-id="name"]')).toHaveText("Müller");
   await expect(grid.locator('[row-id="1"] [col-id="nr"]')).toHaveText("1");
+
+  // Nach einer Sortierung zaehlt sie weiterhin von oben nach unten durch.
+  await grid.locator('[col-id="name"].ag-header-cell').first().click();
+  await expect(grid.locator('.ag-center-cols-container [row-index="0"] [col-id="name"]')).toHaveText("Gästefreund");
+  await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("1");
+  await expect(grid.locator('[row-id="1"] [col-id="nr"]')).toHaveText("2");
+  await grid.locator('[col-id="name"].ag-header-cell').first().click();
+  await grid.locator('[col-id="name"].ag-header-cell').first().click();
+  await expect(grid.locator('[row-id="1"] [col-id="nr"]')).toHaveText("1");
   await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 1 · Vegie: 0 · bezahlt: 0");
 
   await grid.locator('[row-id="2"] [col-id="bezahlt"] input[type="checkbox"]').click();
