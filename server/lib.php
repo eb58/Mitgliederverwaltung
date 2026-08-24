@@ -1250,6 +1250,14 @@ function handleMemberPhoto(int $id, array $currentUser): void
     }
 }
 
+/** Ohne Tabelle soll die Oberflaeche einen lesbaren Hinweis zeigen statt eines 500ers. */
+function assertWarnemuendeTableExists(): void
+{
+    if (!tableExists('warnemuende_teilnehmer')) {
+        throw new ApiError('Tabelle warnemuende_teilnehmer fehlt - bitte das Schema aus server/db/schema.mysql.sql einspielen.', 503);
+    }
+}
+
 function warnemuendeMealOptions(): array
 {
     return ['Zander', 'Rind', 'Vegie'];
@@ -1325,6 +1333,7 @@ function handleWarnemuendeCollection(): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'POST']);
+    assertWarnemuendeTableExists();
     if ($method === 'GET') {
         $rows = db()->query('SELECT id, name, vorname, essensauswahl, bezahlt, bemerkung, mitglied_id FROM warnemuende_teilnehmer ORDER BY name, vorname, id')->fetchAll();
         jsonResponse(['participants' => array_map('warnemuendeRowToApi', $rows)]);
@@ -1343,6 +1352,7 @@ function handleWarnemuendeResource(int $id): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'PUT', 'PATCH', 'DELETE']);
+    assertWarnemuendeTableExists();
     $existing = findWarnemuendeParticipantById($id);
     if (!$existing) throw new ApiError('Teilnehmer nicht gefunden.', 404);
 

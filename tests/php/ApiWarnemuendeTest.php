@@ -121,6 +121,15 @@ final class ApiWarnemuendeTest extends DatabaseTestCase
         $this->assertSame(0, $this->countRows('warnemuende_teilnehmer'));
     }
 
+    public function testMissingTableIsReportedReadably(): void
+    {
+        db()->exec('DROP TABLE warnemuende_teilnehmer');
+        clearSchemaCache();
+        $this->request('GET');
+
+        $this->assertApiError(503, 'warnemuende_teilnehmer fehlt', static fn() => handleWarnemuendeCollection());
+    }
+
     public function testUnknownParticipantIsRejected(): void
     {
         $this->request('GET');
