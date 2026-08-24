@@ -494,6 +494,40 @@ test("Events-Gruppe klappt Weihnachtsessen und Warnemünde auf und markiert den 
   await expect(page.locator(".sidebar__group")).not.toHaveClass(/sidebar__group--active/);
 });
 
+test("veralteter Spaltenzustand aus dem Browser überschreibt die Reihenfolge nicht", async ({ page }) => {
+  await mockMemberApi(page);
+  // Stand aus einer früheren Version: Aktionen hinten angepinnt, Foto- und Aktionsspalte fehlen.
+  await page.addInitScript(() => window.localStorage.setItem(
+    "mitgliederverwaltung:gridColumnState:warnemuende",
+    JSON.stringify([
+      { colId: "nr", pinned: "left" },
+      { colId: "bearbeiten", pinned: "left" },
+      { colId: "name" },
+      { colId: "vorname" },
+      { colId: "essensauswahl" },
+      { colId: "bezahlt" },
+      { colId: "bemerkung" },
+      { colId: "absage", pinned: "right" }
+    ])
+  ));
+  await page.goto("./");
+  await page.locator("#loginUsername").fill("admin");
+  await page.locator("#loginPassword").fill("passwd");
+  await page.locator('#loginForm button[type="submit"]').click();
+  await page.locator("#events-group-toggle").click();
+  await page.locator("#warnemuende-tab").click();
+
+  const grid = page.locator("#warnemuendeGrid");
+  const photo = await grid.locator('[row-id="1"] [col-id="passbild"]').boundingBox();
+  const actions = await grid.locator('[row-id="1"] [col-id="aktionen"]').boundingBox();
+  const number = await grid.locator('[row-id="1"] [col-id="nr"]').boundingBox();
+  const name = await grid.locator('[row-id="1"] [col-id="name"]').boundingBox();
+
+  expect(photo?.x).toBeLessThan(actions?.x);
+  expect(actions?.x).toBeLessThan(number?.x);
+  expect(number?.x).toBeLessThan(name?.x);
+});
+
 test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
@@ -503,6 +537,7 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   const summary = page.locator("#warnemuendeSummary");
   await expect(grid).toContainText("Müller");
   await expect(grid.locator('[row-id="1"] [col-id="nr"]')).toHaveText("1");
+  await expect(grid.locator('[row-id="1"] [col-id="passbild"] .member-photo')).toBeVisible();
   await expect(summary).toHaveText("1 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
 
   const form = page.locator("#warnemuendeForm");

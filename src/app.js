@@ -104,6 +104,12 @@ const warnemuendeAdmin = createWarnemuendeAdmin({
   createParticipant: createWarnemuendeParticipantViaApi,
   deleteParticipant: deleteWarnemuendeParticipantViaApi,
   loadParticipants: loadWarnemuendeParticipantsFromApi,
+  // Teilnehmer ohne Clubmitgliedschaft haben kein Passbild - dann bleibt das Platzhalterbild stehen.
+  resolveParticipantPhoto: mitgliedId => {
+    const member = state.members.find(entry => entry.id === Number(mitgliedId));
+    return member ? resolveMemberPhotoDataUrl(member) : Promise.resolve(null);
+  },
+  setFallbackPhoto: wrapper => setFallbackPhoto(wrapper),
   updateParticipant: updateWarnemuendeParticipantViaApi
 });
 
@@ -565,6 +571,19 @@ const restoreGridColumnState = (gridKey, api) => {
 
   if (!Array.isArray(state) || state.length === 0) return;
 
+  // Gespeicherte Reihenfolge nur uebernehmen, wenn sie zu den heutigen Spalten passt:
+  // sonst haelt ein alter Stand aus dem Browser eine geaenderte Spaltenfolge fest.
+  const savedColumnIds = state.map(entry => entry.colId).sort().join("|");
+  const currentColumnIds = api.getColumnState().map(entry => entry.colId).sort().join("|");
+  if (savedColumnIds !== currentColumnIds) {
+    try {
+      localStorage.removeItem(getGridColumnStateKey(gridKey));
+    } catch (error) {
+      console.warn("Veralteter Tabellenzustand konnte nicht entfernt werden.", error);
+    }
+    return;
+  }
+
   restoringGridStateKeys.add(gridKey);
   api.applyColumnState({ state, applyOrder: true });
   setTimeout(() => restoringGridStateKeys.delete(gridKey), 0);
@@ -868,6 +887,7 @@ const refreshAllViews = () => {
     .filter(m => !isActiveMember(m) && !isGuestMember(m))
     .sort(sortByName);
   setGridData(gridApis.historical, historicalMembers);
+  gridApis.warnemuende?.refreshCells({ columns: ["passbild"], force: true });
 
   refreshDashboard();
 

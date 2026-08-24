@@ -8,6 +8,8 @@ export const createWarnemuendeAdmin = ({
   createParticipant,
   deleteParticipant,
   loadParticipants,
+  resolveParticipantPhoto,
+  setFallbackPhoto,
   updateParticipant
 }) => {
   let gridApi = null;
@@ -176,6 +178,44 @@ export const createWarnemuendeAdmin = ({
     </svg>
   `;
 
+  const getPhotoColumn = () => ({
+    headerName: "",
+    colId: "passbild",
+    pinned: "left",
+    width: 64,
+    minWidth: 64,
+    maxWidth: 64,
+    cellClass: "photo-cell",
+    headerClass: "photo-header",
+    editable: false,
+    sortable: false,
+    filter: false,
+    suppressMovable: true,
+    cellRenderer: params => {
+      const wrapper = document.createElement("div");
+      setFallbackPhoto(wrapper);
+      const name = `${params.data?.vorname || ""} ${params.data?.name || ""}`.trim();
+
+      resolveParticipantPhoto(params.data?.mitgliedId).then(photoDataUrl => {
+        if (!photoDataUrl) return;
+        const image = document.createElement("img");
+        image.className = "member-photo__image";
+        image.alt = `Passfoto von ${name}`;
+        image.loading = "lazy";
+        image.addEventListener("error", () => setFallbackPhoto(wrapper), { once: true });
+        wrapper.className = "member-photo";
+        wrapper.title = image.alt;
+        wrapper.setAttribute("aria-label", image.alt);
+        wrapper.replaceChildren(image);
+        image.src = photoDataUrl;
+      }).catch(() => {
+        // Platzhalter bleibt stehen.
+      });
+
+      return wrapper;
+    }
+  });
+
   const getActionColumn = () => ({
     headerName: "",
     colId: "aktionen",
@@ -207,6 +247,8 @@ export const createWarnemuendeAdmin = ({
   });
 
   const getColumns = () => [
+    getPhotoColumn(),
+    getActionColumn(),
     {
       headerName: "Nr.",
       field: "nr",
@@ -222,7 +264,6 @@ export const createWarnemuendeAdmin = ({
       filter: false,
       suppressMovable: true
     },
-    getActionColumn(),
     { headerName: "Name", field: "name", minWidth: 150 },
     { headerName: "Vorname", field: "vorname", minWidth: 150 },
     {
