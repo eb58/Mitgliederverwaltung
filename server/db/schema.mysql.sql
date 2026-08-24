@@ -217,3 +217,5 @@ CREATE TABLE warnemuende_teilnehmer (
   INDEX idx_warnemuende_teilnehmer_name (name, vorname),
   CONSTRAINT fk_warnemuende_teilnehmer_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE warnemuende_teilnehmer ADD COLUMN abgesagt TINYINT(1) NOT NULL DEFAULT 0 AFTER bezahlt;

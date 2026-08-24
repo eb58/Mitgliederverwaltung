@@ -458,16 +458,22 @@
               <label class="form-label" for="warnemuendeEditVorname">Vorname</label>
               <input id="warnemuendeEditVorname" class="form-control" name="vorname" type="text" required>
             </div>
-            <div>
+            <div class="warnemuende-edit-form__wide">
               <span class="form-label d-block">Essensauswahl</span>
               <input type="hidden" name="essensauswahl" value="Zander">
               <div id="warnemuendeEditEssensauswahl"></div>
             </div>
-            <div class="form-check">
-              <input id="warnemuendeEditBezahlt" class="form-check-input" name="bezahlt" type="checkbox">
-              <label class="form-check-label" for="warnemuendeEditBezahlt">bezahlt</label>
+            <div class="warnemuende-edit-form__wide warnemuende-edit-form__flags">
+              <div class="form-check">
+                <input id="warnemuendeEditBezahlt" class="form-check-input" name="bezahlt" type="checkbox">
+                <label class="form-check-label" for="warnemuendeEditBezahlt">bezahlt</label>
+              </div>
+              <div class="form-check">
+                <input id="warnemuendeEditAbgesagt" class="form-check-input" name="abgesagt" type="checkbox">
+                <label class="form-check-label" for="warnemuendeEditAbgesagt">abgesagt</label>
+              </div>
             </div>
-            <div>
+            <div class="warnemuende-edit-form__wide">
               <label class="form-label" for="warnemuendeEditBemerkung">Bemerkung</label>
               <input id="warnemuendeEditBemerkung" class="form-control" name="bemerkung" type="text">
             </div>

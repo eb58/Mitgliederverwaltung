@@ -6,7 +6,6 @@ import { MAX_SEATS, mealOptions, numberParticipants, summarizeMeals, toParticipa
 export const createWarnemuendeAdmin = ({
   createGrid,
   createParticipant,
-  deleteParticipant,
   loadParticipants,
   updateParticipant
 }) => {
@@ -29,12 +28,15 @@ export const createWarnemuendeAdmin = ({
     const rows = numberParticipants(participants);
     gridApi?.setGridOption("rowData", rows);
     const summary = document.getElementById("warnemuendeSummary");
+    const mitfahrend = participants.filter(participant => !participant.abgesagt);
+    const abgesagt = participants.length - mitfahrend.length;
     const nachruecker = rows.filter(row => row.nachruecker).length;
     if (summary) summary.textContent = [
-      `${participants.length} Teilnehmer`,
+      `${mitfahrend.length} Teilnehmer`,
+      ...(abgesagt ? [`${abgesagt} abgesagt`] : []),
       ...(nachruecker ? [`${nachruecker} Nachrücker ab Platz ${MAX_SEATS + 1}`] : []),
       summarizeMeals(participants),
-      `bezahlt: ${participants.filter(participant => participant.bezahlt).length}`
+      `bezahlt: ${mitfahrend.filter(participant => participant.bezahlt).length}`
     ].join(" · ");
   };
 
@@ -65,16 +67,18 @@ export const createWarnemuendeAdmin = ({
     }
   };
 
-  const handleDelete = async participant => {
-    if (!confirm(`${participant.vorname} ${participant.name} aus der Teilnehmerliste entfernen?`)) return;
+  const toggleCancelled = async participant => {
     try {
       setError("");
-      await deleteParticipant(participant.id);
-      participants = participants.filter(entry => entry.id !== participant.id);
+      const updated = await updateParticipant({
+        id: participant.id,
+        ...toParticipantPayload({ ...participant, abgesagt: !participant.abgesagt })
+      });
+      participants = participants.map(entry => entry.id === updated.id ? updated : entry);
       render();
-      showToast(`${participant.vorname} ${participant.name} entfernt.`);
+      showToast(`${updated.vorname} ${updated.name} ${updated.abgesagt ? "abgesagt" : "fährt wieder mit"}.`);
     } catch (error) {
-      setError(error.message || "Teilnehmer konnte nicht entfernt werden.");
+      setError(error.message || "Absage konnte nicht gespeichert werden.");
     }
   };
 
@@ -149,9 +153,9 @@ export const createWarnemuendeAdmin = ({
     }
   });
 
-  const getDeleteColumn = () => ({
+  const getCancelColumn = () => ({
     headerName: "",
-    colId: "entfernen",
+    colId: "absage",
     pinned: "right",
     width: 68,
     minWidth: 68,
@@ -163,21 +167,26 @@ export const createWarnemuendeAdmin = ({
     filter: false,
     suppressMovable: true,
     cellRenderer: params => {
+      const cancelled = Boolean(params.data?.abgesagt);
       const button = document.createElement("button");
       button.type = "button";
       button.className = "edit-icon-btn";
-      button.title = "Teilnehmer entfernen";
-      button.setAttribute("aria-label", "Teilnehmer entfernen");
-      button.innerHTML = `
-        <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-          <path d="M5 7h14"></path>
-          <path d="M10 11v6"></path>
-          <path d="M14 11v6"></path>
-          <path d="M6 7l1 13h10l1-13"></path>
-          <path d="M9 7V4h6v3"></path>
-        </svg>
-      `;
-      button.addEventListener("click", () => handleDelete(params.data));
+      button.title = cancelled ? "Absage zurücknehmen" : "Teilnehmer absagen";
+      button.setAttribute("aria-label", button.title);
+      button.innerHTML = cancelled
+        ? `
+          <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+            <polyline points="9 14 4 14 4 19"></polyline>
+            <path d="M4 14a8 8 0 1 0 2.3-5.7"></path>
+          </svg>
+        `
+        : `
+          <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+            <circle cx="12" cy="12" r="9"></circle>
+            <line x1="6" y1="18" x2="18" y2="6"></line>
+          </svg>
+        `;
+      button.addEventListener("click", () => toggleCancelled(params.data));
       return button;
     }
   });
@@ -187,6 +196,9 @@ export const createWarnemuendeAdmin = ({
       headerName: "Nr.",
       field: "nr",
       sort: "asc",
+      valueFormatter: params => params.value ?? "",
+      // Abgesagte haben keine Nummer, sollen aber an ihrem Platz in der Anmeldereihenfolge bleiben.
+      comparator: (valueA, valueB, nodeA, nodeB) => (nodeA.data?.position || 0) - (nodeB.data?.position || 0),
       pinned: "left",
       width: 88,
       minWidth: 88,
@@ -217,7 +229,7 @@ export const createWarnemuendeAdmin = ({
       minWidth: 120
     },
     { headerName: "Bemerkung", field: "bemerkung", minWidth: 180, flex: 1 },
-    getDeleteColumn()
+    getCancelColumn()
   ];
 
   const setMealField = (formSelector, containerId, meal) => {
@@ -240,6 +252,7 @@ export const createWarnemuendeAdmin = ({
     form.elements.name.value = participant.name;
     form.elements.vorname.value = participant.vorname;
     form.elements.bezahlt.checked = Boolean(participant.bezahlt);
+    form.elements.abgesagt.checked = Boolean(participant.abgesagt);
     form.elements.bemerkung.value = participant.bemerkung || "";
     setEditMeal(participant.essensauswahl);
     setEditError("");
@@ -259,6 +272,7 @@ export const createWarnemuendeAdmin = ({
           vorname: form.elements.vorname.value,
           essensauswahl: form.elements.essensauswahl.value,
           bezahlt: form.elements.bezahlt.checked,
+          abgesagt: form.elements.abgesagt.checked,
           bemerkung: form.elements.bemerkung.value,
           mitgliedId: existing?.mitgliedId
         })
@@ -277,7 +291,10 @@ export const createWarnemuendeAdmin = ({
     gridApi = createGrid("warnemuende", "warnemuendeGrid", getColumns(), {
       // Ohne Blaettern bleiben die Nachruecker am Ende der Liste sichtbar.
       pagination: false,
-      rowClassRules: { "warnemuende-nachruecker-row": params => Boolean(params.data?.nachruecker) },
+      rowClassRules: {
+        "warnemuende-nachruecker-row": params => Boolean(params.data?.nachruecker),
+        "warnemuende-abgesagt-row": params => Boolean(params.data?.abgesagt)
+      },
       onRowDoubleClicked: event => openEdit(event.data),
       onCellValueChanged: handleCellValueChanged,
       stopEditingWhenCellsLoseFocus: true

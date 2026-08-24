@@ -19,7 +19,7 @@ final class ApiWarnemuendeTest extends DatabaseTestCase
         $participants = $this->capture(static fn() => handleWarnemuendeCollection())->payload['participants'];
 
         $this->assertSame(['Barz', 'Zander'], array_column($participants, 'name'));
-        $this->assertSame(['id', 'name', 'vorname', 'essensauswahl', 'bezahlt', 'bemerkung', 'mitgliedId'], array_keys($participants[0]));
+        $this->assertSame(['id', 'name', 'vorname', 'essensauswahl', 'bezahlt', 'abgesagt', 'bemerkung', 'mitgliedId'], array_keys($participants[0]));
         $this->assertFalse($participants[0]['bezahlt']);
         $this->assertNull($participants[0]['mitgliedId']);
     }
@@ -86,7 +86,7 @@ final class ApiWarnemuendeTest extends DatabaseTestCase
         $participant = $this->capture(static fn() => handleWarnemuendeResource($id))->payload['participant'];
 
         $this->assertSame(
-            ['id' => $id, 'name' => 'Sachweh', 'vorname' => 'Ursula', 'essensauswahl' => 'Vegie', 'bezahlt' => false, 'bemerkung' => '', 'mitgliedId' => 386],
+            ['id' => $id, 'name' => 'Sachweh', 'vorname' => 'Ursula', 'essensauswahl' => 'Vegie', 'bezahlt' => false, 'abgesagt' => false, 'bemerkung' => '', 'mitgliedId' => 386],
             $participant
         );
     }
@@ -110,6 +110,19 @@ final class ApiWarnemuendeTest extends DatabaseTestCase
         $this->request('PUT', ['name' => 'Jeschon', 'vorname' => 'Peter', 'essensauswahl' => 'Rind', 'mitgliedId' => 0]);
 
         $this->assertNull($this->capture(static fn() => handleWarnemuendeResource($id))->payload['participant']['mitgliedId']);
+    }
+
+    public function testAbsageBleibtInDerListe(): void
+    {
+        $id = $this->insertParticipant('Witt', 'Gisela');
+        $this->request('PATCH', ['abgesagt' => true]);
+        $this->capture(static fn() => handleWarnemuendeResource($id));
+
+        $this->request('GET');
+        $participants = $this->capture(static fn() => handleWarnemuendeCollection())->payload['participants'];
+
+        $this->assertCount(1, $participants);
+        $this->assertTrue($participants[0]['abgesagt']);
     }
 
     public function testResourceDeletesParticipant(): void

@@ -56,7 +56,7 @@ const json = (route, body, status = 200) => route.fulfill({
 
 const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0, staleToken = "" } = {}) => {
   const currentReferenceData = structuredClone(referenceData);
-  const participants = [{ id: 1, name: "Müller", vorname: "Anna", essensauswahl: "Zander", bezahlt: false, bemerkung: "", mitgliedId: 1 }];
+  const participants = [{ id: 1, name: "Müller", vorname: "Anna", essensauswahl: "Zander", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }];
   let remainingReferenceDataFailures = referenceDataFailures;
   const collections = {
     "interest-groups": { key: "interestGroups", labelKey: "label" },
@@ -494,7 +494,7 @@ test("Events-Gruppe klappt Weihnachtsessen und Warnemünde auf und markiert den 
   await expect(page.locator(".sidebar__group")).not.toHaveClass(/sidebar__group--active/);
 });
 
-test("Warnemünde-Teilnehmer lassen sich anlegen, ändern und entfernen", async ({ page }) => {
+test("Warnemünde-Teilnehmer lassen sich anlegen, ändern und absagen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
   await page.locator("#warnemuende-tab").click();
@@ -538,8 +538,14 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern und entfernen", async 
   await expect(grid.locator('[row-id="2"] [col-id="vorname"]')).toHaveText("Berta");
   await expect(grid.locator('[row-id="2"] [col-id="bemerkung"]')).toHaveText("sitzt vorne");
 
-  page.on("dialog", dialog => dialog.accept());
-  await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer entfernen" }).click();
-  await expect(grid).not.toContainText("Gästefreund");
-  await expect(summary).toHaveText("1 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
+  // Absagen statt loeschen: der Eintrag bleibt stehen, verliert aber seine Nummer.
+  await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer absagen" }).click();
+  await expect(grid).toContainText("Gästefreund");
+  await expect(grid.locator('[row-id="2"]').first()).toHaveClass(/warnemuende-abgesagt-row/);
+  await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("");
+  await expect(summary).toHaveText("1 Teilnehmer · 1 abgesagt · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
+
+  await grid.locator('[row-id="2"]').getByRole("button", { name: "Absage zurücknehmen" }).click();
+  await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("2");
+  await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 1 · bezahlt: 1");
 });

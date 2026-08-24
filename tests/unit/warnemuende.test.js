@@ -27,6 +27,35 @@ describe("warnemuende", () => {
     expect(numbered.filter(participant => participant.nachruecker).map(participant => participant.nr)).toEqual([50, 51]);
   });
 
+  it("laesst Abgesagte an ihrem Platz, aber ohne Nummer", () => {
+    const numbered = numberParticipants([
+      { id: 1, name: "Erste" },
+      { id: 2, name: "Abgesagte", abgesagt: true },
+      { id: 3, name: "Dritte" }
+    ]);
+
+    expect(numbered.map(participant => participant.nr)).toEqual([1, null, 2]);
+    expect(numbered.map(participant => participant.name)).toEqual(["Erste", "Abgesagte", "Dritte"]);
+  });
+
+  it("laesst durch eine Absage den ersten Nachruecker aufruecken", () => {
+    const participants = Array.from({ length: 50 }, (unused, index) => ({ id: index + 1 }));
+    expect(numberParticipants(participants)[49].nachruecker).toBe(true);
+
+    participants[0].abgesagt = true;
+
+    expect(numberParticipants(participants)[49].nachruecker).toBe(false);
+  });
+
+  it("zaehlt Abgesagte nicht in die Essensportionen", () => {
+    const participants = [
+      { id: 1, essensauswahl: "Zander" },
+      { id: 2, essensauswahl: "Zander", abgesagt: true }
+    ];
+
+    expect(summarizeMeals(participants)).toBe("Zander: 1 · Rind: 0 · Vegie: 0");
+  });
+
   it("zaehlt die Essensauswahl je Gericht", () => {
     const participants = [
       { essensauswahl: "Zander" },
@@ -43,12 +72,12 @@ describe("warnemuende", () => {
 
   it("trimmt Namen und Bemerkung und macht aus einer leeren DB-ID null", () => {
     expect(toParticipantPayload({ name: "  Brandl ", vorname: " Erich", essensauswahl: "Rind", bemerkung: " kommt spaeter ", mitgliedId: "" }))
-      .toEqual({ name: "Brandl", vorname: "Erich", essensauswahl: "Rind", bezahlt: false, bemerkung: "kommt spaeter", mitgliedId: null });
+      .toEqual({ name: "Brandl", vorname: "Erich", essensauswahl: "Rind", bezahlt: false, abgesagt: false, bemerkung: "kommt spaeter", mitgliedId: null });
   });
 
   it("wandelt die DB-ID in eine Zahl und faellt auf Zander zurueck", () => {
     expect(toParticipantPayload({ name: "Barz", vorname: "Monika", bezahlt: true, mitgliedId: "7" }))
-      .toEqual({ name: "Barz", vorname: "Monika", essensauswahl: "Zander", bezahlt: true, bemerkung: "", mitgliedId: 7 });
+      .toEqual({ name: "Barz", vorname: "Monika", essensauswahl: "Zander", bezahlt: true, abgesagt: false, bemerkung: "", mitgliedId: 7 });
   });
 
   it("verwirft eine DB-ID kleiner eins", () => {

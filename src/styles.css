@@ -776,9 +776,13 @@ body {
   gap: 0.9rem;
 }
 
-.warnemuende-edit-form > div:nth-child(3),
-.warnemuende-edit-form > div:nth-child(5) {
+.warnemuende-edit-form__wide {
   grid-column: 1 / -1;
+}
+
+.warnemuende-edit-form__flags {
+  display: flex;
+  gap: 1.5rem;
 }
 
 .warnemuende-edit-form__actions {
@@ -918,6 +922,18 @@ body {
 
 .grid-host .ag-row.guest-row .ag-cell {
   color: #4b5660;
+}
+
+/* Abgesagte bleiben sichtbar, zaehlen aber nicht mehr mit. */
+.grid-host .ag-row.warnemuende-abgesagt-row .ag-cell {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.grid-host .ag-row.warnemuende-abgesagt-row .meal-chip,
+.grid-host .ag-row.warnemuende-abgesagt-row .edit-icon-btn {
+  text-decoration: none;
+  opacity: 0.65;
 }
 
 .grid-host .ag-row.warnemuende-nachruecker-row {

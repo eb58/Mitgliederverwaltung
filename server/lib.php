@@ -1277,7 +1277,7 @@ function normalizeWarnemuendeMeal(mixed $value): string
 
 function normalizeWarnemuendeInput(array $payload, bool $partial = false): array
 {
-    $unknown = array_diff(array_keys($payload), ['id', 'name', 'vorname', 'essensauswahl', 'bezahlt', 'bemerkung', 'mitgliedId']);
+    $unknown = array_diff(array_keys($payload), ['id', 'name', 'vorname', 'essensauswahl', 'bezahlt', 'abgesagt', 'bemerkung', 'mitgliedId']);
     if ($unknown) throw new ApiError('Unbekannte Felder: ' . implode(', ', $unknown), 400);
 
     $participant = [];
@@ -1291,6 +1291,9 @@ function normalizeWarnemuendeInput(array $payload, bool $partial = false): array
     }
     if (!$partial || array_key_exists('bezahlt', $payload)) {
         $participant['bezahlt'] = (bool) ($payload['bezahlt'] ?? false);
+    }
+    if (!$partial || array_key_exists('abgesagt', $payload)) {
+        $participant['abgesagt'] = (bool) ($payload['abgesagt'] ?? false);
     }
     if (!$partial || array_key_exists('bemerkung', $payload)) {
         $participant['bemerkung'] = trim((string) ($payload['bemerkung'] ?? ''));
@@ -1318,6 +1321,7 @@ function warnemuendeRowToApi(array $row): array
         'vorname' => (string) $row['vorname'],
         'essensauswahl' => (string) $row['essensauswahl'],
         'bezahlt' => (bool) $row['bezahlt'],
+        'abgesagt' => (bool) $row['abgesagt'],
         'bemerkung' => (string) ($row['bemerkung'] ?? ''),
         'mitgliedId' => $row['mitglied_id'] === null ? null : (int) $row['mitglied_id'],
     ];
@@ -1325,7 +1329,7 @@ function warnemuendeRowToApi(array $row): array
 
 function findWarnemuendeParticipantById(int $id): ?array
 {
-    $statement = db()->prepare('SELECT id, name, vorname, essensauswahl, bezahlt, bemerkung, mitglied_id FROM warnemuende_teilnehmer WHERE id = ?');
+    $statement = db()->prepare('SELECT id, name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id FROM warnemuende_teilnehmer WHERE id = ?');
     $statement->execute([$id]);
     $row = $statement->fetch();
     return $row ? warnemuendeRowToApi($row) : null;
@@ -1337,15 +1341,15 @@ function handleWarnemuendeCollection(): void
     assertMethodAllowed($method, ['GET', 'POST']);
     assertWarnemuendeTableExists();
     if ($method === 'GET') {
-        $rows = db()->query('SELECT id, name, vorname, essensauswahl, bezahlt, bemerkung, mitglied_id FROM warnemuende_teilnehmer ORDER BY name, vorname, id')->fetchAll();
+        $rows = db()->query('SELECT id, name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id FROM warnemuende_teilnehmer ORDER BY name, vorname, id')->fetchAll();
         jsonResponse(['participants' => array_map('warnemuendeRowToApi', $rows)]);
     }
 
     if ($method === 'POST') {
         $participant = normalizeWarnemuendeInput(readJsonBody());
         assertWarnemuendeMemberExists($participant['mitgliedId']);
-        $statement = db()->prepare('INSERT INTO warnemuende_teilnehmer (name, vorname, essensauswahl, bezahlt, bemerkung, mitglied_id) VALUES (?, ?, ?, ?, ?, ?)');
-        $statement->execute([$participant['name'], $participant['vorname'], $participant['essensauswahl'], (int) $participant['bezahlt'], $participant['bemerkung'], $participant['mitgliedId']]);
+        $statement = db()->prepare('INSERT INTO warnemuende_teilnehmer (name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $statement->execute([$participant['name'], $participant['vorname'], $participant['essensauswahl'], (int) $participant['bezahlt'], (int) $participant['abgesagt'], $participant['bemerkung'], $participant['mitgliedId']]);
         jsonResponse(['participant' => findWarnemuendeParticipantById((int) db()->lastInsertId())], 201);
     }
 }
@@ -1366,8 +1370,8 @@ function handleWarnemuendeResource(int $id): void
         $patch = normalizeWarnemuendeInput(readJsonBody(), $method === 'PATCH');
         $participant = array_replace($existing, $patch);
         assertWarnemuendeMemberExists($participant['mitgliedId']);
-        db()->prepare('UPDATE warnemuende_teilnehmer SET name = ?, vorname = ?, essensauswahl = ?, bezahlt = ?, bemerkung = ?, mitglied_id = ? WHERE id = ?')
-            ->execute([$participant['name'], $participant['vorname'], $participant['essensauswahl'], (int) $participant['bezahlt'], $participant['bemerkung'], $participant['mitgliedId'], $id]);
+        db()->prepare('UPDATE warnemuende_teilnehmer SET name = ?, vorname = ?, essensauswahl = ?, bezahlt = ?, abgesagt = ?, bemerkung = ?, mitglied_id = ? WHERE id = ?')
+            ->execute([$participant['name'], $participant['vorname'], $participant['essensauswahl'], (int) $participant['bezahlt'], (int) $participant['abgesagt'], $participant['bemerkung'], $participant['mitgliedId'], $id]);
         jsonResponse(['participant' => findWarnemuendeParticipantById($id)]);
     }
 

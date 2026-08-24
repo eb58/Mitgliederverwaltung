@@ -148,7 +148,6 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     createWarnemuendeParticipant: async participant => (await request("/api/warnemuende-participants", { method: "POST", body: participant })).participant,
     deactivateUser: id => request(`/api/users/${id}`, { method: "DELETE" }),
     deleteReferenceItem: (type, id) => request(`/api/reference-data/${type}/${id}`, { method: "DELETE" }),
-    deleteWarnemuendeParticipant: id => request(`/api/warnemuende-participants/${id}`, { method: "DELETE" }),
     fetchMemberPhotoObjectUrl,
     invalidateMemberPhotoCache,
     loadMemberChanges,

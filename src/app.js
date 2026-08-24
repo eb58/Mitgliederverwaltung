@@ -59,7 +59,6 @@ const {
   createWarnemuendeParticipant: createWarnemuendeParticipantViaApi,
   deactivateUser: deactivateUserViaApi,
   deleteReferenceItem: deleteReferenceItemViaApi,
-  deleteWarnemuendeParticipant: deleteWarnemuendeParticipantViaApi,
   fetchMemberPhotoObjectUrl,
   invalidateMemberPhotoCache,
   loadMemberChanges: loadMemberChangesViaApi,
@@ -102,7 +101,6 @@ const referenceAdmin = createReferenceAdmin({
 const warnemuendeAdmin = createWarnemuendeAdmin({
   createGrid: (gridKey, containerId, columnDefs, overrides) => createGrid(gridKey, containerId, columnDefs, overrides),
   createParticipant: createWarnemuendeParticipantViaApi,
-  deleteParticipant: deleteWarnemuendeParticipantViaApi,
   loadParticipants: loadWarnemuendeParticipantsFromApi,
   updateParticipant: updateWarnemuendeParticipantViaApi
 });
