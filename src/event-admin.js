@@ -1,11 +1,12 @@
 import { Modal } from "bootstrap";
 import { formatIsoDate, retryAsync } from "./member-utils.js";
 import { showToast } from "./ui.js";
-import { MAX_SEATS, mealOptions, numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } from "./warnemuende-domain.js";
-import { buildWarnemuendePdf, pdfToBytes } from "./warnemuende-pdf.js";
+import { createEventDomain } from "./event-domain.js";
+import { buildEventPdf, pdfToBytes } from "./event-pdf.js";
 
-export const createWarnemuendeAdmin = ({
+export const createEventAdmin = ({
   createGrid,
+  event,
   createParticipant,
   deleteParticipant,
   loadParticipants,
@@ -13,6 +14,11 @@ export const createWarnemuendeAdmin = ({
   setFallbackPhoto,
   updateParticipant
 }) => {
+  const { key, maxSeats, mealOptions } = event;
+  const { numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } = createEventDomain(event);
+  // Alle Bausteine eines Events haengen am Schluessel: warnemuendeForm, eisbeinessenGrid, ...
+  const domId = suffix => `${key}${suffix}`;
+
   let gridApi = null;
   let participants = [];
   let editModal = null;
@@ -28,11 +34,11 @@ export const createWarnemuendeAdmin = ({
     element.hidden = !message;
   };
 
-  const setError = message => setMessage("warnemuendeError", message);
-  const setEditError = message => setMessage("warnemuendeEditError", message);
+  const setError = message => setMessage(domId("Error"), message);
+  const setEditError = message => setMessage(domId("EditError"), message);
 
   const updateSummary = () => {
-    const summary = document.getElementById("warnemuendeSummary");
+    const summary = document.getElementById(domId("Summary"));
     if (!summary) return;
     const mitfahrend = participants.filter(participant => !participant.abgesagt);
     const abgesagt = participants.length - mitfahrend.length;
@@ -40,8 +46,8 @@ export const createWarnemuendeAdmin = ({
     summary.textContent = [
       `${mitfahrend.length} Teilnehmer`,
       ...(abgesagt ? [`${abgesagt} abgesagt`] : []),
-      ...(nachruecker ? [`${nachruecker} Nachrücker ab Platz ${MAX_SEATS + 1}`] : []),
-      summarizeMeals(participants),
+      ...(nachruecker ? [`${nachruecker} Nachrücker ab Platz ${maxSeats + 1}`] : []),
+      ...(mealOptions.length ? [summarizeMeals(participants)] : []),
       `bezahlt: ${mitfahrend.filter(participant => participant.bezahlt).length}`
     ].join(" · ");
   };
@@ -99,7 +105,7 @@ export const createWarnemuendeAdmin = ({
       });
       participants = participants.map(entry => entry.id === updated.id ? updated : entry);
       render();
-      showToast(`${updated.vorname} ${updated.name} ${updated.abgesagt ? "abgesagt" : "fährt wieder mit"}.`);
+      showToast(`${updated.vorname} ${updated.name} ${updated.abgesagt ? "abgesagt" : "nimmt wieder teil"}.`);
     } catch (error) {
       setError(error.message || "Absage konnte nicht gespeichert werden.");
     }
@@ -120,11 +126,11 @@ export const createWarnemuendeAdmin = ({
 
   // Druckfassung in Anmeldereihenfolge - unabhaengig davon, wie die Tabelle gerade sortiert ist.
   const exportPdf = () => {
-    const pdf = pdfToBytes(buildWarnemuendePdf(sortByAnmeldung(participants)));
+    const pdf = pdfToBytes(buildEventPdf(sortByAnmeldung(participants), { event }));
     const url = URL.createObjectURL(new Blob([pdf], { type: "application/pdf" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `warnemuende-teilnehmerliste-${formatIsoDate(new Date())}.pdf`;
+    link.download = `${key}-teilnehmerliste-${formatIsoDate(new Date())}.pdf`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -137,13 +143,13 @@ export const createWarnemuendeAdmin = ({
       const created = await createParticipant(toParticipantPayload({
         name: form.elements.name.value,
         vorname: form.elements.vorname.value,
-        essensauswahl: form.elements.essensauswahl.value,
+        essensauswahl: form.elements.essensauswahl?.value,
         bemerkung: form.elements.bemerkung.value
       }));
       participants = [...participants, created];
       render();
       form.reset();
-      setFormMeal(mealOptions[0]);
+      buildForm();
       form.elements.name.focus();
       showToast(`${created.vorname} ${created.name} hinzugefügt.`);
     } catch (error) {
@@ -277,6 +283,17 @@ export const createWarnemuendeAdmin = ({
     }
   });
 
+  const getMealColumn = () => ({
+    headerName: "Essensauswahl",
+    field: "essensauswahl",
+    editable: false,
+    cellClass: "meal-cell",
+    minWidth: 260,
+    cellRenderer: params => createMealChips(params.value, meal => {
+      if (meal !== params.value) params.node.setDataValue("essensauswahl", meal);
+    })
+  });
+
   const getColumns = () => [
     getPhotoColumn(),
     getActionColumn(),
@@ -298,16 +315,7 @@ export const createWarnemuendeAdmin = ({
     },
     { headerName: "Name", field: "name", minWidth: 150 },
     { headerName: "Vorname", field: "vorname", minWidth: 150 },
-    {
-      headerName: "Essensauswahl",
-      field: "essensauswahl",
-      editable: false,
-      cellClass: "meal-cell",
-      minWidth: 260,
-      cellRenderer: params => createMealChips(params.value, meal => {
-        if (meal !== params.value) params.node.setDataValue("essensauswahl", meal);
-      })
-    },
+    ...(mealOptions.length ? [getMealColumn()] : []),
     {
       headerName: "bezahlt",
       field: "bezahlt",
@@ -327,13 +335,13 @@ export const createWarnemuendeAdmin = ({
     container.replaceChildren(createMealChips(meal, next => setMealField(formSelector, containerId, next)));
   };
 
-  const setFormMeal = meal => setMealField("#warnemuendeForm", "warnemuendeEssensauswahl", meal);
-  const setEditMeal = meal => setMealField("#warnemuendeEditForm", "warnemuendeEditEssensauswahl", meal);
+  const setFormMeal = meal => setMealField(`#${domId("Form")}`, domId("Essensauswahl"), meal);
+  const setEditMeal = meal => setMealField(`#${domId("EditForm")}`, domId("EditEssensauswahl"), meal);
 
-  const buildForm = () => setFormMeal(mealOptions[0]);
+  const buildForm = () => mealOptions.length && setFormMeal(mealOptions[0]);
 
   const openEdit = participant => {
-    const form = document.getElementById("warnemuendeEditForm");
+    const form = document.getElementById(domId("EditForm"));
     if (!form || !editModal) return;
     editingId = participant.id;
     form.elements.name.value = participant.name;
@@ -341,7 +349,7 @@ export const createWarnemuendeAdmin = ({
     form.elements.bezahlt.checked = Boolean(participant.bezahlt);
     form.elements.abgesagt.checked = Boolean(participant.abgesagt);
     form.elements.bemerkung.value = participant.bemerkung || "";
-    setEditMeal(participant.essensauswahl);
+    if (mealOptions.length) setEditMeal(participant.essensauswahl);
     setEditError("");
     editModal.show();
   };
@@ -357,7 +365,7 @@ export const createWarnemuendeAdmin = ({
         ...toParticipantPayload({
           name: form.elements.name.value,
           vorname: form.elements.vorname.value,
-          essensauswahl: form.elements.essensauswahl.value,
+          essensauswahl: form.elements.essensauswahl?.value,
           bezahlt: form.elements.bezahlt.checked,
           abgesagt: form.elements.abgesagt.checked,
           bemerkung: form.elements.bemerkung.value,
@@ -375,27 +383,27 @@ export const createWarnemuendeAdmin = ({
 
   const init = () => {
     buildForm();
-    gridApi = createGrid("warnemuende", "warnemuendeGrid", getColumns(), {
+    gridApi = createGrid(key, domId("Grid"), getColumns(), {
       // Unveraendert uebernehmen: ohne eigene Sortierung wuerde createGrid sonst nach Namen sortieren.
       columnDefs: getColumns(),
       // Ohne Blaettern bleiben die Nachruecker am Ende der Liste sichtbar.
       pagination: false,
       rowClassRules: {
-        "warnemuende-nachruecker-row": params => Boolean(rowNumbering(params.node)?.nachruecker),
-        "warnemuende-abgesagt-row": params => Boolean(params.data?.abgesagt)
+        "event-nachruecker-row": params => Boolean(rowNumbering(params.node)?.nachruecker),
+        "event-abgesagt-row": params => Boolean(params.data?.abgesagt)
       },
       onRowDoubleClicked: event => openEdit(event.data),
       onCellValueChanged: handleCellValueChanged,
       onModelUpdated: event => renumberDisplayedRows(event.api),
       stopEditingWhenCellsLoseFocus: true
     });
-    document.getElementById("warnemuendeForm")?.addEventListener("submit", handleSubmit);
-    document.getElementById("warnemuendeExportBtn")?.addEventListener("click", exportPdf);
-    editModal = editModal || new Modal(document.getElementById("warnemuendeEditModal"));
-    document.getElementById("warnemuendeEditForm")?.addEventListener("submit", handleEditSubmit);
+    document.getElementById(domId("Form"))?.addEventListener("submit", handleSubmit);
+    document.getElementById(domId("ExportBtn"))?.addEventListener("click", exportPdf);
+    editModal = editModal || new Modal(document.getElementById(domId("EditModal")));
+    document.getElementById(domId("EditForm"))?.addEventListener("submit", handleEditSubmit);
     render();
     return gridApi;
   };
 
-  return { init, load };
+  return { init, key, load };
 };

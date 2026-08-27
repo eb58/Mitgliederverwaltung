@@ -20,7 +20,8 @@ export const gridApis = {
   christmas: null,
   historical: null,
   guests: null,
-  warnemuende: null
+  warnemuende: null,
+  eisbeinessen: null
 };
 
 export { AUTH_TOKEN_STORAGE_KEY };

@@ -1,17 +1,26 @@
 import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
 
-import { MAX_SEATS, mealOptions, numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } from "../../src/warnemuende-domain.js";
+import { eventConfigs } from "../../src/event-config.js";
+import { createEventDomain } from "../../src/event-domain.js";
 
-describe("warnemuende", () => {
-  it("bietet genau die drei Essensauswahlen der Teilnehmerliste", () => {
-    expect(mealOptions).toEqual(["Zander", "Rind", "Vegie"]);
+const warnemuende = createEventDomain(eventConfigs.warnemuende);
+const eisbeinessen = createEventDomain(eventConfigs.eisbeinessen);
+const { numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } = warnemuende;
+
+describe("Events", () => {
+  it("kennt Warnemuende mit drei Essensauswahlen und 49 Plaetzen", () => {
+    expect(warnemuende.mealOptions).toEqual(["Zander", "Rind", "Vegie"]);
+    expect(warnemuende.maxSeats).toBe(49);
   });
 
-  it("kennt die 49 Plaetze", () => {
-    expect(MAX_SEATS).toBe(49);
+  it("kennt das Eisbeinessen ohne Essensauswahl mit 30 Plaetzen", () => {
+    expect(eisbeinessen.mealOptions).toEqual([]);
+    expect(eisbeinessen.maxSeats).toBe(30);
   });
+});
 
+describe("Teilnehmernummerierung", () => {
   it("nummeriert von oben nach unten in der uebergebenen Reihenfolge", () => {
     const numbered = numberParticipants([
       { id: 30, name: "Abel" },
@@ -29,6 +38,12 @@ describe("warnemuende", () => {
     const numbered = numberParticipants(Array.from({ length: 51 }, (unused, index) => ({ id: index + 1 })));
 
     expect(numbered.filter(participant => participant.nachruecker).map(participant => participant.nr)).toEqual([50, 51]);
+  });
+
+  it("nutzt je Event die eigene Platzzahl", () => {
+    const numbered = eisbeinessen.numberParticipants(Array.from({ length: 31 }, (unused, index) => ({ id: index + 1 })));
+
+    expect(numbered.filter(participant => participant.nachruecker).map(participant => participant.nr)).toEqual([31]);
   });
 
   it("laesst Abgesagte an ihrem Platz, aber ohne Nummer", () => {
@@ -51,7 +66,9 @@ describe("warnemuende", () => {
 
     expect(numberParticipants(participants)[49].nachruecker).toBe(false);
   });
+});
 
+describe("Essensportionen", () => {
   it("zaehlt Abgesagte nicht in die Essensportionen", () => {
     const participants = [
       { id: 1, essensauswahl: "Zander" },
@@ -75,6 +92,12 @@ describe("warnemuende", () => {
     expect(summarizeMeals([])).toBe("Zander: 0 · Rind: 0 · Vegie: 0");
   });
 
+  it("bleibt ohne Essensauswahl leer", () => {
+    expect(eisbeinessen.summarizeMeals([{ id: 1 }])).toBe("");
+  });
+});
+
+describe("Teilnehmer-Payload", () => {
   it("trimmt Namen und Bemerkung und macht aus einer leeren DB-ID null", () => {
     expect(toParticipantPayload({ name: "  Brandl ", vorname: " Erich", essensauswahl: "Rind", bemerkung: " kommt spaeter ", mitgliedId: "" }))
       .toEqual({ name: "Brandl", vorname: "Erich", essensauswahl: "Rind", bezahlt: false, abgesagt: false, bemerkung: "kommt spaeter", mitgliedId: null });
@@ -87,5 +110,10 @@ describe("warnemuende", () => {
 
   it("verwirft eine DB-ID kleiner eins", () => {
     expect(toParticipantPayload({ name: "Witt", vorname: "Gisela", mitgliedId: 0 }).mitgliedId).toBe(null);
+  });
+
+  it("schickt ohne Essensauswahl auch kein Essensfeld mit", () => {
+    expect(eisbeinessen.toParticipantPayload({ name: " Witt ", vorname: "Gisela", essensauswahl: "Zander" }))
+      .toEqual({ name: "Witt", vorname: "Gisela", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: null });
   });
 });

@@ -145,10 +145,10 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     createReferenceItem: (type, item) => request(`/api/reference-data/${type}`, { method: "POST", body: item }),
     createUrl,
     createUser: user => request("/api/users", { method: "POST", body: user }),
-    createWarnemuendeParticipant: async participant => (await request("/api/warnemuende-participants", { method: "POST", body: participant })).participant,
+    createEventParticipant: async (event, participant) => (await request(`/api/${event}-participants`, { method: "POST", body: participant })).participant,
     deactivateUser: id => request(`/api/users/${id}`, { method: "DELETE" }),
     deleteReferenceItem: (type, id) => request(`/api/reference-data/${type}/${id}`, { method: "DELETE" }),
-    deleteWarnemuendeParticipant: id => request(`/api/warnemuende-participants/${id}`, { method: "DELETE" }),
+    deleteEventParticipant: (event, id) => request(`/api/${event}-participants/${id}`, { method: "DELETE" }),
     fetchMemberPhotoObjectUrl,
     invalidateMemberPhotoCache,
     loadMemberChanges,
@@ -157,12 +157,12 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     loadReferenceData: () => request("/api/reference-data"),
     loadReferenceItems: type => request(`/api/reference-data/${type}`),
     loadUsers: () => request("/api/users"),
-    loadWarnemuendeParticipants: async () => (await request("/api/warnemuende-participants"))?.participants || [],
+    loadEventParticipants: async event => (await request(`/api/${event}-participants`))?.participants || [],
     request,
     updateMember,
     updateReferenceItem: (type, item) => request(`/api/reference-data/${type}/${item.id}`, { method: "PUT", body: item }),
     updateUser: user => request(`/api/users/${user.id}`, { method: "PUT", body: user }),
-    updateWarnemuendeParticipant: async participant => (await request(`/api/warnemuende-participants/${participant.id}`, { method: "PUT", body: participant })).participant,
+    updateEventParticipant: async (event, participant) => (await request(`/api/${event}-participants/${participant.id}`, { method: "PUT", body: participant })).participant,
     uploadMemberPhoto
   };
 };

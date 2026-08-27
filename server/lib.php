@@ -1250,34 +1250,85 @@ function handleMemberPhoto(int $id, array $currentUser): void
     }
 }
 
-/** Ohne Tabelle soll die Oberflaeche einen lesbaren Hinweis zeigen statt eines 500ers. */
-function assertWarnemuendeTableExists(): void
+/**
+ * Jedes Event hat eine eigene Teilnehmertabelle. `meals` leer heisst: das Event kennt keine
+ * Essensauswahl - dann fehlt die Spalte sowohl in der Tabelle als auch in der API.
+ */
+function eventDefinition(string $event): array
 {
-    if (!tableExists('warnemuende_teilnehmer')) {
-        throw new ApiError('Tabelle warnemuende_teilnehmer fehlt - bitte das Schema aus server/db/schema.mysql.sql einspielen.', 503);
-    }
+    $events = [
+        'warnemuende' => ['table' => 'warnemuende_teilnehmer', 'meals' => ['Zander', 'Rind', 'Vegie']],
+        'eisbeinessen' => ['table' => 'eisbeinessen_teilnehmer', 'meals' => []],
+    ];
+    if (!isset($events[$event])) throw new ApiError('Unbekanntes Event: ' . $event, 404);
+    return $events[$event];
 }
 
-function warnemuendeMealOptions(): array
+/** Alle Eventtabellen sind bis auf die Essensauswahl gleich gebaut - deshalb reicht ein Bauplan. */
+function eventTableDdl(string $event): string
 {
-    return ['Zander', 'Rind', 'Vegie'];
+    ['table' => $table, 'meals' => $meals] = eventDefinition($event);
+    return implode("\n", array_filter([
+        "CREATE TABLE IF NOT EXISTS {$table} (",
+        '  id INT NOT NULL AUTO_INCREMENT,',
+        '  name VARCHAR(120) NOT NULL,',
+        '  vorname VARCHAR(120) NOT NULL,',
+        $meals ? "  essensauswahl ENUM('" . implode("', '", $meals) . "') NOT NULL DEFAULT '{$meals[0]}'," : '',
+        '  bezahlt TINYINT(1) NOT NULL DEFAULT 0,',
+        '  abgesagt TINYINT(1) NOT NULL DEFAULT 0,',
+        '  bemerkung TEXT NULL,',
+        '  mitglied_id INT NULL,',
+        '  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,',
+        '  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,',
+        '  PRIMARY KEY (id),',
+        "  INDEX idx_{$table}_name (name, vorname),",
+        "  CONSTRAINT fk_{$table}_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE SET NULL",
+        ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+    ]));
+}
+
+/**
+ * Ein neues Event soll ohne Schema-Import laufen: fehlt die Tabelle, legen wir sie an.
+ * Darf der DB-Benutzer das nicht (Hoster), bleibt der lesbare Hinweis statt eines 500ers.
+ */
+function ensureEventTable(string $event): void
+{
+    $table = eventDefinition($event)['table'];
+    if (tableExists($table)) return;
+
+    try {
+        db()->exec(eventTableDdl($event));
+    } catch (PDOException $error) {
+        error_log((string) $error);
+        throw new ApiError('Tabelle ' . $table . ' fehlt und konnte nicht angelegt werden - bitte das Schema aus server/db/schema.mysql.sql einspielen.', 503);
+    }
+    clearSchemaCache();
+}
+
+function eventParticipantColumns(string $event): array
+{
+    $meals = eventDefinition($event)['meals'] ? ['essensauswahl'] : [];
+    return array_merge(['name', 'vorname'], $meals, ['bezahlt', 'abgesagt', 'bemerkung', 'mitglied_id']);
 }
 
 /** Akzeptiert auch die Schreibweisen der Papierliste ("Zanderfilet", "Rinderbäckchen"). */
-function normalizeWarnemuendeMeal(mixed $value): string
+function normalizeEventMeal(string $event, mixed $value): string
 {
+    $options = eventDefinition($event)['meals'];
     $text = trim((string) $value);
-    foreach (warnemuendeMealOptions() as $option) {
+    foreach ($options as $option) {
         // stripos genuegt: die Gerichtsnamen sind ASCII, nur die Endungen der
         // Papierliste ("Rinderbaeckchen") tragen Umlaute - und mbstring ist beim Hoster nicht sicher da.
         if (stripos($text, $option) === 0) return $option;
     }
-    throw new ApiError('Essensauswahl muss ' . implode(', ', warnemuendeMealOptions()) . ' sein.', 400);
+    throw new ApiError('Essensauswahl muss ' . implode(', ', $options) . ' sein.', 400);
 }
 
-function normalizeWarnemuendeInput(array $payload, bool $partial = false): array
+function normalizeEventInput(string $event, array $payload, bool $partial = false): array
 {
-    $unknown = array_diff(array_keys($payload), ['id', 'name', 'vorname', 'essensauswahl', 'bezahlt', 'abgesagt', 'bemerkung', 'mitgliedId']);
+    $meals = eventDefinition($event)['meals'];
+    $known = array_merge(['id', 'name', 'vorname', 'bezahlt', 'abgesagt', 'bemerkung', 'mitgliedId'], $meals ? ['essensauswahl'] : []);
+    $unknown = array_diff(array_keys($payload), $known);
     if ($unknown) throw new ApiError('Unbekannte Felder: ' . implode(', ', $unknown), 400);
 
     $participant = [];
@@ -1286,8 +1337,8 @@ function normalizeWarnemuendeInput(array $payload, bool $partial = false): array
         $participant[$field] = trim((string) ($payload[$field] ?? ''));
         if ($participant[$field] === '') throw new ApiError('Name und Vorname sind erforderlich.', 400);
     }
-    if (!$partial || array_key_exists('essensauswahl', $payload)) {
-        $participant['essensauswahl'] = normalizeWarnemuendeMeal($payload['essensauswahl'] ?? 'Zander');
+    if ($meals && (!$partial || array_key_exists('essensauswahl', $payload))) {
+        $participant['essensauswahl'] = normalizeEventMeal($event, $payload['essensauswahl'] ?? $meals[0]);
     }
     if (!$partial || array_key_exists('bezahlt', $payload)) {
         $participant['bezahlt'] = (bool) ($payload['bezahlt'] ?? false);
@@ -1305,7 +1356,7 @@ function normalizeWarnemuendeInput(array $payload, bool $partial = false): array
     return $participant;
 }
 
-function assertWarnemuendeMemberExists(?int $mitgliedId): void
+function assertEventMemberExists(?int $mitgliedId): void
 {
     if ($mitgliedId === null) return;
     $statement = db()->prepare('SELECT 1 FROM mitglied WHERE id = ?');
@@ -1313,53 +1364,73 @@ function assertWarnemuendeMemberExists(?int $mitgliedId): void
     if (!$statement->fetchColumn()) throw new ApiError('Unbekannte DB-ID: ' . $mitgliedId, 400);
 }
 
-function warnemuendeRowToApi(array $row): array
+function eventRowToApi(array $row): array
 {
-    return [
-        'id' => (int) $row['id'],
-        'name' => (string) $row['name'],
-        'vorname' => (string) $row['vorname'],
-        'essensauswahl' => (string) $row['essensauswahl'],
-        'bezahlt' => (bool) $row['bezahlt'],
-        'abgesagt' => (bool) $row['abgesagt'],
-        'bemerkung' => (string) ($row['bemerkung'] ?? ''),
-        'mitgliedId' => $row['mitglied_id'] === null ? null : (int) $row['mitglied_id'],
-    ];
+    return array_merge(
+        [
+            'id' => (int) $row['id'],
+            'name' => (string) $row['name'],
+            'vorname' => (string) $row['vorname'],
+        ],
+        array_key_exists('essensauswahl', $row) ? ['essensauswahl' => (string) $row['essensauswahl']] : [],
+        [
+            'bezahlt' => (bool) $row['bezahlt'],
+            'abgesagt' => (bool) $row['abgesagt'],
+            'bemerkung' => (string) ($row['bemerkung'] ?? ''),
+            'mitgliedId' => $row['mitglied_id'] === null ? null : (int) $row['mitglied_id'],
+        ]
+    );
 }
 
-function findWarnemuendeParticipantById(int $id): ?array
+/** Bringt den Datensatz in die Reihenfolge der Tabellenspalten - fuer INSERT und UPDATE gleich. */
+function eventParticipantValues(string $event, array $participant): array
 {
-    $statement = db()->prepare('SELECT id, name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id FROM warnemuende_teilnehmer WHERE id = ?');
+    return array_map(static fn(string $column) => match ($column) {
+        'mitglied_id' => $participant['mitgliedId'],
+        'bezahlt', 'abgesagt' => (int) $participant[$column],
+        default => $participant[$column],
+    }, eventParticipantColumns($event));
+}
+
+function findEventParticipantById(string $event, int $id): ?array
+{
+    $columns = eventParticipantColumns($event);
+    $statement = db()->prepare('SELECT id, ' . implode(', ', $columns) . ' FROM ' . eventDefinition($event)['table'] . ' WHERE id = ?');
     $statement->execute([$id]);
     $row = $statement->fetch();
-    return $row ? warnemuendeRowToApi($row) : null;
+    return $row ? eventRowToApi($row) : null;
 }
 
-function handleWarnemuendeCollection(): void
+function handleEventParticipantCollection(string $event): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'POST']);
-    assertWarnemuendeTableExists();
+    ensureEventTable($event);
+    $table = eventDefinition($event)['table'];
+    $columns = eventParticipantColumns($event);
+
     if ($method === 'GET') {
-        $rows = db()->query('SELECT id, name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id FROM warnemuende_teilnehmer ORDER BY name, vorname, id')->fetchAll();
-        jsonResponse(['participants' => array_map('warnemuendeRowToApi', $rows)]);
+        $rows = db()->query('SELECT id, ' . implode(', ', $columns) . ' FROM ' . $table . ' ORDER BY name, vorname, id')->fetchAll();
+        jsonResponse(['participants' => array_map('eventRowToApi', $rows)]);
     }
 
     if ($method === 'POST') {
-        $participant = normalizeWarnemuendeInput(readJsonBody());
-        assertWarnemuendeMemberExists($participant['mitgliedId']);
-        $statement = db()->prepare('INSERT INTO warnemuende_teilnehmer (name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id) VALUES (?, ?, ?, ?, ?, ?, ?)');
-        $statement->execute([$participant['name'], $participant['vorname'], $participant['essensauswahl'], (int) $participant['bezahlt'], (int) $participant['abgesagt'], $participant['bemerkung'], $participant['mitgliedId']]);
-        jsonResponse(['participant' => findWarnemuendeParticipantById((int) db()->lastInsertId())], 201);
+        $participant = normalizeEventInput($event, readJsonBody());
+        assertEventMemberExists($participant['mitgliedId']);
+        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+        db()->prepare('INSERT INTO ' . $table . ' (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')')
+            ->execute(eventParticipantValues($event, $participant));
+        jsonResponse(['participant' => findEventParticipantById($event, (int) db()->lastInsertId())], 201);
     }
 }
 
-function handleWarnemuendeResource(int $id): void
+function handleEventParticipantResource(string $event, int $id): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'PUT', 'PATCH', 'DELETE']);
-    assertWarnemuendeTableExists();
-    $existing = findWarnemuendeParticipantById($id);
+    ensureEventTable($event);
+    $table = eventDefinition($event)['table'];
+    $existing = findEventParticipantById($event, $id);
     if (!$existing) throw new ApiError('Teilnehmer nicht gefunden.', 404);
 
     if ($method === 'GET') {
@@ -1367,16 +1438,17 @@ function handleWarnemuendeResource(int $id): void
     }
 
     if ($method === 'PUT' || $method === 'PATCH') {
-        $patch = normalizeWarnemuendeInput(readJsonBody(), $method === 'PATCH');
+        $patch = normalizeEventInput($event, readJsonBody(), $method === 'PATCH');
         $participant = array_replace($existing, $patch);
-        assertWarnemuendeMemberExists($participant['mitgliedId']);
-        db()->prepare('UPDATE warnemuende_teilnehmer SET name = ?, vorname = ?, essensauswahl = ?, bezahlt = ?, abgesagt = ?, bemerkung = ?, mitglied_id = ? WHERE id = ?')
-            ->execute([$participant['name'], $participant['vorname'], $participant['essensauswahl'], (int) $participant['bezahlt'], (int) $participant['abgesagt'], $participant['bemerkung'], $participant['mitgliedId'], $id]);
-        jsonResponse(['participant' => findWarnemuendeParticipantById($id)]);
+        assertEventMemberExists($participant['mitgliedId']);
+        $assignments = implode(', ', array_map(static fn(string $column) => $column . ' = ?', eventParticipantColumns($event)));
+        db()->prepare('UPDATE ' . $table . ' SET ' . $assignments . ' WHERE id = ?')
+            ->execute([...eventParticipantValues($event, $participant), $id]);
+        jsonResponse(['participant' => findEventParticipantById($event, $id)]);
     }
 
     if ($method === 'DELETE') {
-        db()->prepare('DELETE FROM warnemuende_teilnehmer WHERE id = ?')->execute([$id]);
+        db()->prepare('DELETE FROM ' . $table . ' WHERE id = ?')->execute([$id]);
         noContent();
     }
 }

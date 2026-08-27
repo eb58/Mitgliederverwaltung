@@ -1,4 +1,4 @@
-import { numberParticipants } from "./warnemuende-domain.js";
+import { numberParticipants } from "./event-domain.js";
 
 // Masse des Originals aus output/pdf/warnemuende_teilnehmerliste.pdf (A4 quer, ReportLab):
 // zwei Tabellenbloecke nebeneinander, je 26 Datenzeilen unter einer Kopfzeile.
@@ -14,6 +14,19 @@ const COLUMNS = [
   { key: "bemerkung", label: "Bemerkungen", x: 294.8031, width: 82.20472 }
 ];
 const PADDING = 3.68;
+
+/** Ohne Essensauswahl faellt deren Spalte weg; ihre Breite bekommt die Bemerkungsspalte. */
+const columnsFor = mealOptions => {
+  if (mealOptions.length) return COLUMNS;
+  const meal = COLUMNS.find(column => column.key === "essensauswahl");
+  let x = 0;
+  return COLUMNS.filter(column => column !== meal).map(column => {
+    const width = column.key === "bemerkung" ? column.width + meal.width : column.width;
+    const placed = { ...column, x, width };
+    x += width;
+    return placed;
+  });
+};
 const COLORS = {
   title: ".090196 .243137 .294118",
   header: ".121569 .352941 .423529",
@@ -58,7 +71,7 @@ const cellValue = (participant, column) => {
   return participant[column.key] ?? "";
 };
 
-const drawBlock = (rows, blockX) => {
+const drawBlock = (rows, blockX, columns) => {
   const top = TABLE.rowHeight * (TABLE.rows + 1);
   const parts = [rect(blockX, top - TABLE.rowHeight, TABLE.width, TABLE.rowHeight, COLORS.header)];
 
@@ -68,7 +81,7 @@ const drawBlock = (rows, blockX) => {
   });
 
   parts.push("1 1 1 rg");
-  COLUMNS.forEach(column => {
+  columns.forEach(column => {
     const x = blockX + column.x + (column.align === "center"
       ? (column.width - textWidth(column.label, FONT_SIZE.header)) / 2
       : PADDING);
@@ -78,7 +91,7 @@ const drawBlock = (rows, blockX) => {
   parts.push(`${COLORS.text} rg`);
   rows.forEach((participant, index) => {
     const baseline = top - TABLE.rowHeight * (index + 2) + 7.3;
-    COLUMNS.forEach(column => {
+    columns.forEach(column => {
       const value = truncate(cellValue(participant, column), FONT_SIZE.row, column.width - 2 * PADDING);
       if (value === "") return;
       const x = blockX + column.x + (column.align === "center"
@@ -98,7 +111,7 @@ const drawBlock = (rows, blockX) => {
     parts.push(line(blockX, y, blockX + TABLE.width, y, COLORS.grid));
   }
   const bottom = top - TABLE.rowHeight * (rows.length + 1);
-  [...COLUMNS.slice(1).map(column => column.x), TABLE.width].forEach(x => {
+  [...columns.slice(1).map(column => column.x), TABLE.width].forEach(x => {
     parts.push(line(blockX + x, bottom, blockX + x, top, COLORS.grid));
   });
   parts.push(line(blockX, top - TABLE.rowHeight, blockX + TABLE.width, top - TABLE.rowHeight, COLORS.header, 1));
@@ -106,14 +119,14 @@ const drawBlock = (rows, blockX) => {
   return parts.join("\n");
 };
 
-const drawPage = (rows, { title, footer }) => {
+const drawPage = (rows, { title, footer, columns }) => {
   const [left, right] = [rows.slice(0, TABLE.rows), rows.slice(TABLE.rows)];
   return [
     `${COLORS.title} rg`,
     show(TITLE.x, TITLE.y, title, { font: "F2", size: TITLE.size }),
     `q 1 0 0 1 ${TABLE.x.toFixed(4)} ${TABLE.y.toFixed(4)} cm`,
-    drawBlock(left, 0),
-    ...(right.length ? [drawBlock(right, TABLE.blockOffset)] : []),
+    drawBlock(left, 0, columns),
+    ...(right.length ? [drawBlock(right, TABLE.blockOffset, columns)] : []),
     "Q",
     `${COLORS.text} rg`,
     show(TITLE.x, TABLE.y - 22, footer, { size: FONT_SIZE.footer })
@@ -147,19 +160,26 @@ const buildDocument = pages => {
   return pdf;
 };
 
-export const buildWarnemuendePdf = (participants, { title = "Teilnehmerliste Warnemünde", date = new Date() } = {}) => {
-  const rows = numberParticipants(participants);
+export const buildEventPdf = (participants, { event, date = new Date() }) => {
+  const { label, mealOptions = [], maxSeats } = event;
+  const rows = numberParticipants(participants, maxSeats);
+  const columns = columnsFor(mealOptions);
   const perPage = TABLE.rows * 2;
   const mitfahrend = rows.filter(participant => !participant.abgesagt);
-  const meals = ["Zander", "Rind", "Vegie"]
+  const meals = mealOptions
     .map(option => `${option}: ${mitfahrend.filter(participant => participant.essensauswahl === option).length}`)
     .join("   ");
-  const footer = `${mitfahrend.length} Teilnehmer   ${meals}   bezahlt: ${mitfahrend.filter(participant => participant.bezahlt).length}`
-    + `   Stand: ${date.toLocaleDateString("de-DE")}`;
+  const footer = [
+    `${mitfahrend.length} Teilnehmer`,
+    ...(meals ? [meals] : []),
+    `bezahlt: ${mitfahrend.filter(participant => participant.bezahlt).length}`,
+    `Stand: ${date.toLocaleDateString("de-DE")}`
+  ].join("   ");
+  const title = `Teilnehmerliste ${label}`;
 
   const pages = [];
   for (let start = 0; start < Math.max(rows.length, 1); start += perPage) {
-    pages.push(drawPage(rows.slice(start, start + perPage), { title, footer }));
+    pages.push(drawPage(rows.slice(start, start + perPage), { title, footer, columns }));
   }
   return buildDocument(pages);
 };

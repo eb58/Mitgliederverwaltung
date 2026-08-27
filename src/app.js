@@ -44,7 +44,8 @@ import {
 } from "./member-domain.js";
 import { gridApis, state } from "./state.js";
 import { createUserAdmin } from "./user-admin.js";
-import { createWarnemuendeAdmin } from "./warnemuende.js";
+import { createEventAdmin } from "./event-admin.js";
+import { eventList } from "./event-config.js";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -56,10 +57,10 @@ const {
   createMember: createMemberViaApi,
   createReferenceItem: createReferenceItemViaApi,
   createUser: createUserViaApi,
-  createWarnemuendeParticipant: createWarnemuendeParticipantViaApi,
+  createEventParticipant: createEventParticipantViaApi,
   deactivateUser: deactivateUserViaApi,
   deleteReferenceItem: deleteReferenceItemViaApi,
-  deleteWarnemuendeParticipant: deleteWarnemuendeParticipantViaApi,
+  deleteEventParticipant: deleteEventParticipantViaApi,
   fetchMemberPhotoObjectUrl,
   invalidateMemberPhotoCache,
   loadMemberChanges: loadMemberChangesViaApi,
@@ -68,12 +69,12 @@ const {
   loadReferenceData: loadReferenceDataFromApi,
   loadReferenceItems: loadReferenceItemsFromApi,
   loadUsers: loadUsersFromApi,
-  loadWarnemuendeParticipants: loadWarnemuendeParticipantsFromApi,
+  loadEventParticipants: loadEventParticipantsFromApi,
   request: requestMemberApi,
   updateMember: updateMemberViaApi,
   updateReferenceItem: updateReferenceItemViaApi,
   updateUser: updateUserViaApi,
-  updateWarnemuendeParticipant: updateWarnemuendeParticipantViaApi,
+  updateEventParticipant: updateEventParticipantViaApi,
   uploadMemberPhoto: uploadMemberPhotoViaApi
 } = createMemberApi({
   getAuthToken: () => state.authToken,
@@ -99,19 +100,20 @@ const referenceAdmin = createReferenceAdmin({
   updateItem: updateReferenceItemViaApi
 });
 
-const warnemuendeAdmin = createWarnemuendeAdmin({
+const eventAdmins = eventList.map(event => createEventAdmin({
   createGrid: (gridKey, containerId, columnDefs, overrides) => createGrid(gridKey, containerId, columnDefs, overrides),
-  createParticipant: createWarnemuendeParticipantViaApi,
-  deleteParticipant: deleteWarnemuendeParticipantViaApi,
-  loadParticipants: loadWarnemuendeParticipantsFromApi,
+  createParticipant: participant => createEventParticipantViaApi(event.key, participant),
+  deleteParticipant: id => deleteEventParticipantViaApi(event.key, id),
+  event,
+  loadParticipants: () => loadEventParticipantsFromApi(event.key),
   // Teilnehmer ohne Clubmitgliedschaft haben kein Passbild - dann bleibt das Platzhalterbild stehen.
   resolveParticipantPhoto: mitgliedId => {
     const member = state.members.find(entry => entry.id === Number(mitgliedId));
     return member ? resolveMemberPhotoDataUrl(member) : Promise.resolve(null);
   },
   setFallbackPhoto: wrapper => setFallbackPhoto(wrapper),
-  updateParticipant: updateWarnemuendeParticipantViaApi
-});
+  updateParticipant: participant => updateEventParticipantViaApi(event.key, participant)
+}));
 
 const auth = createAuth({
   changeOwnPassword: changeOwnPasswordViaApi,
@@ -176,7 +178,7 @@ const loadAppData = async () => {
   const [, loadedMembers] = await Promise.all([
     retryAsync(referenceAdmin.load),
     retryAsync(loadMembersFromApi),
-    warnemuendeAdmin.load()
+    ...eventAdmins.map(admin => admin.load())
   ]);
   state.members = loadedMembers;
   state.nextId = getNextId(state.members);
@@ -379,7 +381,7 @@ const initGrids = () => {
   gridApis.christmas = createGrid("christmas", "christmasGrid", getChristmasColumns());
   gridApis.historical = createGrid("historical", "historicalGrid", getHistoricalColumns());
   gridApis.guests = createGrid("guests", "guestsGrid", getGuestsColumns(), { rowClassRules: {} });
-  gridApis.warnemuende = warnemuendeAdmin.init();
+  eventAdmins.forEach(admin => { gridApis[admin.key] = admin.init(); });
 };
 
 const wireGridFilterControls = (gridDiv, api) => {
@@ -887,7 +889,7 @@ const refreshAllViews = () => {
     .filter(m => !isActiveMember(m) && !isGuestMember(m))
     .sort(sortByName);
   setGridData(gridApis.historical, historicalMembers);
-  gridApis.warnemuende?.refreshCells({ columns: ["passbild"], force: true });
+  eventAdmins.forEach(admin => gridApis[admin.key]?.refreshCells({ columns: ["passbild"], force: true }));
 
   refreshDashboard();
 

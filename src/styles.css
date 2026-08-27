@@ -720,11 +720,11 @@ body {
   margin-bottom: 0.75rem;
 }
 
-.warnemuende-toolbar {
+.event-toolbar {
   align-items: center;
 }
 
-.warnemuende-toolbar__input {
+.event-toolbar__input {
   width: auto;
   max-width: 170px;
 }
@@ -770,22 +770,22 @@ body {
   align-items: center;
 }
 
-.warnemuende-edit-form {
+.event-edit-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.9rem;
 }
 
-.warnemuende-edit-form__wide {
+.event-edit-form__wide {
   grid-column: 1 / -1;
 }
 
-.warnemuende-edit-form__flags {
+.event-edit-form__flags {
   display: flex;
   gap: 1.5rem;
 }
 
-.warnemuende-edit-form__actions {
+.event-edit-form__actions {
   grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
@@ -793,7 +793,7 @@ body {
   margin-top: 0.2rem;
 }
 
-.warnemuende-summary {
+.event-summary {
   margin-right: auto;
   font-weight: 700;
   color: var(--accent-dark);
@@ -932,31 +932,31 @@ body {
 }
 
 /* Abgesagte bleiben sichtbar, zaehlen aber nicht mehr mit. */
-.grid-host .ag-row.warnemuende-abgesagt-row .ag-cell {
+.grid-host .ag-row.event-abgesagt-row .ag-cell {
   color: var(--muted);
   text-decoration: line-through;
 }
 
-.grid-host .ag-row.warnemuende-abgesagt-row .meal-chip,
-.grid-host .ag-row.warnemuende-abgesagt-row .edit-icon-btn {
+.grid-host .ag-row.event-abgesagt-row .meal-chip,
+.grid-host .ag-row.event-abgesagt-row .edit-icon-btn {
   text-decoration: none;
   opacity: 0.65;
 }
 
-.grid-host .ag-row.warnemuende-nachruecker-row {
+.grid-host .ag-row.event-nachruecker-row {
   background-color: #fdf2f2;
   border-color: #f0cfcf;
 }
 
-.grid-host .ag-row.warnemuende-nachruecker-row.ag-row-hover {
+.grid-host .ag-row.event-nachruecker-row.ag-row-hover {
   background-color: #fbe6e6;
 }
 
-.grid-host .ag-row.warnemuende-nachruecker-row .ag-cell {
+.grid-host .ag-row.event-nachruecker-row .ag-cell {
   color: #6b4a4a;
 }
 
-.grid-host .ag-row.warnemuende-nachruecker-row .ag-cell:first-child {
+.grid-host .ag-row.event-nachruecker-row .ag-cell:first-child {
   box-shadow: inset 5px 0 0 #b4453f;
 }
 

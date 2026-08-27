@@ -219,3 +219,18 @@ CREATE TABLE warnemuende_teilnehmer (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE warnemuende_teilnehmer ADD COLUMN abgesagt TINYINT(1) NOT NULL DEFAULT 0 AFTER bezahlt;
+
+CREATE TABLE eisbeinessen_teilnehmer (
+  id INT NOT NULL AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  vorname VARCHAR(120) NOT NULL,
+  bezahlt TINYINT(1) NOT NULL DEFAULT 0,
+  abgesagt TINYINT(1) NOT NULL DEFAULT 0,
+  bemerkung TEXT NULL,
+  mitglied_id INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_eisbeinessen_teilnehmer_name (name, vorname),
+  CONSTRAINT fk_eisbeinessen_teilnehmer_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

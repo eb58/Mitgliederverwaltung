@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
 
-import { buildWarnemuendePdf, pdfToBytes } from "../../src/warnemuende-pdf.js";
+import { eventConfigs } from "../../src/event-config.js";
+import { buildEventPdf, pdfToBytes } from "../../src/event-pdf.js";
+
+const buildWarnemuendePdf = (participants, options = {}) => buildEventPdf(participants, { event: eventConfigs.warnemuende, ...options });
 
 const participant = (id, overrides = {}) => ({
   id,
@@ -14,7 +17,7 @@ const participant = (id, overrides = {}) => ({
   ...overrides
 });
 
-describe("Warnemuende-PDF", () => {
+describe("Event-PDF", () => {
   it("liefert ein gueltiges PDF-Geruest", () => {
     const pdf = buildWarnemuendePdf([participant(1)]);
 
@@ -79,6 +82,18 @@ describe("Warnemuende-PDF", () => {
     const pdf = buildWarnemuendePdf([participant(1, { bemerkung: "eine wirklich sehr lange Bemerkung zum Sitzplatz" })]);
 
     expect(pdf).toContain("(eine wirklich sehr.) Tj");
+  });
+
+  it("laesst ohne Essensauswahl die Spalte weg und verbreitert die Bemerkungen", () => {
+    const pdf = buildEventPdf(
+      [participant(1, { bemerkung: "eine wirklich sehr lange Bemerkung zum Sitzplatz" })],
+      { event: eventConfigs.eisbeinessen, date: new Date(2026, 7, 24) }
+    );
+
+    expect(pdf).toContain("(Teilnehmerliste Eisbeinessen) Tj");
+    expect(pdf.includes("(Essensauswahl) Tj")).toBe(false);
+    expect(pdf).toContain("(eine wirklich sehr lange Bemerkung zu.) Tj");
+    expect(pdf).toContain("(1 Teilnehmer   bezahlt: 0   Stand: 24.8.2026) Tj");
   });
 
   it("schreibt Bytes als Latin-1, nicht als UTF-8", () => {

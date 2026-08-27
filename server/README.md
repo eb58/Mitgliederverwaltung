@@ -24,12 +24,12 @@ POST   /api/users
 PUT    /api/users/{id}
 PATCH  /api/users/{id}
 DELETE /api/users/{id}
-GET    /api/warnemuende-participants
-POST   /api/warnemuende-participants
-GET    /api/warnemuende-participants/{id}
-PUT    /api/warnemuende-participants/{id}
-PATCH  /api/warnemuende-participants/{id}
-DELETE /api/warnemuende-participants/{id}
+GET    /api/{event}-participants
+POST   /api/{event}-participants
+GET    /api/{event}-participants/{id}
+PUT    /api/{event}-participants/{id}
+PATCH  /api/{event}-participants/{id}
+DELETE /api/{event}-participants/{id}
 GET    /api/reference-data
 GET    /api/reference-data/{type}
 POST   /api/reference-data/{type}
@@ -38,6 +38,10 @@ PATCH  /api/reference-data/{type}/{id}
 DELETE /api/reference-data/{type}/{id}
 GET    /health
 ```
+
+`{event}` ist einer der in `eventDefinition()` (`lib.php`) eingetragenen Schluessel:
+`warnemuende` (mit Essensauswahl) und `eisbeinessen` (ohne). Jedes Event hat eine eigene Tabelle
+`<event>_teilnehmer`; ein unbekannter Schluessel liefert 404.
 
 ## Installation auf Webhosting
 
@@ -55,10 +59,12 @@ php mitgliederverwaltung/php-api/create-user.php admin dein-passwort
 
 Die PHP-API verwendet `password_hash()`/`password_verify()`.
 
-Die Teilnehmerliste fuer Warnemuende wird nicht mitgeliefert: Sie enthaelt Personendaten und wird ueber
-`/api/warnemuende-participants` bzw. direkt in der Oberflaeche gepflegt.
+Die Teilnehmerlisten der Events werden nicht mitgeliefert: Sie enthalten Personendaten und werden ueber
+`/api/{event}-participants` bzw. direkt in der Oberflaeche gepflegt.
 
 Wenn die Datenbank bereits existiert, muss sie dem Schema in `server/db/schema.mysql.sql` entsprechen. Fehlende Schemaerweiterungen sind vor dem Betrieb manuell einzuspielen, zum Beispiel über phpMyAdmin.
+
+Ausnahme sind die Teilnehmertabellen der Events: Fehlt `<key>_teilnehmer`, legt die API sie beim ersten Zugriff selbst an. Ein neues Event laeuft damit ohne Schema-Import - vorausgesetzt, der DB-Benutzer darf `CREATE TABLE`. Darf er es nicht, meldet die API weiterhin einen lesbaren 503er.
 
 ## Betrieb ohne mod_rewrite
 

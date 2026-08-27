@@ -5,6 +5,7 @@
 - Docker-Container nach Verzeichnis-Umbenennungen im Repo immer mit `--force-recreate` neu erstellen (siehe Befehl unten) - sonst laufen alte Bind-Mounts weiter und die PHP-API liefert einen Apache-404 statt einer echten Antwort.
 - Fachliche Begriffe auf Deutsch belassen (Mitglied, Beitrag, Weihnachtsessen, Austrittsgrund, Interessengruppe, Funktion) - keine englischen Namen dafür suchen.
 - Neue fachliche Logik ohne DOM-/Netzwerkabhängigkeit möglichst in `member-domain.js` bzw. `member-utils.js` auslagern, damit sie unit-testbar bleibt.
+- Ein neues Event (Teilnehmerliste) braucht nur vier Stellen: Eintrag in `src/event-config.js`, Eintrag in `eventDefinition()` in `server/lib.php`, Tabelle `<key>_teilnehmer` in `server/db/schema.mysql.sql` (im Betrieb legt `ensureEventTable()` sie beim ersten Zugriff selbst an) und Sidebar-Eintrag, Pane und Bearbeiten-Dialog in `index.html`. Die DOM-Ids leiten sich aus dem Schluessel ab (`<key>Form`, `<key>Grid`, `<key>EditModal`, ...).
 - Nur auf Anforderung committen.
 
 ## Projektwissen

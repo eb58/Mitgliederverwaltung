@@ -56,7 +56,10 @@ const json = (route, body, status = 200) => route.fulfill({
 
 const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0, staleToken = "" } = {}) => {
   const currentReferenceData = structuredClone(referenceData);
-  const participants = [{ id: 1, name: "Müller", vorname: "Anna", essensauswahl: "Zander", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }];
+  const participantsByEvent = {
+    warnemuende: [{ id: 1, name: "Müller", vorname: "Anna", essensauswahl: "Zander", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }],
+    eisbeinessen: [{ id: 1, name: "Müller", vorname: "Anna", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }]
+  };
   let remainingReferenceDataFailures = referenceDataFailures;
   const collections = {
     "interest-groups": { key: "interestGroups", labelKey: "label" },
@@ -105,18 +108,21 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
       item[collection.labelKey] = request.postDataJSON().label;
       return json(route, { item: { id: item.id, label: item[collection.labelKey], active: true } });
     }
-    if (apiPath === "/api/warnemuende-participants" && request.method() === "GET") {
-      await initialDataGate;
-      return json(route, { participants });
-    }
-    if (apiPath === "/api/warnemuende-participants" && request.method() === "POST") {
+    const eventCollectionMatch = apiPath.match(/^\/api\/([a-z]+)-participants$/);
+    if (eventCollectionMatch && participantsByEvent[eventCollectionMatch[1]]) {
+      const participants = participantsByEvent[eventCollectionMatch[1]];
+      if (request.method() === "GET") {
+        await initialDataGate;
+        return json(route, { participants });
+      }
       const participant = { id: Math.max(0, ...participants.map(entry => entry.id)) + 1, ...request.postDataJSON() };
       participants.push(participant);
       return json(route, { participant }, 201);
     }
-    const participantMatch = apiPath.match(/^\/api\/warnemuende-participants\/(\d+)$/);
-    if (participantMatch) {
-      const index = participants.findIndex(entry => entry.id === Number(participantMatch[1]));
+    const eventResourceMatch = apiPath.match(/^\/api\/([a-z]+)-participants\/(\d+)$/);
+    if (eventResourceMatch && participantsByEvent[eventResourceMatch[1]]) {
+      const participants = participantsByEvent[eventResourceMatch[1]];
+      const index = participants.findIndex(entry => entry.id === Number(eventResourceMatch[2]));
       if (index < 0) return json(route, { error: "Teilnehmer nicht gefunden." }, 404);
       if (request.method() === "DELETE") {
         participants.splice(index, 1);
@@ -462,7 +468,7 @@ test("neues Mitglied wird mit Formulardaten an die API gesendet", async ({ page 
   await expect(page.locator("#memberModal")).not.toHaveClass(/show/);
 });
 
-test("Events-Gruppe klappt Weihnachtsessen und Warnemünde auf und markiert den aktiven Punkt", async ({ page }) => {
+test("Events-Gruppe klappt Weihnachtsessen, Warnemünde und Eisbeinessen auf und markiert den aktiven Punkt", async ({ page }) => {
   await openAuthenticatedApp(page);
 
   const changesPosition = await page.locator("#changes-tab").boundingBox();
@@ -478,6 +484,7 @@ test("Events-Gruppe klappt Weihnachtsessen und Warnemünde auf und markiert den 
   await expect(group).toBeVisible();
   await expect(page.locator("#christmas-tab")).toBeVisible();
   await expect(page.locator("#warnemuende-tab")).toBeVisible();
+  await expect(page.locator("#eisbeinessen-tab")).toBeVisible();
 
   await page.locator("#christmas-tab").click();
   await expect(page.locator("#christmas-pane")).toBeVisible();
@@ -609,7 +616,7 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   // Absagen statt loeschen: der Eintrag bleibt stehen, verliert aber seine Nummer.
   await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer absagen" }).click();
   await expect(grid).toContainText("Gästefreund");
-  await expect(grid.locator('[row-id="2"]').first()).toHaveClass(/warnemuende-abgesagt-row/);
+  await expect(grid.locator('[row-id="2"]').first()).toHaveClass(/event-abgesagt-row/);
   await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("");
   await expect(summary).toHaveText("1 Teilnehmer · 1 abgesagt · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
 
@@ -622,4 +629,47 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer löschen" }).click();
   await expect(grid).not.toContainText("Gästefreund");
   await expect(summary).toHaveText("1 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
+});
+
+test("Eisbeinessen führt die Liste ohne Essensauswahl und mit 30 Plätzen", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#events-group-toggle").click();
+  await page.locator("#eisbeinessen-tab").click();
+
+  const grid = page.locator("#eisbeinessenGrid");
+  const summary = page.locator("#eisbeinessenSummary");
+  await expect(grid).toContainText("Müller");
+  await expect(grid.locator('[col-id="essensauswahl"]')).toHaveCount(0);
+  await expect(page.locator("#eisbeinessenForm .meal-chips")).toHaveCount(0);
+  await expect(summary).toHaveText("1 Teilnehmer · bezahlt: 0");
+
+  const form = page.locator("#eisbeinessenForm");
+  await form.locator('[name="name"]').fill("Gästefreund");
+  await form.locator('[name="vorname"]').fill("Bert");
+  await form.getByRole("button", { name: "Hinzufügen" }).click();
+
+  await expect(grid).toContainText("Gästefreund");
+  await expect(summary).toHaveText("2 Teilnehmer · bezahlt: 0");
+
+  // Eigene Tabelle: der Warnemuende-Eintrag taucht hier nicht auf.
+  await page.locator("#warnemuende-tab").click();
+  await expect(page.locator("#warnemuendeGrid")).not.toContainText("Gästefreund");
+});
+
+test("Eisbeinessen-Teilnehmerliste lässt sich als PDF herunterladen", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#events-group-toggle").click();
+  await page.locator("#eisbeinessen-tab").click();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#eisbeinessenExportBtn").click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(/^eisbeinessen-teilnehmerliste-\d{4}-\d{2}-\d{2}\.pdf$/);
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  const pdf = Buffer.concat(chunks).toString("latin1");
+  expect(pdf).toContain("(Teilnehmerliste Eisbeinessen) Tj");
+  expect(pdf.includes("(Essensauswahl) Tj")).toBeFalsy();
 });

@@ -7,7 +7,8 @@ export const searchableTabTargets = new Set([
   "#christmas-pane",
   "#historical-pane",
   "#guests-pane",
-  "#warnemuende-pane"
+  "#warnemuende-pane",
+  "#eisbeinessen-pane"
 ]);
 export const gridApiByTabTarget = {
   "#overview-pane": "overview",
@@ -15,7 +16,8 @@ export const gridApiByTabTarget = {
   "#christmas-pane": "christmas",
   "#historical-pane": "historical",
   "#guests-pane": "guests",
-  "#warnemuende-pane": "warnemuende"
+  "#warnemuende-pane": "warnemuende",
+  "#eisbeinessen-pane": "eisbeinessen"
 };
 
 export const gridLocaleText = {
