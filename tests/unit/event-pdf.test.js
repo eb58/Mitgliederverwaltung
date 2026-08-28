@@ -58,13 +58,15 @@ describe("Event-PDF", () => {
     expect(buildWarnemuendePdf([participant(1)]).includes("(ja) Tj")).toBe(false);
   });
 
-  it("zaehlt Abgesagte weder in der Fusszeile noch in den Portionen", () => {
+  it("druckt Abgesagte weder als Zeile noch in der Fusszeile", () => {
     const pdf = buildWarnemuendePdf(
       [participant(1), participant(2, { abgesagt: true }), participant(3)],
       { date: new Date(2026, 7, 24) }
     );
 
     expect(pdf).toContain("(2 Teilnehmer   Zander: 2   Rind: 0   Vegie: 0   bezahlt: 0   Stand: 24.8.2026) Tj");
+    expect(pdf.includes("(Name2) Tj")).toBe(false);
+    expect(pdf).toContain("(Name3) Tj");
   });
 
   it("verteilt mehr als 52 Teilnehmer auf zwei Seiten", () => {

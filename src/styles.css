@@ -934,7 +934,9 @@ body {
 /* Abgesagte bleiben sichtbar, zaehlen aber nicht mehr mit. */
 .grid-host .ag-row.event-abgesagt-row .ag-cell {
   color: var(--muted);
-  text-decoration: line-through;
+  text-decoration-line: line-through;
+  text-decoration-color: #b4453f;
+  text-decoration-thickness: 2px;
 }
 
 .grid-host .ag-row.event-abgesagt-row .meal-chip,

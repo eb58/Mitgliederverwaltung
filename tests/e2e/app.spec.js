@@ -525,6 +525,8 @@ test("veralteter Spaltenzustand aus dem Browser überschreibt die Reihenfolge ni
   await page.locator("#warnemuende-tab").click();
 
   const grid = page.locator("#warnemuendeGrid");
+  await expect(grid.locator('[row-id="1"] [col-id="passbild"]')).toBeVisible();
+  await expect(grid.locator('[row-id="1"] [col-id="name"]')).toBeVisible();
   const photo = await grid.locator('[row-id="1"] [col-id="passbild"]').boundingBox();
   const actions = await grid.locator('[row-id="1"] [col-id="aktionen"]').boundingBox();
   const number = await grid.locator('[row-id="1"] [col-id="nr"]').boundingBox();
@@ -617,6 +619,9 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer absagen" }).click();
   await expect(grid).toContainText("Gästefreund");
   await expect(grid.locator('[row-id="2"]').first()).toHaveClass(/event-abgesagt-row/);
+  await expect(grid.locator('[row-id="2"] [col-id="name"]')).toHaveCSS("text-decoration-line", "line-through");
+  await expect(grid.locator('[row-id="2"] [col-id="name"]')).toHaveCSS("text-decoration-color", "rgb(180, 69, 63)");
+  await expect(grid.locator('[row-id="2"] [col-id="name"]')).toHaveCSS("text-decoration-thickness", "2px");
   await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("");
   await expect(summary).toHaveText("1 Teilnehmer · 1 abgesagt · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
 

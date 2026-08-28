@@ -99,11 +99,6 @@ const drawBlock = (rows, blockX, columns) => {
         : PADDING);
       parts.push(show(x, baseline, value, { size: FONT_SIZE.row }));
     });
-    // Abgesagte werden wie am Bildschirm durchgestrichen statt weggelassen.
-    if (participant.abgesagt) {
-      const middle = top - TABLE.rowHeight * (index + 2) + TABLE.rowHeight / 2;
-      parts.push(line(blockX + PADDING, middle, blockX + TABLE.width - PADDING, middle, COLORS.text, 0.4));
-    }
   });
 
   for (let row = 0; row <= rows.length + 1; row++) {
@@ -162,17 +157,17 @@ const buildDocument = pages => {
 
 export const buildEventPdf = (participants, { event, date = new Date() }) => {
   const { label, mealOptions = [], maxSeats } = event;
-  const rows = numberParticipants(participants, maxSeats);
+  // Abgesagte werden im PDF vollständig weggelassen.
+  const rows = numberParticipants(participants, maxSeats).filter(participant => !participant.abgesagt);
   const columns = columnsFor(mealOptions);
   const perPage = TABLE.rows * 2;
-  const mitfahrend = rows.filter(participant => !participant.abgesagt);
   const meals = mealOptions
-    .map(option => `${option}: ${mitfahrend.filter(participant => participant.essensauswahl === option).length}`)
+    .map(option => `${option}: ${rows.filter(participant => participant.essensauswahl === option).length}`)
     .join("   ");
   const footer = [
-    `${mitfahrend.length} Teilnehmer`,
+    `${rows.length} Teilnehmer`,
     ...(meals ? [meals] : []),
-    `bezahlt: ${mitfahrend.filter(participant => participant.bezahlt).length}`,
+    `bezahlt: ${rows.filter(participant => participant.bezahlt).length}`,
     `Stand: ${date.toLocaleDateString("de-DE")}`
   ].join("   ");
   const title = `Teilnehmerliste ${label}`;
