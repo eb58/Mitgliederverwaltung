@@ -447,6 +447,7 @@ const createGrid = (gridKey, containerId, columnDefs, overrides = {}) => {
     rowHeight: 48,
     headerHeight: 44,
     animateRows: true,
+    suppressDragLeaveHidesColumns: true,
     localeText: gridLocaleText,
     getRowId: params => String(params.data.id),
     rowClassRules: {

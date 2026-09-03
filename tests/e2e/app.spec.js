@@ -306,6 +306,21 @@ test("Spaltenfilter sind sichtbar und lassen sich zurücksetzen", async ({ page 
   await expect(nameFilter).toHaveValue("");
 });
 
+test("Spalten bleiben beim Herausziehen aus dem Grid sichtbar", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#overview-tab").click();
+
+  const nameHeader = page.locator('#overviewGrid [role="columnheader"][col-id="name"]');
+  const headerBox = await nameHeader.boundingBox();
+  expect(headerBox).not.toBeNull();
+  await page.mouse.move(headerBox.x + headerBox.width / 2, headerBox.y + headerBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(5, headerBox.y + headerBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  await expect(nameHeader).toBeVisible();
+});
+
 test("Mitgliederliste übernimmt die gewählten Filter in den Download", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#overview-tab").click();
