@@ -74,6 +74,14 @@ export const findEventMemberMatches = (members, participant, limit = 6) => {
   return { kind: candidates.length ? "fuzzy" : "none", candidates };
 };
 
+/**
+ * Eindeutig ist ein einzelner Kandidat, dessen Nachname exakt passt - dann ist die
+ * Rueckfrage nur Klickarbeit. Sobald der Nachname mehrfach vorkommt (Meyer, Milde)
+ * stehen mehrere Kandidaten zur Wahl, und es wird wieder gefragt.
+ */
+export const isUnambiguousMatch = ({ kind, candidates }, participant) => candidates.length === 1
+  && (kind === "exact" || normalizePersonName(candidates[0].name) === normalizePersonName(participant?.name));
+
 /** Fragt im Singular, wenn nur eine Person zur Auswahl steht. */
 export const describeMemberMatch = ({ kind, count, enteredName }) => {
   const einleitung = kind === "exact"

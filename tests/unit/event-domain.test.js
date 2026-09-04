@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
 
 import { eventConfigs } from "../../src/event-config.js";
-import { createEventDomain, describeMemberMatch, findEventMemberMatches } from "../../src/event-domain.js";
+import { createEventDomain, describeMemberMatch, findEventMemberMatches, isUnambiguousMatch } from "../../src/event-domain.js";
 
 const warnemuende = createEventDomain(eventConfigs.warnemuende);
 const eisbeinessen = createEventDomain(eventConfigs.eisbeinessen);
@@ -166,5 +166,41 @@ describe("describeMemberMatch", () => {
   it("weist bei exakten Namensgleichen auf die Mehrdeutigkeit hin", () => {
     expect(describeMemberMatch({ kind: "exact", count: 2, enteredName: "Erika Doppelt" }))
       .toBe("Mehrere Personen passen zu „Erika Doppelt“. Welche ist gemeint?");
+  });
+});
+
+describe("isUnambiguousMatch", () => {
+  const mitglieder = [
+    { id: 443, vorname: "Frauke", name: "Ewald" },
+    { id: 7, vorname: "Monika", name: "Barz" },
+    { id: 8, vorname: "Peter", name: "Barz" }
+  ];
+  const pruefe = eingabe => {
+    const treffer = findEventMemberMatches(mitglieder, eingabe);
+    return { treffer, eindeutig: isUnambiguousMatch(treffer, eingabe) };
+  };
+
+  it("uebernimmt einen einzelnen Namensvetter ohne Rueckfrage", () => {
+    const { treffer, eindeutig } = pruefe({ vorname: "", name: "Ewald" });
+    expect(treffer.candidates.length).toBe(1);
+    expect(eindeutig).toBe(true);
+  });
+
+  it("fragt nach, wenn sich mehrere denselben Nachnamen teilen", () => {
+    const { treffer, eindeutig } = pruefe({ vorname: "", name: "Barz" });
+    expect(treffer.candidates.length).toBe(2);
+    expect(eindeutig).toBe(false);
+  });
+
+  it("fragt bei einem Tippfehler im Nachnamen nach", () => {
+    const { treffer, eindeutig } = pruefe({ vorname: "Frauke", name: "Ewaldd" });
+    expect(treffer.kind).toBe("fuzzy");
+    expect(treffer.candidates.length).toBe(1);
+    expect(eindeutig).toBe(false);
+  });
+
+  it("uebernimmt einen vollstaendig passenden Namen ohne Rueckfrage", () => {
+    const { eindeutig } = pruefe({ vorname: "Frauke", name: "Ewald" });
+    expect(eindeutig).toBe(true);
   });
 });

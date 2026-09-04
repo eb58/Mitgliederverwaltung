@@ -1,7 +1,7 @@
 import { Modal } from "bootstrap";
 import { formatIsoDate, retryAsync } from "./member-utils.js";
 import { showToast } from "./ui.js";
-import { createEventDomain } from "./event-domain.js";
+import { createEventDomain, isUnambiguousMatch } from "./event-domain.js";
 import { buildEventPdf, pdfToBytes } from "./event-pdf.js";
 
 export const createEventAdmin = ({
@@ -151,7 +151,7 @@ export const createEventAdmin = ({
       });
       const matches = findMemberMatches(getMembers(), payload);
       let participant = payload;
-      if (matches.kind === "exact" && matches.candidates.length === 1) {
+      if (isUnambiguousMatch(matches, payload)) {
         const [member] = matches.candidates;
         participant = { ...payload, name: member.name, vorname: member.vorname, mitgliedId: member.id };
       } else if (matches.candidates.length) {
