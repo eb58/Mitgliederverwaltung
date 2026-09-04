@@ -1568,6 +1568,26 @@ function assertEventMemberExists(?int $mitgliedId): void
     if (!$statement->fetchColumn()) throw new ApiError('Unbekannte DB-ID: ' . $mitgliedId, 400);
 }
 
+/** Verhindert doppelte Eintraege innerhalb derselben Teilnehmerliste. */
+function assertEventParticipantNotExists(string $event, array $participant): void
+{
+    $table = eventDefinition($event)['table'];
+    if ($participant['mitgliedId'] !== null) {
+        $statement = db()->prepare(
+            'SELECT 1 FROM ' . $table
+            . ' WHERE mitglied_id = ? OR (mitglied_id IS NULL AND name = ? AND vorname = ?) LIMIT 1'
+        );
+        $statement->execute([$participant['mitgliedId'], $participant['name'], $participant['vorname']]);
+    } else {
+        $statement = db()->prepare('SELECT 1 FROM ' . $table . ' WHERE name = ? AND vorname = ? LIMIT 1');
+        $statement->execute([$participant['name'], $participant['vorname']]);
+    }
+    if (!$statement->fetchColumn()) return;
+
+    $fullName = trim($participant['vorname'] . ' ' . $participant['name']);
+    throw new ApiError($fullName . ' ist bereits in dieser Teilnehmerliste vorhanden.', 409);
+}
+
 function eventRowToApi(array $row): array
 {
     return array_merge(
@@ -1640,6 +1660,7 @@ function handleEventParticipantCollection(string $event): void
     if ($method === 'POST') {
         $participant = normalizeEventInput($event, readJsonBody());
         assertEventMemberExists($participant['mitgliedId']);
+        assertEventParticipantNotExists($event, $participant);
         $placeholders = implode(', ', array_fill(0, count($columns), '?'));
         db()->prepare('INSERT INTO ' . $table . ' (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')')
             ->execute(eventParticipantValues($event, $participant));

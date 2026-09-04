@@ -105,6 +105,36 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->assertNull($participant['mitgliedId']);
     }
 
+    public function testCreateRejectsParticipantAlreadyLinkedInTheEvent(): void
+    {
+        TestDatabase::insertMemberRow(439, 'Brandl', 'Erich');
+        $this->insertParticipant('Alter Name', 'Erich', 'Zander', 439);
+        $this->request('POST', ['name' => 'Brandl', 'vorname' => 'Erich', 'essensauswahl' => 'Rind', 'mitgliedId' => 439]);
+
+        $this->assertApiError(409, 'Erich Brandl ist bereits in dieser Teilnehmerliste vorhanden', static fn() => handleEventParticipantCollection('warnemuende'));
+        $this->assertSame(1, $this->countRows('warnemuende_teilnehmer'));
+    }
+
+    public function testCreateRejectsUnlinkedParticipantWithSameName(): void
+    {
+        $this->insertParticipant('Namenlos', 'Fantasie');
+        $this->request('POST', ['name' => ' namenlos ', 'vorname' => ' fantasie ', 'essensauswahl' => 'Rind']);
+
+        $this->assertApiError(409, 'fantasie namenlos ist bereits in dieser Teilnehmerliste vorhanden', static fn() => handleEventParticipantCollection('warnemuende'));
+        $this->assertSame(1, $this->countRows('warnemuende_teilnehmer'));
+    }
+
+    public function testCreateAllowsDifferentMembersWithSameName(): void
+    {
+        TestDatabase::insertMemberRow(80, 'Doppelt', 'Erika');
+        TestDatabase::insertMemberRow(81, 'Doppelt', 'Erika');
+        $this->insertParticipant('Doppelt', 'Erika', 'Zander', 80);
+        $this->request('POST', ['name' => 'Doppelt', 'vorname' => 'Erika', 'essensauswahl' => 'Rind', 'mitgliedId' => 81]);
+
+        $this->assertSame(201, $this->capture(static fn() => handleEventParticipantCollection('warnemuende'))->statusCode);
+        $this->assertSame(2, $this->countRows('warnemuende_teilnehmer'));
+    }
+
     public function testResourceUpdatesParticipant(): void
     {
         $id = $this->insertParticipant('Sachwel', 'Uschi', 'Rind');
