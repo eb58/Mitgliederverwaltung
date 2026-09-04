@@ -10,8 +10,8 @@ const actionLabel = action => ({
   photo_updated: "Passbild geändert",
   photo_deleted: "Passbild entfernt"
 }[action] || "Änderung");
-const hiddenFields = new Set(["preisClub", "preisComputer", "preisWeihnachten", "gruppenwahl", "auswahl"]);
-const hiddenLabels = new Set(["Preis Club", "Preis Computer", "Preis Weihnachten", "Gruppenwahl", "Auswahl"]);
+const hiddenFields = new Set(["preisClub", "preisComputer", "gruppenwahl", "auswahl"]);
+const hiddenLabels = new Set(["Preis Club", "Preis Computer", "Gruppenwahl", "Auswahl"]);
 const visibleChanges = changes => Array.isArray(changes)
   ? changes.filter(change => !hiddenFields.has(change.field)
     && !hiddenLabels.has(change.label)

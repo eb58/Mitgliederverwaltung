@@ -117,7 +117,7 @@ Für Strato/Webhosting gibt es ein PowerShell-Skript analog zum Gratulationsdien
 .\server\deploy.ps1
 ```
 
-Das Skript baut das Frontend, erstellt ein lokales Deploy-Paket unter `.deploy/mitgliederverwaltung`, lädt Frontend und PHP-API per `scp` hoch und setzt danach Dateirechte. Ein lokaler Probelauf ohne Upload ist möglich mit:
+Das Skript baut das Frontend, erstellt ein lokales Deploy-Paket unter `.deploy/mitgliederverwaltung`, lädt Frontend und PHP-API per `scp` hoch und setzt danach Dateirechte. Die neue `index.html` wird erst nach den Assets und der API unter einem temporären Namen hochgeladen und anschließend auf dem Server atomar aktiviert. Dabei bleiben die Hash-Assets der unmittelbar vorherigen Version erhalten; ältere, nicht mehr verwendete Build-Assets werden entfernt. Ein lokaler Probelauf ohne Upload ist möglich mit:
 
 ```powershell
 .\server\deploy.ps1 -SkipUpload

@@ -227,7 +227,7 @@ final class HandlerLogicTest extends TestCase
     public function testRowToMemberFillsEveryKnownFieldEvenForEmptyRow(): void
     {
         $member = rowToMember([]);
-        foreach (array_keys(memberFields()) as $jsonKey) {
+        foreach (array_keys(memberApiFields()) as $jsonKey) {
             $this->assertArrayHasKey($jsonKey, $member);
         }
         $this->assertFalse($member['hasPassbildInDb']);
@@ -280,16 +280,22 @@ final class HandlerLogicTest extends TestCase
 
     public function testFieldGroupsOnlyContainKnownMemberFields(): void
     {
-        $known = array_keys(memberFields());
+        $known = array_keys(memberApiFields());
         foreach ([...booleanFields(), ...dateFields(), ...numberFields()] as $field) {
-            $this->assertContains($field, $known, "Feld {$field} fehlt in memberFields()");
+            $this->assertContains($field, $known, "Feld {$field} fehlt in memberApiFields()");
         }
+    }
+
+    public function testApiFieldsCombineDisjointMainAndChristmasFields(): void
+    {
+        $this->assertSame([], array_intersect_key(mainMemberFields(), weihnachtsessenFields()));
+        $this->assertSame(array_merge(mainMemberFields(), weihnachtsessenFields()), memberApiFields());
     }
 
     public function testEveryAuditedFieldHasALabel(): void
     {
         $labels = memberAuditLabels();
-        $audited = array_diff([...array_keys(memberFields()), 'interessengruppen', 'funktionen'], ['id', 'funktion', 'passbild']);
+        $audited = array_diff([...array_keys(memberApiFields()), 'interessengruppen', 'funktionen'], ['id', 'funktion', 'passbild']);
         foreach ($audited as $field) {
             $this->assertArrayHasKey($field, $labels, "Label fuer {$field} fehlt");
         }

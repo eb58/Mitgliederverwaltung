@@ -25,6 +25,7 @@ $apiFiles = @(
 $sshOpt = "-o UpdateHostKeys=no"
 $remoteApp = "${Webroot}/${AppPath}"
 $remoteApi = "${remoteApp}/php-api"
+$remoteIndexTemp = "${remoteApp}/.index.html.deploying"
 
 Write-Host "Baue App..." -ForegroundColor Cyan
 Push-Location $projectRoot
@@ -50,6 +51,12 @@ if (Test-Path $deployDir) {
 New-Item -ItemType Directory -Path $deployDir | Out-Null
 Copy-Item -Path "$buildDir\assets" -Destination $deployDir -Recurse -Force
 Copy-Item -Path "$buildDir\index.html" -Destination $deployDir -Force
+$currentGeneratedAssets = @(Get-ChildItem -Path "$deployDir\assets" -File |
+    Where-Object { $_.Name -match '^index-[\w-]+\.(css|js)$' } |
+    ForEach-Object { $_.Name })
+if (!$currentGeneratedAssets.Count) {
+    throw "Das Deploy-Paket enthaelt keine generierten Frontend-Assets."
+}
 
 New-Item -ItemType Directory -Path "$deployDir\php-api" | Out-Null
 foreach ($file in $apiFiles) {
@@ -95,18 +102,45 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "Aktiviere neues Frontend..." -ForegroundColor Cyan
-scp -P $Port $sshOpt "$deployDir\index.html" "${User}@${Server}:${remoteApp}/"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "index.html konnte nicht hochgeladen werden." -ForegroundColor Red
-    exit 1
-}
-
 Write-Host "Setze Dateirechte..." -ForegroundColor Cyan
 ssh -p $Port $sshOpt "${User}@${Server}" "find '${remoteApp}' -type d -exec chmod 755 {} \; && find '${remoteApp}' -type f -exec chmod 644 {} \;"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Dateirechte konnten nicht gesetzt werden." -ForegroundColor Red
     exit 1
+}
+
+Write-Host "Merke bisher verwendete Frontend-Assets..." -ForegroundColor Cyan
+$previousGeneratedAssets = @(ssh -p $Port $sshOpt "${User}@${Server}" "if [ -f '${remoteApp}/index.html' ]; then grep -oE 'assets/index-[A-Za-z0-9_-]+\.(css|js)' '${remoteApp}/index.html' | sed 's#^assets/##'; fi")
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Bisherige Frontend-Assets konnten nicht ermittelt werden." -ForegroundColor Red
+    exit 1
+}
+$previousGeneratedAssets = @($previousGeneratedAssets | Where-Object { $_ -match '^index-[\w-]+\.(css|js)$' })
+
+Write-Host "Lade neue Startseite vor..." -ForegroundColor Cyan
+scp -P $Port $sshOpt "$deployDir\index.html" "${User}@${Server}:${remoteIndexTemp}"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "index.html konnte nicht vorgeladen werden; die bisherige Version bleibt aktiv." -ForegroundColor Red
+    exit 1
+}
+
+# Das Umbenennen innerhalb desselben Verzeichnisses ist atomar: Browser sehen
+# dadurch entweder die vollstaendige alte oder die vollstaendige neue index.html.
+Write-Host "Aktiviere neues Frontend atomar..." -ForegroundColor Cyan
+ssh -p $Port $sshOpt "${User}@${Server}" "chmod 644 '${remoteIndexTemp}' && mv -f '${remoteIndexTemp}' '${remoteApp}/index.html'"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Das neue Frontend konnte nicht aktiviert werden; die bisherige Version bleibt aktiv." -ForegroundColor Red
+    exit 1
+}
+
+# Die Assets des unmittelbar vorherigen Frontends bleiben erhalten, damit
+# Browser, die dessen index.html kurz vor dem Wechsel geladen haben, nicht ins Leere laufen.
+$protectedGeneratedAssets = @(@($currentGeneratedAssets + $previousGeneratedAssets) | Sort-Object -Unique)
+$protectedAssetExpression = ($protectedGeneratedAssets | ForEach-Object { "-name '$_'" }) -join " -o "
+Write-Host "Bereinige nicht mehr verwendete Build-Assets..." -ForegroundColor Cyan
+ssh -p $Port $sshOpt "${User}@${Server}" "find '${remoteApp}/assets' -maxdepth 1 -type f \( -name 'index-*.js' -o -name 'index-*.css' \) ! \( ${protectedAssetExpression} \) -exec rm -f -- {} \;"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Warnung: Alte Build-Assets konnten nicht bereinigt werden; das neue Frontend ist bereits aktiv." -ForegroundColor Yellow
 }
 
 Write-Host "Fertig! https://senioren-luebars.berlin/mitgliederverwaltung/" -ForegroundColor Green

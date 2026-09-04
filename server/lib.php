@@ -643,7 +643,7 @@ function handleReferenceDataResource(array $currentUser, string $type, int $id):
     }
 }
 
-function memberFields(): array
+function mainMemberFields(): array
 {
     return [
         'id' => 'id',
@@ -666,8 +666,6 @@ function memberFields(): array
         'auswahl' => 'auswahl',
         'ausweisErteilt' => 'ausweis_erteilt',
         'clubzugehoerigkeit' => 'clubzugehoerigkeit_id',
-        'weihnachtsessen' => 'weihnachtsessen',
-        'wnEssenBezahlt' => 'wn_essen_bezahlt',
         'beitragClubBezahlt' => 'beitrag_club_bezahlt',
         'betragClubBar' => 'betrag_club_bar',
         'beitragComputerBezahlt' => 'beitrag_computer_bezahlt',
@@ -676,9 +674,7 @@ function memberFields(): array
         'einzahlungClubAm' => 'einzahlung_club_am',
         'gezahlterBetragComputer' => 'gezahlter_betrag_computer',
         'einzahlungComputerAm' => 'einzahlung_computer_am',
-        'gezahlterBetragWeihnachten' => 'gezahlter_betrag_weihnachten',
         'bemerkung' => 'bemerkung',
-        'tischnummer' => 'tischnummer',
     ];
 }
 
@@ -692,9 +688,10 @@ function weihnachtsessenFields(): array
     ];
 }
 
-function mainMemberFields(): array
+/** Gemeinsame API-Sicht auf die Haupt- und Weihnachtsessen-Tabelle. */
+function memberApiFields(): array
 {
-    return array_diff_key(memberFields(), weihnachtsessenFields());
+    return array_merge(mainMemberFields(), weihnachtsessenFields());
 }
 
 function booleanFields(): array
@@ -739,7 +736,7 @@ function normalizeMemberInput(array $payload, bool $partial = false): array
 {
     $member = [];
     $nullableNumbers = ['austrittsgrund' => true, 'clubzugehoerigkeit' => true];
-    foreach (memberFields() as $jsonKey => $_column) {
+    foreach (memberApiFields() as $jsonKey => $_column) {
         if ($partial && !array_key_exists($jsonKey, $payload)) continue;
         $value = $payload[$jsonKey] ?? null;
         if (in_array($jsonKey, booleanFields(), true)) {
@@ -769,7 +766,7 @@ function normalizeMemberInput(array $payload, bool $partial = false): array
 
 function assertKnownFields(array $payload): void
 {
-    $allowed = array_fill_keys(array_merge(array_keys(memberFields()), ['interessengruppen', 'funktionen']), true);
+    $allowed = array_fill_keys(array_merge(array_keys(memberApiFields()), ['interessengruppen', 'funktionen']), true);
     $unknown = array_values(array_filter(array_keys($payload), static fn(string $key): bool => !isset($allowed[$key])));
     if ($unknown) {
         throw new ApiError('Unbekannte Felder: ' . implode(', ', $unknown), 400);
@@ -805,7 +802,7 @@ function baseSelect(): string
 function rowToMember(array $row): array
 {
     $member = [];
-    foreach (memberFields() as $jsonKey => $column) {
+    foreach (memberApiFields() as $jsonKey => $column) {
         $value = $row[$column] ?? null;
         if (in_array($jsonKey, booleanFields(), true)) {
             $member[$jsonKey] = (bool) $value;
@@ -931,7 +928,7 @@ function normalizedAuditValue(string $field, mixed $value): mixed
 function buildMemberAuditChanges(array $before, array $after): array
 {
     $labels = memberAuditLabels();
-    $fields = array_merge(array_keys(memberFields()), ['interessengruppen', 'funktionen']);
+    $fields = array_merge(array_keys(memberApiFields()), ['interessengruppen', 'funktionen']);
     $changes = [];
     foreach ($fields as $field) {
         if (in_array($field, ['id', 'funktion', 'passbild'], true)) continue;
