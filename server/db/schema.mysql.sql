@@ -43,8 +43,6 @@ CREATE TABLE mitglied (
   auswahl TINYINT(1) NOT NULL DEFAULT 0,
   ausweis_erteilt TINYINT(1) NOT NULL DEFAULT 0,
   clubzugehoerigkeit_id INT NULL,
-  weihnachtsessen TINYINT NOT NULL DEFAULT 0,
-  wn_essen_bezahlt TINYINT(1) NOT NULL DEFAULT 0,
   beitrag_club_bezahlt TINYINT(1) NOT NULL DEFAULT 0,
   betrag_club_bar DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   beitrag_computer_bezahlt TINYINT(1) NOT NULL DEFAULT 0,
@@ -55,16 +53,26 @@ CREATE TABLE mitglied (
   preis_computer DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   gezahlter_betrag_computer DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   einzahlung_computer_am DATE NULL,
-  preis_weihnachten DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  gezahlter_betrag_weihnachten DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   bemerkung TEXT NULL,
-  tischnummer INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   CONSTRAINT fk_mitglied_austrittsgrund FOREIGN KEY (austrittsgrund_id) REFERENCES austrittsgrund (id),
-  CONSTRAINT fk_mitglied_seniorenclub FOREIGN KEY (clubzugehoerigkeit_id) REFERENCES seniorenclub (id),
-  CONSTRAINT chk_mitglied_weihnachtsessen CHECK (weihnachtsessen IN (0, 1, 2))
+  CONSTRAINT fk_mitglied_seniorenclub FOREIGN KEY (clubzugehoerigkeit_id) REFERENCES seniorenclub (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE mitglied_weihnachtsessen (
+  mitglied_id INT NOT NULL,
+  weihnachtsessen TINYINT NOT NULL DEFAULT 0,
+  wn_essen_bezahlt TINYINT(1) NOT NULL DEFAULT 0,
+  preis_weihnachten DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  gezahlter_betrag_weihnachten DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  tischnummer INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (mitglied_id),
+  CONSTRAINT fk_mitglied_weihnachtsessen_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE CASCADE,
+  CONSTRAINT chk_mitglied_weihnachtsessen_teilnahme CHECK (weihnachtsessen IN (0, 1, 2))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE mitglied_interessengruppe (

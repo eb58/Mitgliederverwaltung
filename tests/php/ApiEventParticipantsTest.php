@@ -38,6 +38,23 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->assertSame(1, $this->countRows('warnemuende_teilnehmer'));
     }
 
+    public function testWarnemuendeVerknuepftNeueTeilnehmerEindeutigMitMitgliedern(): void
+    {
+        TestDatabase::insertMemberRow(80, 'Jeschon', 'Peter');
+        TestDatabase::insertMemberRow(81, 'Doppelt', 'Erika');
+        TestDatabase::insertMemberRow(82, 'Doppelt', 'Erika');
+        $this->request('POST', ['name' => 'Jeschon', 'vorname' => 'Peter', 'essensauswahl' => 'Rind']);
+        $linked = $this->capture(static fn() => handleEventParticipantCollection('warnemuende'))->payload['participant'];
+
+        $this->request('POST', ['name' => 'Doppelt', 'vorname' => 'Erika', 'essensauswahl' => 'Rind']);
+        $duplicate = $this->capture(static fn() => handleEventParticipantCollection('warnemuende'))->payload['participant'];
+
+        $this->assertSame(80, $linked['mitgliedId']);
+        $this->assertNull($duplicate['mitgliedId']);
+        $this->assertSame(80, (int) db()->query("SELECT mitglied_id FROM warnemuende_teilnehmer WHERE name = 'Jeschon'")->fetchColumn());
+        $this->assertNull(db()->query("SELECT mitglied_id FROM warnemuende_teilnehmer WHERE name = 'Doppelt'")->fetchColumn());
+    }
+
     public function testCreateAcceptsSpellingsOfThePaperList(): void
     {
         $this->request('POST', ['name' => 'Fisch', 'vorname' => 'Doris', 'essensauswahl' => 'Zanderfilet']);
@@ -107,7 +124,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
     {
         TestDatabase::insertMemberRow(80, 'Jeschon', 'Peter');
         $id = $this->insertParticipant('Jeschon', 'Peter', 'Rind', 80);
-        $this->request('PUT', ['name' => 'Jeschon', 'vorname' => 'Peter', 'essensauswahl' => 'Rind', 'mitgliedId' => 0]);
+        $this->request('PUT', ['name' => 'Jeschon', 'vorname' => 'Petra', 'essensauswahl' => 'Rind', 'mitgliedId' => 0]);
 
         $this->assertNull($this->capture(static fn() => handleEventParticipantResource('warnemuende', $id))->payload['participant']['mitgliedId']);
     }
@@ -184,7 +201,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
     public function testEisbeinessenHatKeineEssensauswahl(): void
     {
         TestDatabase::insertMemberRow(439, 'Brandl', 'Erich');
-        $this->request('POST', ['name' => ' Brandl ', 'vorname' => 'Erich', 'bezahlt' => true, 'bemerkung' => ' am Fenster ', 'mitgliedId' => 439]);
+        $this->request('POST', ['name' => ' Brandl ', 'vorname' => 'Erich', 'bezahlt' => true, 'bemerkung' => ' am Fenster ']);
 
         $response = $this->capture(static fn() => handleEventParticipantCollection('eisbeinessen'));
         $participant = $response->payload['participant'];
@@ -195,6 +212,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->assertTrue($participant['bezahlt']);
         $this->assertSame('am Fenster', $participant['bemerkung']);
         $this->assertSame(439, $participant['mitgliedId']);
+        $this->assertSame(439, (int) db()->query('SELECT mitglied_id FROM eisbeinessen_teilnehmer')->fetchColumn());
         $this->assertSame(1, $this->countRows('eisbeinessen_teilnehmer'));
     }
 

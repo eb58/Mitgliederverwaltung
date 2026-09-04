@@ -5,7 +5,13 @@
  */
 export const eventConfigs = {
   warnemuende: { key: "warnemuende", label: "Warnemünde", mealOptions: ["Zander", "Rind", "Vegie"], maxSeats: 49 },
-  eisbeinessen: { key: "eisbeinessen", label: "Eisbeinessen", mealOptions: [], maxSeats: 30 }
+  eisbeinessen: {
+    key: "eisbeinessen",
+    label: "Eisbeinessen",
+    mealOptions: [],
+    maxSeats: 30,
+    pdfTitleNote: "Selbstbeteiligung liegt bei 20 Euro."
+  }
 };
 
 export const eventList = Object.values(eventConfigs);

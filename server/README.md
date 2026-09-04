@@ -62,6 +62,9 @@ Die PHP-API verwendet `password_hash()`/`password_verify()`.
 Die Teilnehmerlisten der Events werden nicht mitgeliefert: Sie enthalten Personendaten und werden ueber
 `/api/{event}-participants` bzw. direkt in der Oberflaeche gepflegt.
 
+Die Angaben zum Weihnachtsessen liegen in der 1:1-Nebentabelle `mitglied_weihnachtsessen` und
+werden von der Mitglieder-API gemeinsam mit den Stammdaten gelesen und geschrieben.
+
 Wenn die Datenbank bereits existiert, muss sie dem Schema in `server/db/schema.mysql.sql` entsprechen. Fehlende Schemaerweiterungen sind vor dem Betrieb manuell einzuspielen, zum Beispiel über phpMyAdmin.
 
 Ausnahme sind die Teilnehmertabellen der Events: Fehlt `<key>_teilnehmer`, legt die API sie beim ersten Zugriff selbst an. Ein neues Event laeuft damit ohne Schema-Import - vorausgesetzt, der DB-Benutzer darf `CREATE TABLE`. Darf er es nicht, meldet die API weiterhin einen lesbaren 503er.

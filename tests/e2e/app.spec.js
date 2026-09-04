@@ -691,5 +691,6 @@ test("Eisbeinessen-Teilnehmerliste lässt sich als PDF herunterladen", async ({ 
   for await (const chunk of stream) chunks.push(chunk);
   const pdf = Buffer.concat(chunks).toString("latin1");
   expect(pdf).toContain("(Teilnehmerliste Eisbeinessen) Tj");
+  expect(pdf).toContain("(Selbstbeteiligung liegt bei 20 Euro.) Tj");
   expect(pdf.includes("(Essensauswahl) Tj")).toBeFalsy();
 });

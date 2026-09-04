@@ -682,6 +682,21 @@ function memberFields(): array
     ];
 }
 
+function weihnachtsessenFields(): array
+{
+    return [
+        'weihnachtsessen' => 'weihnachtsessen',
+        'wnEssenBezahlt' => 'wn_essen_bezahlt',
+        'gezahlterBetragWeihnachten' => 'gezahlter_betrag_weihnachten',
+        'tischnummer' => 'tischnummer',
+    ];
+}
+
+function mainMemberFields(): array
+{
+    return array_diff_key(memberFields(), weihnachtsessenFields());
+}
+
 function booleanFields(): array
 {
     return ['auswahl', 'ausweisErteilt', 'wnEssenBezahlt', 'beitragClubBezahlt', 'beitragComputerBezahlt'];
@@ -774,12 +789,17 @@ function assertValidMember(array $member): void
 function baseSelect(): string
 {
     return "SELECT m.*,
+      COALESCE(mw.weihnachtsessen, 0) AS weihnachtsessen,
+      COALESCE(mw.wn_essen_bezahlt, 0) AS wn_essen_bezahlt,
+      COALESCE(mw.gezahlter_betrag_weihnachten, 0.00) AS gezahlter_betrag_weihnachten,
+      COALESCE(mw.tischnummer, 0) AS tischnummer,
       (SELECT GROUP_CONCAT(mi.interessengruppe_id ORDER BY mi.interessengruppe_id)
        FROM mitglied_interessengruppe mi WHERE mi.mitglied_id = m.id) AS interessengruppen,
       (SELECT GROUP_CONCAT(mf.funktion_id ORDER BY mf.funktion_id)
        FROM mitglied_funktion mf WHERE mf.mitglied_id = m.id) AS funktionen,
       EXISTS (SELECT 1 FROM mitglied_passbild mp WHERE mp.mitglied_id = m.id) AS has_passbild_in_db
-      FROM mitglied m";
+      FROM mitglied m
+      LEFT JOIN mitglied_weihnachtsessen mw ON mw.mitglied_id = m.id";
 }
 
 function rowToMember(array $row): array
@@ -1120,18 +1140,19 @@ function handleMemberResource(int $id, array $currentUser): void
 
 function insertMember(array $member): void
 {
-    $fields = memberFields();
+    $fields = mainMemberFields();
     unset($fields['id']);
     $columns = array_merge(['id'], array_values($fields));
     $keys = array_merge(['id'], array_keys($fields));
     $placeholders = implode(', ', array_fill(0, count($columns), '?'));
     $statement = db()->prepare('INSERT INTO mitglied (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')');
     $statement->execute(array_map(static fn(string $key): mixed => $member[$key] ?? null, $keys));
+    updateMemberWeihnachtsessen((int) $member['id'], $member);
 }
 
 function updateMemberColumns(int $id, array $patch): void
 {
-    $fields = memberFields();
+    $fields = mainMemberFields();
     $assignments = [];
     $values = [];
     foreach ($patch as $key => $value) {
@@ -1139,9 +1160,24 @@ function updateMemberColumns(int $id, array $patch): void
         $assignments[] = $fields[$key] . ' = ?';
         $values[] = $value;
     }
-    if (!$assignments) return;
-    $values[] = $id;
-    db()->prepare('UPDATE mitglied SET ' . implode(', ', $assignments) . ' WHERE id = ?')->execute($values);
+    if ($assignments) {
+        $values[] = $id;
+        db()->prepare('UPDATE mitglied SET ' . implode(', ', $assignments) . ' WHERE id = ?')->execute($values);
+    }
+    updateMemberWeihnachtsessen($id, $patch);
+}
+
+function updateMemberWeihnachtsessen(int $memberId, array $values): void
+{
+    $fields = array_intersect_key(weihnachtsessenFields(), $values);
+    if (!$fields) return;
+    $columns = array_values($fields);
+    $placeholders = implode(', ', array_fill(0, count($columns) + 1, '?'));
+    $updates = implode(', ', array_map(static fn(string $column): string => $column . ' = VALUES(' . $column . ')', $columns));
+    db()->prepare(
+        'INSERT INTO mitglied_weihnachtsessen (mitglied_id, ' . implode(', ', $columns) . ') '
+        . 'VALUES (' . $placeholders . ') ON DUPLICATE KEY UPDATE ' . $updates
+    )->execute([$memberId, ...array_map(static fn(string $key): mixed => $values[$key], array_keys($fields))]);
 }
 
 function syncJoinTable(string $table, string $idColumn, int $memberId, array $ids): void
@@ -1392,10 +1428,30 @@ function eventParticipantValues(string $event, array $participant): array
     }, eventParticipantColumns($event));
 }
 
+/** Speichert eine eindeutige Namenszuordnung dauerhaft in der Eventtabelle. */
+function linkEventParticipantToMember(string $event, int $participantId): void
+{
+    $table = eventDefinition($event)['table'];
+    db()->exec(
+        'UPDATE ' . $table . ' t JOIN ('
+        . 'SELECT name, vorname, MIN(id) AS id FROM mitglied GROUP BY name, vorname HAVING COUNT(*) = 1'
+        . ') m ON m.name = t.name AND m.vorname = t.vorname '
+        . 'SET t.mitglied_id = m.id WHERE t.mitglied_id IS NULL'
+        . ' AND t.id = ' . $participantId
+    );
+}
+
+/** Gemeinsame SELECT-Liste fuer Collection und Einzelressource. */
+function eventParticipantSelect(string $event): string
+{
+    $columns = array_map(static fn(string $column): string => 't.' . $column, eventParticipantColumns($event));
+    $table = eventDefinition($event)['table'];
+    return 'SELECT t.id, ' . implode(', ', $columns) . ' FROM ' . $table . ' t';
+}
+
 function findEventParticipantById(string $event, int $id): ?array
 {
-    $columns = eventParticipantColumns($event);
-    $statement = db()->prepare('SELECT id, ' . implode(', ', $columns) . ' FROM ' . eventDefinition($event)['table'] . ' WHERE id = ?');
+    $statement = db()->prepare(eventParticipantSelect($event) . ' WHERE t.id = ?');
     $statement->execute([$id]);
     $row = $statement->fetch();
     return $row ? eventRowToApi($row) : null;
@@ -1410,7 +1466,7 @@ function handleEventParticipantCollection(string $event): void
     $columns = eventParticipantColumns($event);
 
     if ($method === 'GET') {
-        $rows = db()->query('SELECT id, ' . implode(', ', $columns) . ' FROM ' . $table . ' ORDER BY name, vorname, id')->fetchAll();
+        $rows = db()->query(eventParticipantSelect($event) . ' ORDER BY t.name, t.vorname, t.id')->fetchAll();
         jsonResponse(['participants' => array_map('eventRowToApi', $rows)]);
     }
 
@@ -1420,7 +1476,9 @@ function handleEventParticipantCollection(string $event): void
         $placeholders = implode(', ', array_fill(0, count($columns), '?'));
         db()->prepare('INSERT INTO ' . $table . ' (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')')
             ->execute(eventParticipantValues($event, $participant));
-        jsonResponse(['participant' => findEventParticipantById($event, (int) db()->lastInsertId())], 201);
+        $id = (int) db()->lastInsertId();
+        linkEventParticipantToMember($event, $id);
+        jsonResponse(['participant' => findEventParticipantById($event, $id)], 201);
     }
 }
 
@@ -1444,6 +1502,7 @@ function handleEventParticipantResource(string $event, int $id): void
         $assignments = implode(', ', array_map(static fn(string $column) => $column . ' = ?', eventParticipantColumns($event)));
         db()->prepare('UPDATE ' . $table . ' SET ' . $assignments . ' WHERE id = ?')
             ->execute([...eventParticipantValues($event, $participant), $id]);
+        linkEventParticipantToMember($event, $id);
         jsonResponse(['participant' => findEventParticipantById($event, $id)]);
     }
 

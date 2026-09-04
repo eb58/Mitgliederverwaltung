@@ -93,6 +93,7 @@ describe("Event-PDF", () => {
     );
 
     expect(pdf).toContain("(Teilnehmerliste Eisbeinessen) Tj");
+    expect(pdf).toContain("(Selbstbeteiligung liegt bei 20 Euro.) Tj");
     expect(pdf.includes("(Essensauswahl) Tj")).toBe(false);
     expect(pdf).toContain("(eine wirklich sehr lange Bemerkung zu.) Tj");
     expect(pdf).toContain("(1 Teilnehmer   bezahlt: 0   Stand: 24.8.2026) Tj");

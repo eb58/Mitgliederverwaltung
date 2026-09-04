@@ -114,11 +114,12 @@ const drawBlock = (rows, blockX, columns) => {
   return parts.join("\n");
 };
 
-const drawPage = (rows, { title, footer, columns }) => {
+const drawPage = (rows, { title, subtitle, footer, columns }) => {
   const [left, right] = [rows.slice(0, TABLE.rows), rows.slice(TABLE.rows)];
   return [
     `${COLORS.title} rg`,
-    show(TITLE.x, TITLE.y, title, { font: "F2", size: TITLE.size }),
+    show(TITLE.x, subtitle ? TITLE.y + 18 : TITLE.y, title, { font: "F2", size: TITLE.size }),
+    ...(subtitle ? [show(TITLE.x, TITLE.y, subtitle, { font: "F2", size: 11 })] : []),
     `q 1 0 0 1 ${TABLE.x.toFixed(4)} ${TABLE.y.toFixed(4)} cm`,
     drawBlock(left, 0, columns),
     ...(right.length ? [drawBlock(right, TABLE.blockOffset, columns)] : []),
@@ -156,7 +157,7 @@ const buildDocument = pages => {
 };
 
 export const buildEventPdf = (participants, { event, date = new Date() }) => {
-  const { label, mealOptions = [], maxSeats } = event;
+  const { label, mealOptions = [], maxSeats, pdfTitleNote } = event;
   // Abgesagte werden im PDF vollständig weggelassen.
   const rows = numberParticipants(participants, maxSeats).filter(participant => !participant.abgesagt);
   const columns = columnsFor(mealOptions);
@@ -174,7 +175,7 @@ export const buildEventPdf = (participants, { event, date = new Date() }) => {
 
   const pages = [];
   for (let start = 0; start < Math.max(rows.length, 1); start += perPage) {
-    pages.push(drawPage(rows.slice(start, start + perPage), { title, footer, columns }));
+    pages.push(drawPage(rows.slice(start, start + perPage), { title, subtitle: pdfTitleNote, footer, columns }));
   }
   return buildDocument(pages);
 };

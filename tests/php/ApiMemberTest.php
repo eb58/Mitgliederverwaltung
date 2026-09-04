@@ -81,6 +81,30 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertSame(1, $this->countRows('mitglied_aenderung', 'mitglied_id = 5 AND aktion = ?', ['created']));
     }
 
+    public function testMembersCollectionStoresWeihnachtsessenInSideTable(): void
+    {
+        $this->request('POST', $this->validMember([
+            'id' => 5,
+            'weihnachtsessen' => 2,
+            'wnEssenBezahlt' => true,
+            'gezahlterBetragWeihnachten' => 40,
+            'tischnummer' => 7,
+        ]));
+
+        $member = $this->capture(static fn() => handleMembersCollection(self::ADMIN))->payload['member'];
+        $row = db()->query('SELECT * FROM mitglied_weihnachtsessen WHERE mitglied_id = 5')->fetch();
+
+        $this->assertSame(2.0, $member['weihnachtsessen']);
+        $this->assertTrue($member['wnEssenBezahlt']);
+        $this->assertSame('2', (string) $row['weihnachtsessen']);
+        $this->assertSame('40.00', (string) $row['gezahlter_betrag_weihnachten']);
+        $this->assertSame('7', (string) $row['tischnummer']);
+        $this->assertFalse(tableHasColumn('mitglied', 'weihnachtsessen'));
+        $this->assertFalse(tableHasColumn('mitglied', 'wn_essen_bezahlt'));
+        $this->assertFalse(tableHasColumn('mitglied', 'gezahlter_betrag_weihnachten'));
+        $this->assertFalse(tableHasColumn('mitglied', 'tischnummer'));
+    }
+
     public function testMembersCollectionAssignsNextFreeIdWhenMissing(): void
     {
         TestDatabase::insertMemberRow(7, 'Alt', 'Otto');
@@ -145,6 +169,30 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertSame(
             [['field' => 'ort', 'label' => 'Ort', 'old' => 'Berlin', 'new' => 'Potsdam']],
             json_decode((string) $row['aenderungen_json'], true)
+        );
+    }
+
+    public function testMemberResourceUpdatesWeihnachtsessenInSideTableAndAuditsChange(): void
+    {
+        TestDatabase::insertMemberRow(3, 'MÃ¼ller', 'Anna');
+        $this->request('PATCH', [
+            'weihnachtsessen' => 1,
+            'wnEssenBezahlt' => true,
+            'gezahlterBetragWeihnachten' => 20,
+            'tischnummer' => 4,
+        ]);
+
+        $member = $this->capture(static fn() => handleMemberResource(3, self::ADMIN))->payload['member'];
+        $row = db()->query('SELECT * FROM mitglied_weihnachtsessen WHERE mitglied_id = 3')->fetch();
+        $audit = json_decode((string) db()->query('SELECT aenderungen_json FROM mitglied_aenderung WHERE mitglied_id = 3')->fetchColumn(), true);
+
+        $this->assertSame(1.0, $member['weihnachtsessen']);
+        $this->assertTrue($member['wnEssenBezahlt']);
+        $this->assertSame('20.00', (string) $row['gezahlter_betrag_weihnachten']);
+        $this->assertSame('4', (string) $row['tischnummer']);
+        $this->assertSame(
+            ['weihnachtsessen', 'wnEssenBezahlt', 'gezahlterBetragWeihnachten', 'tischnummer'],
+            array_column($audit, 'field')
         );
     }
 

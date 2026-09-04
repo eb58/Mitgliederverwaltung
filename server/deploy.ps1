@@ -62,18 +62,26 @@ if ($SkipUpload) {
 }
 
 Write-Host "Bereinige Zielverzeichnisse..." -ForegroundColor Cyan
-# App-Verzeichnis per Whitelist leeren statt nur assets/vendor: sonst bleiben Altlasten
-# frueherer Strukturen liegen (app.js, styles.css aus der Zeit vor dem Vite-Bundling).
-ssh -p $Port $sshOpt "${User}@${Server}" "mkdir -p '${remoteApi}' && find '${remoteApp}' -mindepth 1 -maxdepth 1 ! -name 'php-api' -exec rm -rf -- {} \; && find '${remoteApi}' -mindepth 1 -maxdepth 1 ! -name 'config.local.php' -exec rm -rf -- {} \;"
+# Das bisherige Frontend bleibt bis zum letzten Schritt erreichbar. Insbesondere
+# index.html darf nicht vor den neuen, lesbaren Assets ausgetauscht werden.
+ssh -p $Port $sshOpt "${User}@${Server}" "mkdir -p '${remoteApi}' '${remoteApp}/assets' && chmod 755 '${remoteApp}' '${remoteApp}/assets' && find '${remoteApp}' -mindepth 1 -maxdepth 1 ! -name 'php-api' ! -name 'assets' ! -name 'index.html' -exec rm -rf -- {} \; && find '${remoteApi}' -mindepth 1 -maxdepth 1 ! -name 'config.local.php' -exec rm -rf -- {} \;"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Remote-Verzeichnisse konnten nicht vorbereitet werden." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Lade Frontend hoch..." -ForegroundColor Cyan
-scp -r -P $Port $sshOpt "$deployDir\assets" "$deployDir\index.html" "${User}@${Server}:${remoteApp}/"
+Write-Host "Lade Frontend-Assets hoch..." -ForegroundColor Cyan
+scp -r -P $Port $sshOpt "$deployDir\assets" "${User}@${Server}:${remoteApp}/"
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Frontend-Upload fehlgeschlagen." -ForegroundColor Red
+    Write-Host "Asset-Upload fehlgeschlagen." -ForegroundColor Red
+    exit 1
+}
+
+# scp kann Verzeichnisse auf dem Hoster zunaechst mit restriktiven Rechten
+# anlegen. Erst nach diesem Schritt darf die neue index.html darauf verweisen.
+ssh -p $Port $sshOpt "${User}@${Server}" "find '${remoteApp}/assets' -type d -exec chmod 755 {} \; && find '${remoteApp}/assets' -type f -exec chmod 644 {} \;"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Asset-Rechte konnten nicht gesetzt werden." -ForegroundColor Red
     exit 1
 }
 
@@ -84,6 +92,13 @@ $uploadFiles = $apiFiles | ForEach-Object { Join-Path "$deployDir\php-api" $_ }
 scp -P $Port $sshOpt @uploadFiles "${User}@${Server}:${remoteApi}/"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "API-Upload fehlgeschlagen." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Aktiviere neues Frontend..." -ForegroundColor Cyan
+scp -P $Port $sshOpt "$deployDir\index.html" "${User}@${Server}:${remoteApp}/"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "index.html konnte nicht hochgeladen werden." -ForegroundColor Red
     exit 1
 }
 
