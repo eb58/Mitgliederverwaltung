@@ -4,15 +4,15 @@ RewriteCond %{HTTP:Authorization} .
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
 # Ohne mod_headers ignoriert Apache den Block, statt mit 500 zu antworten.
-# Das unset vor jedem set haelt den Wert eindeutig: sonst steht bei einer intern
-# aufgeloesten Anfrage (index.php/health) jeder Header doppelt in der Antwort.
+# Bewusst ohne "always": das schreibt in err_headers_out, und diese Tabelle
+# ueberlebt die interne Aufloesung von index.php/health - der Header stuende dann
+# doppelt in der Antwort. Ohne "always" gilt er fuer jede Antwort, die PHP selbst
+# erzeugt, einschliesslich der Fehlerstatus der API; nur von Apache selbst
+# erzeugte Fehlerseiten bleiben aussen vor.
 <IfModule mod_headers.c>
-  Header always unset X-Content-Type-Options
-  Header always set X-Content-Type-Options "nosniff"
-  Header always unset X-Frame-Options
-  Header always set X-Frame-Options "SAMEORIGIN"
-  Header always unset Referrer-Policy
-  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
 RewriteRule ^mitgliederverwaltung/api(/.*)?$ mitgliederverwaltung/php-api/index.php [QSA,L]
