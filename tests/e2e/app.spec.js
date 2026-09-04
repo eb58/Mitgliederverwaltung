@@ -631,6 +631,7 @@ test("Eventteilnehmer werden unscharf mit Mitgliedern und Gästen abgeglichen", 
   const matchModal = page.locator("#eventMemberMatchModal");
   await expect(matchModal).toHaveClass(/show/);
   await expect(matchModal).toContainText("Kein exakter Treffer");
+  await expect(matchModal).toContainText("Zum Einfügen anklicken");
   await expect(matchModal).toContainText("Gast · Nr. 2");
   await matchModal.getByRole("button", { name: /Bert Gästefreund/ }).click();
 

@@ -617,6 +617,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.event-member-match-hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin-bottom: 0.6rem;
+}
+
 .event-member-match-list {
   max-height: min(55vh, 420px);
   overflow-y: auto;
