@@ -144,4 +144,3 @@ export const retryAsync = async (operation, { attempts = 3, delayMs = 250 } = {}
   return run(1);
 };
 
-export const getNextId = members => members.reduce((max, member) => Math.max(max, member.id), 0) + 1;

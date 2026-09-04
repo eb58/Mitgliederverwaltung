@@ -127,8 +127,8 @@ describe("normalizeMember", () => {
 
 describe("createEmptyMember und cloneMember", () => {
   it("legt ein leeres Mitglied mit Vorgabewerten an", () => {
-    expect(createEmptyMember(17)).toMatchObject({
-      id: 17,
+    expect(createEmptyMember()).toMatchObject({
+      id: 0,
       name: "",
       geschlecht: "w",
       ort: "Berlin",

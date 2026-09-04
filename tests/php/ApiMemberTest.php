@@ -122,14 +122,26 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertFalse(tableHasColumn('mitglied_weihnachtsessen', 'preis_weihnachten'));
     }
 
-    public function testMembersCollectionAssignsNextFreeIdWhenMissing(): void
+    public function testMembersCollectionLetsTheDatabaseAssignTheId(): void
     {
         TestDatabase::insertMemberRow(7, 'Alt', 'Otto');
         $this->request('POST', $this->validMember());
 
         $response = $this->capture(static fn() => handleMembersCollection(self::ADMIN));
 
+        // AUTO_INCREMENT zaehlt hinter der hoechsten vergebenen Nummer weiter.
         $this->assertSame(8.0, $response->payload['member']['id']);
+        $this->assertSame(1, $this->countRows('mitglied', 'id = 8'));
+    }
+
+    /** Ein Reimport soll bestehende Nummern behalten koennen. */
+    public function testMembersCollectionKeepsAnExplicitlyGivenId(): void
+    {
+        $this->request('POST', $this->validMember(['id' => 4711]));
+
+        $response = $this->capture(static fn() => handleMembersCollection(self::ADMIN));
+
+        $this->assertSame(4711.0, $response->payload['member']['id']);
     }
 
     public function testMembersCollectionRejectsInvalidAndUnknownFields(): void

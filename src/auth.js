@@ -132,7 +132,6 @@ export const createAuth = ({
     clearAuthToken();
     state.currentUser = null;
     state.members = [];
-    state.nextId = 1;
     refreshAllViews();
     setAppShellVisible(false);
     showLoginForm();
@@ -227,7 +226,6 @@ export const createAuth = ({
     clearAuthToken();
     state.currentUser = null;
     state.members = [];
-    state.nextId = 1;
     refreshAllViews();
     setAppShellVisible(false);
     showLoginForm();
@@ -241,7 +239,6 @@ export const createAuth = ({
     clearAuthToken();
     state.currentUser = null;
     state.members = [];
-    state.nextId = 1;
     refreshAllViews();
     setAppShellVisible(false);
     showLoginForm();

@@ -11,7 +11,6 @@ import {
   formatIsoDate,
   getBirthDateRangeForAgeBucket,
   getBusinessYearRange,
-  getNextId,
   isDateInRange,
   normalizeGroupText,
   normalizePhotoFileName,
@@ -177,15 +176,6 @@ describe("API- und Listenhilfen", () => {
       { limit: 50 }
     );
     expect(url).toBe("http://localhost/mitgliederverwaltung/php-api/index.php/api/members?limit=50");
-  });
-
-  it("ermittelt die nächste freie Mitglieds-ID", () => {
-    expect(getNextId([])).toBe(1);
-    expect(getNextId([{ id: 4 }, { id: 9 }, { id: 2 }])).toBe(10);
-  });
-
-  it("rutscht bei ausschließlich negativen IDs nicht unter 1", () => {
-    expect(getNextId([{ id: -5 }, { id: -1 }])).toBe(1);
   });
 
   it("berechnet Prozentwerte defensiv", () => {

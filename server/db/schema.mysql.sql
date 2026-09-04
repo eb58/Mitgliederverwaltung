@@ -272,3 +272,8 @@ CREATE TABLE app_login_attempt (
 -- las und schrieb seitdem niemand mehr.
 ALTER TABLE mitglied DROP COLUMN preis_club, DROP COLUMN preis_computer;
 ALTER TABLE mitglied_weihnachtsessen DROP COLUMN preis_weihnachten;
+
+-- Die Mitgliedsnummer vergibt jetzt die Datenbank. Vorher suchte die API die
+-- naechste freie ID selbst, was sich zwei gleichzeitige Anlagen teilen konnten.
+-- Der Zaehler startet automatisch bei MAX(id) + 1, bestehende IDs bleiben.
+ALTER TABLE mitglied MODIFY id INT NOT NULL AUTO_INCREMENT;

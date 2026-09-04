@@ -1149,55 +1149,34 @@ function buildMemberSearchFilter(mixed $search): array
     ];
 }
 
-/** mitglied.id ist keine AUTO_INCREMENT-Spalte, die naechste freie ID muss also gesucht werden. */
-function nextFreeMemberId(): int
-{
-    return (int) db()->query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM mitglied')->fetch()['next_id'];
-}
-
 /** 1062 ist ER_DUP_ENTRY - SQLSTATE 23000 allein traefe auch Fremdschluesselverletzungen. */
 function isDuplicateKeyError(Throwable $error): bool
 {
     return $error instanceof PDOException && (int) ($error->errorInfo[1] ?? 0) === 1062;
 }
 
-function insertMemberInTransaction(array $member, array $currentUser): void
+/**
+ * Die Datenbank vergibt die Mitgliedsnummer. Eine mitgeschickte ID wird trotzdem
+ * uebernommen - das braucht ein Reimport, der bestehende Nummern behalten soll -
+ * und kollidiert sie, ist das ein Konflikt und kein Serverfehler.
+ */
+function createMemberRecord(array $member, array $currentUser): int
 {
-    $id = (int) $member['id'];
     db()->beginTransaction();
     try {
-        insertMember($member);
+        $id = insertMember($member);
         syncJoinTable('mitglied_interessengruppe', 'interessengruppe_id', $id, $member['interessengruppen']);
         syncJoinTable('mitglied_funktion', 'funktion_id', $id, $member['funktionen']);
         auditMemberChange($id, 'created', [], $currentUser);
         db()->commit();
+        return $id;
     } catch (Throwable $error) {
         if (db()->inTransaction()) db()->rollBack();
+        if (isDuplicateKeyError($error)) {
+            throw new ApiError('Die ID ' . (int) $member['id'] . ' ist bereits vergeben.', 409);
+        }
         throw $error;
     }
-}
-
-const MEMBER_ID_ATTEMPTS = 5;
-
-/**
- * Zwei gleichzeitige Anlagen koennen dieselbe naechste ID sehen; die zweite laeuft dann in den
- * Primaerschluessel. Eine selbst vergebene ID wird beim Wiederholen nicht frei, deshalb bekommt
- * der Aufrufer dafuer einen lesbaren Konflikt statt eines stillen Serverfehlers.
- */
-function createMemberRecord(array $member, array $currentUser): int
-{
-    $chosenId = (int) ($member['id'] ?? 0);
-    for ($attempt = 1; $attempt <= MEMBER_ID_ATTEMPTS; $attempt++) {
-        $member['id'] = $chosenId > 0 ? $chosenId : nextFreeMemberId();
-        try {
-            insertMemberInTransaction($member, $currentUser);
-            return (int) $member['id'];
-        } catch (Throwable $error) {
-            if (!isDuplicateKeyError($error)) throw $error;
-            if ($chosenId > 0) throw new ApiError('Die ID ' . $chosenId . ' ist bereits vergeben.', 409);
-        }
-    }
-    throw new ApiError('Es konnte keine freie ID vergeben werden. Bitte erneut versuchen.', 409);
 }
 
 function handleMembersCollection(array $currentUser): void
@@ -1281,16 +1260,24 @@ function handleMemberResource(int $id, array $currentUser): void
     unhandledMethod();
 }
 
-function insertMember(array $member): void
+/** Liefert die vergebene Mitgliedsnummer - ohne eigene Angabe die der Datenbank. */
+function insertMember(array $member): int
 {
     $fields = mainMemberFields();
     unset($fields['id']);
-    $columns = array_merge(['id'], array_values($fields));
-    $keys = array_merge(['id'], array_keys($fields));
+    $keys = array_keys($fields);
+    $chosenId = (int) ($member['id'] ?? 0);
+    if ($chosenId > 0) {
+        array_unshift($keys, 'id');
+        $fields = ['id' => 'id'] + $fields;
+    }
+    $columns = array_values($fields);
     $placeholders = implode(', ', array_fill(0, count($columns), '?'));
     $statement = db()->prepare('INSERT INTO mitglied (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')');
     $statement->execute(array_map(static fn(string $key): mixed => $member[$key] ?? null, $keys));
-    updateMemberWeihnachtsessen((int) $member['id'], $member);
+    $id = $chosenId > 0 ? $chosenId : (int) db()->lastInsertId();
+    updateMemberWeihnachtsessen($id, $member);
+    return $id;
 }
 
 function updateMemberColumns(int $id, array $patch): void

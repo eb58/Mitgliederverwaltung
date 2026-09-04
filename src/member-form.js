@@ -409,10 +409,7 @@ export const createMemberForm = ({
     });
     updatePhotoPreview(member);
     const idInput = document.getElementById("field-id");
-    if (idInput) {
-      if (isNew) idInput.value = String(state.nextId);
-      idInput.readOnly = !isNew;
-    }
+    if (idInput) idInput.readOnly = !isNew;
   };
 
   const read = () => {
@@ -469,10 +466,6 @@ export const createMemberForm = ({
       return;
     }
     if (state.editingId === null) {
-      if (state.members.some(member => member.id === formData.id)) {
-        showToast(`Die ID ${formData.id} existiert bereits. Bitte eine andere ID wählen.`);
-        return;
-      }
       try {
         formData = await createMember(formData);
       } catch (error) {
@@ -482,7 +475,6 @@ export const createMemberForm = ({
       }
       formData = await uploadSelectedPhoto(formData);
       state.members.push(formData);
-      state.nextId = Math.max(state.nextId, formData.id + 1);
     } else {
       const index = state.members.findIndex(member => member.id === state.editingId);
       if (index < 0) {
@@ -511,7 +503,7 @@ export const createMemberForm = ({
 
   const open = memberId => {
     const isNew = memberId === null || memberId === undefined;
-    const member = isNew ? createEmptyMember(state.nextId) : cloneMember(state.members.find(item => item.id === memberId));
+    const member = isNew ? createEmptyMember() : cloneMember(state.members.find(item => item.id === memberId));
     if (!member) return;
     document.getElementById("memberModalLabel").textContent = isNew ? "Neues Mitglied anlegen" : "Mitglied bearbeiten";
     state.editingId = isNew ? null : member.id;

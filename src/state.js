@@ -2,7 +2,6 @@ const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
 
 export const state = {
   members: [],
-  nextId: 1,
   editingId: null,
   showOnlyPaymentComputerGroups: false,
   showOnlyOpenClubPayments: false,

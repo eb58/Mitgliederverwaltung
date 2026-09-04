@@ -66,11 +66,11 @@ export const normalizeMember = raw => {
 
 export const cloneMember = member => !member ? null : structuredClone(member);
 
-export const createEmptyMember = nextId => {
+export const createEmptyMember = () => {
   const member = Object.fromEntries(fieldDefinitions.map(field => {
     if (field.type === "checkbox") return [field.key, false];
     if (field.type === "multiselect") return [field.key, []];
-    if (field.type === "number" || field.type === "currency") return [field.key, field.key === "id" ? nextId : 0];
+    if (field.type === "number" || field.type === "currency") return [field.key, 0];
     if (field.type === "select" || field.type === "radio") return [field.key, field.key === "geschlecht" ? "w" : null];
     return [field.key, ""];
   }));

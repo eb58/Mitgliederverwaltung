@@ -12,7 +12,6 @@ import {
   formatDateDE,
   formatIsoDate,
   getBirthDateRangeForAgeBucket,
-  getNextId,
   normalizeGroupText,
   retryAsync
 } from "./member-utils.js";
@@ -188,7 +187,6 @@ const loadAppData = async () => {
     ...eventAdmins.map(admin => admin.load())
   ]);
   state.members = loadedMembers;
-  state.nextId = getNextId(state.members);
   initUiOnce();
   refreshAllViews();
   setAppShellVisible(true);
@@ -213,7 +211,6 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("Initialisierung fehlgeschlagen.", error);
     if (error?.sessionExpired) return;
     state.members = [];
-    state.nextId = getNextId(state.members);
     auth.init();
     initUiOnce();
     refreshAllViews();
