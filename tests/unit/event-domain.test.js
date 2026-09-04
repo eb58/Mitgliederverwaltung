@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
 
 import { eventConfigs } from "../../src/event-config.js";
-import { createEventDomain } from "../../src/event-domain.js";
+import { createEventDomain, findEventMemberMatches } from "../../src/event-domain.js";
 
 const warnemuende = createEventDomain(eventConfigs.warnemuende);
 const eisbeinessen = createEventDomain(eventConfigs.eisbeinessen);
@@ -115,5 +115,32 @@ describe("Teilnehmer-Payload", () => {
   it("schickt ohne Essensauswahl auch kein Essensfeld mit", () => {
     expect(eisbeinessen.toParticipantPayload({ name: " Witt ", vorname: "Gisela", essensauswahl: "Zander" }))
       .toEqual({ name: "Witt", vorname: "Gisela", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: null });
+  });
+});
+
+describe("Mitgliederabgleich fuer neue Teilnehmer", () => {
+  const members = [
+    { id: 1, name: "Müller", vorname: "Anna", clubzugehoerigkeit: 9 },
+    { id: 2, name: "Mueller", vorname: "Anne", clubzugehoerigkeit: 8 },
+    { id: 3, name: "Brandl", vorname: "Erich", clubzugehoerigkeit: 9 }
+  ];
+
+  it("erkennt einen eindeutigen Namen auch in der ae-Schreibweise exakt", () => {
+    const result = findEventMemberMatches(members, { name: "MUELLER", vorname: "anna" });
+
+    expect(result.kind).toBe("exact");
+    expect(result.candidates.map(member => member.id)).toEqual([1]);
+  });
+
+  it("liefert mehrere aehnliche Mitglieder und Gaeste nach Trefferqualitaet", () => {
+    const result = findEventMemberMatches(members, { name: "Muler", vorname: "Ana" });
+
+    expect(result.kind).toBe("fuzzy");
+    expect(result.candidates.map(member => member.id)).toEqual([1, 2]);
+  });
+
+  it("meldet bei einem unpassenden Namen keinen Treffer", () => {
+    expect(findEventMemberMatches(members, { name: "Schmidt", vorname: "Peter" }))
+      .toEqual({ kind: "none", candidates: [] });
   });
 });

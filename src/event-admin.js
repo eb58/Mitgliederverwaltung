@@ -5,17 +5,19 @@ import { createEventDomain } from "./event-domain.js";
 import { buildEventPdf, pdfToBytes } from "./event-pdf.js";
 
 export const createEventAdmin = ({
+  confirmMemberMatch,
   createGrid,
   event,
   createParticipant,
   deleteParticipant,
+  getMembers,
   loadParticipants,
   resolveParticipantPhoto,
   setFallbackPhoto,
   updateParticipant
 }) => {
   const { key, maxSeats, mealOptions } = event;
-  const { numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } = createEventDomain(event);
+  const { findMemberMatches, numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } = createEventDomain(event);
   // Alle Bausteine eines Events haengen am Schluessel: warnemuendeForm, eisbeinessenGrid, ...
   const domId = suffix => `${key}${suffix}`;
 
@@ -141,12 +143,27 @@ export const createEventAdmin = ({
     const form = submitEvent.target;
     try {
       setError("");
-      const created = await createParticipant(toParticipantPayload({
+      const payload = toParticipantPayload({
         name: form.elements.name.value,
         vorname: form.elements.vorname.value,
         essensauswahl: form.elements.essensauswahl?.value,
         bemerkung: form.elements.bemerkung.value
-      }));
+      });
+      const matches = findMemberMatches(getMembers(), payload);
+      let participant = payload;
+      if (matches.kind === "exact" && matches.candidates.length === 1) {
+        const [member] = matches.candidates;
+        participant = { ...payload, name: member.name, vorname: member.vorname, mitgliedId: member.id };
+      } else if (matches.candidates.length) {
+        const selection = await confirmMemberMatch({ participant: payload, ...matches });
+        if (!selection.confirmed) return;
+        if (selection.member) {
+          participant = { ...payload, name: selection.member.name, vorname: selection.member.vorname, mitgliedId: selection.member.id };
+        }
+      } else if (!confirm(`Kein Mitglied oder Gast für „${payload.vorname} ${payload.name}“ gefunden. Soll der Name wirklich ohne Zuordnung eingefügt werden?`)) {
+        return;
+      }
+      const created = await createParticipant(participant);
       participants = [...participants, created];
       render();
       form.reset();

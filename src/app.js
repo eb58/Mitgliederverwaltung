@@ -46,6 +46,7 @@ import { gridApis, state } from "./state.js";
 import { createUserAdmin } from "./user-admin.js";
 import { createEventAdmin } from "./event-admin.js";
 import { eventList } from "./event-config.js";
+import { createEventMemberMatchDialog } from "./event-member-match.js";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -100,11 +101,15 @@ const referenceAdmin = createReferenceAdmin({
   updateItem: updateReferenceItemViaApi
 });
 
+const eventMemberMatchDialog = createEventMemberMatchDialog();
+
 const eventAdmins = eventList.map(event => createEventAdmin({
+  confirmMemberMatch: options => eventMemberMatchDialog.choose(options),
   createGrid: (gridKey, containerId, columnDefs, overrides) => createGrid(gridKey, containerId, columnDefs, overrides),
   createParticipant: participant => createEventParticipantViaApi(event.key, participant),
   deleteParticipant: id => deleteEventParticipantViaApi(event.key, id),
   event,
+  getMembers: () => state.members,
   loadParticipants: () => loadEventParticipantsFromApi(event.key),
   // Teilnehmer ohne Clubmitgliedschaft haben kein Passbild - dann bleibt das Platzhalterbild stehen.
   resolveParticipantPhoto: mitgliedId => {
