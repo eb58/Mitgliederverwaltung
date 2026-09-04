@@ -64,6 +64,13 @@ abstract class DatabaseTestCase extends TestCase
         return $token;
     }
 
+    protected function fetchColumn(string $sql, array $params = []): mixed
+    {
+        $statement = db()->prepare($sql);
+        $statement->execute($params);
+        return $statement->fetchColumn();
+    }
+
     protected function countRows(string $table, string $where = '1', array $params = []): int
     {
         $statement = db()->prepare("SELECT COUNT(*) FROM {$table} WHERE {$where}");

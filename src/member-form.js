@@ -1,9 +1,11 @@
 import { Modal, Tab } from "bootstrap";
 import { fieldDefinitions, formSections, paidAmountDefaults } from "./member-config.js";
 import { cloneMember, createEmptyMember, formatMemberName, normalizeMember } from "./member-domain.js";
-import { asBoolean, formatIsoDate, roundCurrency } from "./member-utils.js";
+import { asBoolean, calculateAge, formatIsoDate, roundCurrency } from "./member-utils.js";
 import { state } from "./state.js";
 import { showToast } from "./ui.js";
+
+const MIN_MEMBER_AGE = 55;
 
 export const createMemberForm = ({
   createMember,
@@ -436,6 +438,8 @@ export const createMemberForm = ({
     return normalizeMember(member);
   };
 
+  // Der Datensatz ist hier bereits gespeichert - ein gescheiterter Bild-Upload darf ihn
+  // nicht aus der Liste halten, sonst zeigt das Grid einen veralteten Stand.
   const uploadSelectedPhoto = async member => {
     if (!selectedPhotoFile) return member;
     try {
@@ -445,7 +449,15 @@ export const createMemberForm = ({
     } catch (error) {
       console.warn("Passfoto konnte nicht hochgeladen werden.", error);
       showToast("Passfoto konnte nicht hochgeladen werden.");
-      throw error;
+      return member;
+    }
+  };
+
+  // Nur ein Hinweis, keine Sperre: Gaeste koennen juenger sein, ein vertipptes Jahr faellt trotzdem auf.
+  const warnAboutMinimumAge = member => {
+    const age = calculateAge(member.geburtstag);
+    if (age !== null && age < MIN_MEMBER_AGE) {
+      showToast(`Hinweis: Das Geburtsdatum ergibt ein Alter von ${age} Jahren.`);
     }
   };
 
@@ -465,14 +477,10 @@ export const createMemberForm = ({
         formData = await createMember(formData);
       } catch (error) {
         console.warn("Mitglied konnte nicht angelegt werden.", error);
-        showToast("Speichern in der Datenbank fehlgeschlagen.");
+        showToast(error.message || "Speichern in der Datenbank fehlgeschlagen.");
         return;
       }
-      try {
-        formData = await uploadSelectedPhoto(formData);
-      } catch {
-        return;
-      }
+      formData = await uploadSelectedPhoto(formData);
       state.members.push(formData);
       state.nextId = Math.max(state.nextId, formData.id + 1);
     } else {
@@ -487,16 +495,13 @@ export const createMemberForm = ({
         formData = await updateMember(formData);
       } catch (error) {
         console.warn("Mitglied konnte nicht gespeichert werden.", error);
-        showToast("Speichern in der Datenbank fehlgeschlagen.");
+        showToast(error.message || "Speichern in der Datenbank fehlgeschlagen.");
         return;
       }
-      try {
-        formData = await uploadSelectedPhoto(formData);
-      } catch {
-        return;
-      }
+      formData = await uploadSelectedPhoto(formData);
       state.members[index] = formData;
     }
+    warnAboutMinimumAge(formData);
     state.members.sort((a, b) => a.name.localeCompare(b.name, "de") || a.vorname.localeCompare(b.vorname, "de"));
     clearSelectedPhoto();
     modal.hide();

@@ -39,7 +39,10 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
       try {
         const candidateResponse = await fetch(createMemberApiUrlForBase(candidateBaseUrl, path, params), options);
         const contentType = candidateResponse.headers.get("content-type") || "";
-        if (path.startsWith("/api/") && candidateResponse.status !== 204 && ([404, 405].includes(candidateResponse.status) || !contentType.includes("application/json"))) {
+        // Nur eine Antwort ohne JSON kommt nicht von unserer API (Apache-Fehlerseite o. ae.) und
+        // rechtfertigt den naechsten Kandidaten. Ein fachlicher 404 traegt JSON und ist endgueltig -
+        // sonst ginge dieselbe Anlage oder Aenderung ein zweites Mal raus.
+        if (path.startsWith("/api/") && candidateResponse.status !== 204 && !contentType.includes("application/json")) {
           lastApiFallbackResponse = candidateResponse;
           continue;
         }

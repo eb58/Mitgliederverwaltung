@@ -136,6 +136,31 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertApiError(400, 'Unbekannte Felder: unbekanntesFeld', static fn() => handleMembersCollection(self::ADMIN));
     }
 
+    public function testMembersCollectionReportsTakenIdAsConflict(): void
+    {
+        TestDatabase::insertMemberRow(7, 'Alt', 'Otto');
+        $this->request('POST', $this->validMember(['id' => 7]));
+
+        $this->assertApiError(409, 'Die ID 7 ist bereits vergeben', fn() => handleMembersCollection(self::ADMIN));
+        $this->assertSame(1, $this->countRows('mitglied', 'id = 7'));
+        $this->assertSame('Alt', $this->fetchColumn('SELECT name FROM mitglied WHERE id = 7'));
+    }
+
+    /** Eine Fremdschluesselverletzung darf nicht als vergebene ID durchgereicht werden. */
+    public function testFailedCreateDoesNotReportForeignKeyErrorAsTakenId(): void
+    {
+        $this->request('POST', $this->validMember(['id' => 5, 'interessengruppen' => [999999]]));
+
+        try {
+            handleMembersCollection(self::ADMIN);
+            $this->fail('Die Fremdschluesselverletzung haette durchschlagen muessen.');
+        } catch (ApiError $error) {
+            $this->fail('Unerwarteter ApiError: ' . $error->getMessage());
+        } catch (PDOException) {
+            $this->addToAssertionCount(1);
+        }
+    }
+
     public function testFailedCreateLeavesNoPartialRows(): void
     {
         $this->request('POST', $this->validMember(['id' => 5, 'interessengruppen' => [999999]]));

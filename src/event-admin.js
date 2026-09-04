@@ -57,7 +57,8 @@ export const createEventAdmin = ({
     api.forEachNodeAfterFilterAndSort(node => nodes.push(node));
     const numbered = numberParticipants(nodes.map(node => node.data || {}));
     displayNumbers = new Map(nodes.map((node, index) => [node.id, numbered[index]]));
-    api.refreshCells({ columns: ["nr"], force: true });
+    // redrawRows statt refreshCells: nur so wertet AG Grid auch die rowClassRules
+    // neu aus, an denen die Nachrueckermarkierung haengt. Die Zellen kommen dabei mit.
     api.redrawRows();
     updateSummary();
   };

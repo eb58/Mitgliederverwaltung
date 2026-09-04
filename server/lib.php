@@ -1134,6 +1134,57 @@ function buildMemberSearchFilter(mixed $search): array
     ];
 }
 
+/** mitglied.id ist keine AUTO_INCREMENT-Spalte, die naechste freie ID muss also gesucht werden. */
+function nextFreeMemberId(): int
+{
+    return (int) db()->query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM mitglied')->fetch()['next_id'];
+}
+
+/** 1062 ist ER_DUP_ENTRY - SQLSTATE 23000 allein traefe auch Fremdschluesselverletzungen. */
+function isDuplicateKeyError(Throwable $error): bool
+{
+    return $error instanceof PDOException && (int) ($error->errorInfo[1] ?? 0) === 1062;
+}
+
+function insertMemberInTransaction(array $member, array $currentUser): void
+{
+    $id = (int) $member['id'];
+    db()->beginTransaction();
+    try {
+        insertMember($member);
+        syncJoinTable('mitglied_interessengruppe', 'interessengruppe_id', $id, $member['interessengruppen']);
+        syncJoinTable('mitglied_funktion', 'funktion_id', $id, $member['funktionen']);
+        auditMemberChange($id, 'created', [], $currentUser);
+        db()->commit();
+    } catch (Throwable $error) {
+        if (db()->inTransaction()) db()->rollBack();
+        throw $error;
+    }
+}
+
+const MEMBER_ID_ATTEMPTS = 5;
+
+/**
+ * Zwei gleichzeitige Anlagen koennen dieselbe naechste ID sehen; die zweite laeuft dann in den
+ * Primaerschluessel. Eine selbst vergebene ID wird beim Wiederholen nicht frei, deshalb bekommt
+ * der Aufrufer dafuer einen lesbaren Konflikt statt eines stillen Serverfehlers.
+ */
+function createMemberRecord(array $member, array $currentUser): int
+{
+    $chosenId = (int) ($member['id'] ?? 0);
+    for ($attempt = 1; $attempt <= MEMBER_ID_ATTEMPTS; $attempt++) {
+        $member['id'] = $chosenId > 0 ? $chosenId : nextFreeMemberId();
+        try {
+            insertMemberInTransaction($member, $currentUser);
+            return (int) $member['id'];
+        } catch (Throwable $error) {
+            if (!isDuplicateKeyError($error)) throw $error;
+            if ($chosenId > 0) throw new ApiError('Die ID ' . $chosenId . ' ist bereits vergeben.', 409);
+        }
+    }
+    throw new ApiError('Es konnte keine freie ID vergeben werden. Bitte erneut versuchen.', 409);
+}
+
 function handleMembersCollection(array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
@@ -1152,21 +1203,7 @@ function handleMembersCollection(array $currentUser): void
         assertKnownFields($payload);
         $member = normalizeMemberInput($payload);
         assertValidMember($member);
-        db()->beginTransaction();
-        try {
-            if (($member['id'] ?? 0) <= 0) {
-                $member['id'] = (int) db()->query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM mitglied')->fetch()['next_id'];
-            }
-            insertMember($member);
-            syncJoinTable('mitglied_interessengruppe', 'interessengruppe_id', (int) $member['id'], $member['interessengruppen']);
-            syncJoinTable('mitglied_funktion', 'funktion_id', (int) $member['id'], $member['funktionen']);
-            auditMemberChange((int) $member['id'], 'created', [], $currentUser);
-            db()->commit();
-        } catch (Throwable $error) {
-            db()->rollBack();
-            throw $error;
-        }
-        jsonResponse(['member' => findMemberById((int) $member['id'])], 201);
+        jsonResponse(['member' => findMemberById(createMemberRecord($member, $currentUser))], 201);
     }
 }
 

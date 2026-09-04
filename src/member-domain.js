@@ -10,7 +10,6 @@ import {
 } from "./member-config.js";
 import {
   asBoolean,
-  ensureMinimumAge,
   formatCurrency,
   formatDateDE,
   normalizeGroupText,
@@ -35,7 +34,7 @@ export const normalizeMember = raw => {
   member.telefon = member.telefon || "";
   member.handy = member.handy || "";
   member.email = member.email || "";
-  member.geburtstag = ensureMinimumAge(parseLegacyDate(member.geburtstag));
+  member.geburtstag = parseLegacyDate(member.geburtstag);
   member.eintrittsdatum = parseLegacyDate(member.eintrittsdatum);
   member.austrittsdatum = parseLegacyDate(member.austrittsdatum);
   member.austrittsgrund = member.austrittsgrund === null || member.austrittsgrund === undefined || member.austrittsgrund === ""

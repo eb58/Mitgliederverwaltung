@@ -85,11 +85,11 @@ describe("normalizeMember", () => {
     expect(member.austrittsdatum).toBe("");
   });
 
-  it("hebt zu junge Geburtstage auf das Mindestalter an", () => {
-    const today = new Date();
-    const minBirthday = formatIsoDate(new Date(today.getFullYear() - 55, today.getMonth(), today.getDate()));
+  it("uebernimmt den Geburtstag unveraendert, auch wenn er ein junges Alter ergibt", () => {
     expect(normalizeMember({ geburtstag: "01.02.1950" }).geburtstag).toBe("1950-02-01");
-    expect(normalizeMember({ geburtstag: "2020-01-01" }).geburtstag).toBe(minBirthday);
+    // Frueher wurde hier stillschweigend auf das Mindestalter angehoben - das hat
+    // vertippte Jahreszahlen durch ein erfundenes Datum ersetzt.
+    expect(normalizeMember({ geburtstag: "2020-01-01" }).geburtstag).toBe("2020-01-01");
   });
 
   it("unterscheidet leeren Austrittsgrund von der Ziffer 0", () => {
