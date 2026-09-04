@@ -45,6 +45,20 @@ const members = [
     clubzugehoerigkeit: 8,
     interessengruppen: [],
     funktionen: []
+  },
+  {
+    id: 4,
+    name: "Schmidt",
+    vorname: "Clara",
+    geschlecht: "w",
+    geburtstag: "1958-04-12",
+    eintrittsdatum: "2020-03-01",
+    austrittsdatum: "2025-07-15",
+    austrittsgrund: 3,
+    ort: "Berlin",
+    clubzugehoerigkeit: 9,
+    interessengruppen: [],
+    funktionen: []
   }
 ];
 
@@ -155,6 +169,21 @@ const openAuthenticatedApp = async page => {
   await expect(page.locator("#currentUserName")).toHaveText("admin");
 };
 
+const clickYearBar = async (page, selector, year) => {
+  const canvas = page.locator(selector);
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error(`Diagramm ${selector} ist nicht sichtbar.`);
+  const index = year - (new Date().getFullYear() - 9);
+  const chartLeft = box.width * 0.08;
+  const chartWidth = box.width * 0.9;
+  const position = { x: chartLeft + (index + 0.5) * chartWidth / 10, y: box.height * 0.75 };
+  await expect.poll(async () => {
+    await canvas.hover({ position });
+    return canvas.evaluate(element => element.style.cursor);
+  }).toBe("pointer");
+  await canvas.click({ position });
+};
+
 test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await openAuthenticatedApp(page);
 
@@ -168,6 +197,10 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await expect(page.locator("#newestMemberList")).toContainText("66 Jahre");
   await expect(page.locator("#newestMemberList")).toContainText("Eintritt 01.11.2025");
   await expect(page.locator("#newestMemberList .newest-member-photo")).toBeVisible();
+  await expect(page.locator("#entryChart")).toBeVisible();
+  await expect(page.locator("#entryChart")).toHaveAttribute("aria-label", /Eintritte pro Jahr von \d{4} bis \d{4}/);
+  await expect(page.locator("#exitChart")).toBeVisible();
+  await expect(page.locator("#exitChart")).toHaveAttribute("aria-label", /Austritte pro Jahr von \d{4} bis \d{4}/);
 
   await page.locator("#metricGuestCountBtn").click();
   await expect(page.locator("#guests-tab")).toHaveClass(/active/);
@@ -210,6 +243,21 @@ test("Dashboard wird erst mit vollständig geladenen Startdaten angezeigt", asyn
   await expect(page.locator("#appShell")).toBeVisible();
   await expect(page.locator("#metricTotal")).toHaveText("1");
   await expect(page.locator("#groupChart")).toBeVisible();
+});
+
+test("Jahresdiagramme öffnen die passend gefilterten Mitgliederlisten", async ({ page }) => {
+  await openAuthenticatedApp(page);
+
+  await clickYearBar(page, "#entryChart", 2025);
+  await expect(page.locator("#overview-tab")).toHaveClass(/active/);
+  await expect(page.locator("#overviewGrid .ag-center-cols-container .ag-row")).toHaveCount(1);
+  await expect(page.locator("#overviewGrid")).toContainText("Müller");
+
+  await page.locator("#dashboard-tab").click();
+  await clickYearBar(page, "#exitChart", 2025);
+  await expect(page.locator("#historical-tab")).toHaveClass(/active/);
+  await expect(page.locator("#historicalGrid .ag-center-cols-container .ag-row")).toHaveCount(1);
+  await expect(page.locator("#historicalGrid")).toContainText("Schmidt");
 });
 
 test("vorübergehend fehlende Stammdaten werden erneut geladen", async ({ page }) => {

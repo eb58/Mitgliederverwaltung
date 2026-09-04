@@ -22,6 +22,8 @@ import {
   formatFunctions,
   formatInterestGroups,
   formatMemberName,
+  getEntriesPerYear,
+  getExitsPerYear,
   getMemberFunctionIds,
   getMemberInterestGroupText,
   getNewestMembers,
@@ -244,6 +246,42 @@ describe("getNewestMembers", () => {
 
   it("kommt mit einer leeren Liste zurecht", () => {
     expect(getNewestMembers([])).toEqual([]);
+  });
+});
+
+describe("getEntriesPerYear", () => {
+  it("zaehlt Eintritte fuer das laufende und die neun vorherigen Kalenderjahre", () => {
+    const entries = getEntriesPerYear([
+      { eintrittsdatum: "2016-12-31" },
+      { eintrittsdatum: "2017-01-01" },
+      { eintrittsdatum: "2025-05-10" },
+      { eintrittsdatum: "2025-11-02" },
+      { eintrittsdatum: "2026-01-03" },
+      { eintrittsdatum: "2027-01-01" },
+      { eintrittsdatum: "unbekannt" }
+    ], new Date(2026, 8, 4));
+
+    expect(entries.map(entry => entry.year)).toEqual([2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]);
+    expect(entries.map(entry => entry.count)).toEqual([1, 0, 0, 0, 0, 0, 0, 0, 2, 1]);
+  });
+
+  it("liefert fuer null Jahre eine leere Auswertung", () => {
+    expect(getEntriesPerYear([{ eintrittsdatum: "2026-01-03" }], new Date(2026, 8, 4), 0)).toEqual([]);
+  });
+});
+
+describe("getExitsPerYear", () => {
+  it("zaehlt nur gueltige Austrittsdaten innerhalb der letzten zehn Jahre", () => {
+    const exits = getExitsPerYear([
+      { austrittsdatum: "2017-01-01" },
+      { austrittsdatum: "2024-05-10" },
+      { austrittsdatum: "2024-11-02" },
+      { austrittsdatum: "2026-01-03" },
+      { austrittsdatum: "" },
+      { austrittsdatum: "2026-02-30" }
+    ], new Date(2026, 8, 4));
+
+    expect(exits.map(exit => exit.count)).toEqual([1, 0, 0, 0, 0, 0, 0, 2, 0, 1]);
   });
 });
 

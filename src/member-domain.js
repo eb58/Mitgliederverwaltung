@@ -137,6 +137,28 @@ export const getNewestMembers = (members, limit = 12) => members
     || germanCollator.compare(formatMemberName(a), formatMemberName(b)))
   .slice(0, limit);
 
+const getDatesPerYear = (members, field, today, years) => {
+  const yearCount = Math.max(0, Math.trunc(Number(years) || 0));
+  const currentYear = today.getFullYear();
+  const rows = Array.from({ length: yearCount }, (_, index) => ({
+    year: currentYear - yearCount + index + 1,
+    count: 0
+  }));
+  const rowByYear = new Map(rows.map(row => [row.year, row]));
+  members.forEach(member => {
+    const date = parseIsoDate(member[field]);
+    const row = date && rowByYear.get(date.getFullYear());
+    if (row) row.count += 1;
+  });
+  return rows;
+};
+
+export const getEntriesPerYear = (members, today = new Date(), years = 10) =>
+  getDatesPerYear(members, "eintrittsdatum", today, years);
+
+export const getExitsPerYear = (members, today = new Date(), years = 10) =>
+  getDatesPerYear(members, "austrittsdatum", today, years);
+
 export const getNextBirthday = (member, today = new Date()) => {
   if (!member.geburtstag || typeof member.geburtstag !== "string") return null;
   const [birthYear, month, day] = member.geburtstag.split("-").map(Number);

@@ -2,6 +2,8 @@ import Chart from "chart.js/auto";
 import { germanCollator, interestGroupMap } from "./member-config.js";
 import {
   formatMemberName,
+  getEntriesPerYear,
+  getExitsPerYear,
   getNewestMembers,
   getRoundBirthdays,
   getUpcomingBirthday,
@@ -28,10 +30,11 @@ export const createDashboard = ({
   resolveMemberPhotoDataUrl,
   setFallbackPhoto,
   showOverviewForAgeBucket,
-  showOverviewForInterestGroup
+  showOverviewForEntryYear,
+  showOverviewForInterestGroup,
+  showHistoricalForExitYear
 }) => {
-  let ageHistogramChart = null;
-  let interestGroupChart = null;
+  const charts = new Map();
 
   const createMemberPhoto = (member, className) => {
     const photo = document.createElement("div");
@@ -59,11 +62,11 @@ export const createDashboard = ({
   const renderAgeChart = (buckets, total) => {
     const canvas = document.getElementById("ageChart");
     if (!canvas || !(canvas instanceof HTMLCanvasElement)) return;
-    ageHistogramChart?.destroy();
+    charts.get("ageChart")?.destroy();
     const labels = buckets.map(bucket => bucket.label);
     const data = buckets.map(bucket => bucket.count);
     const colors = buckets.map((_, index) => index % 2 === 0 ? "rgba(15, 118, 110, 0.85)" : "rgba(44, 160, 151, 0.85)");
-    ageHistogramChart = new Chart(canvas, {
+    charts.set("ageChart", new Chart(canvas, {
       type: "bar",
       data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor: colors, borderColor: colors.map(color => color.replace(/0\.85\)$/, "1)")), borderWidth: 1, borderRadius: 12, borderSkipped: false, maxBarThickness: 36 }] },
       options: {
@@ -87,7 +90,7 @@ export const createDashboard = ({
           y: { beginAtZero: true, grid: { color: "rgba(15, 118, 110, 0.08)", borderDash: [3, 3] }, ticks: { color: "#46535c", precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
         }
       }
-    });
+    }));
   };
 
   const renderInterestGroupChart = (groups, total) => {
@@ -95,12 +98,12 @@ export const createDashboard = ({
     if (!canvas || !(canvas instanceof HTMLCanvasElement)) return;
     const chartContainer = canvas.parentElement;
     if (chartContainer) chartContainer.style.minHeight = `${Math.min(360, Math.max(280, groups.length * 20))}px`;
-    interestGroupChart?.destroy();
+    charts.get("groupChart")?.destroy();
     const labels = groups.map(item => item.label);
     const data = groups.map(item => item.count);
     const backgroundColor = labels.map((_, index) => index % 2 === 0 ? "rgba(22, 101, 84, 0.85)" : "rgba(43, 154, 124, 0.8)");
     const borderColor = backgroundColor.map(color => color.replace(/0\.8?5\)$/, "1)"));
-    interestGroupChart = new Chart(canvas, {
+    charts.set("groupChart", new Chart(canvas, {
       type: "bar",
       data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor, borderColor, borderWidth: 1, borderRadius: 8, borderSkipped: false, maxBarThickness: 18 }] },
       options: {
@@ -125,7 +128,42 @@ export const createDashboard = ({
           y: { grid: { display: false }, ticks: { autoSkip: false, color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
         }
       }
-    });
+    }));
+  };
+
+  const renderMembershipDatesPerYearChart = ({ canvasId, entries, label, onYearClick, singular, plural }) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !(canvas instanceof HTMLCanvasElement)) return;
+    charts.get(canvasId)?.destroy();
+    const labels = entries.map(entry => String(entry.year));
+    const data = entries.map(entry => entry.count);
+    const colors = entries.map((_, index) => index % 2 === 0 ? "rgba(15, 118, 110, 0.85)" : "rgba(44, 160, 151, 0.85)");
+    canvas.setAttribute("aria-label", `${label} von ${labels[0]} bis ${labels.at(-1)}`);
+    charts.set(canvasId, new Chart(canvas, {
+      type: "bar",
+      data: { labels, datasets: [{ label, data, backgroundColor: colors, borderColor: colors.map(color => color.replace(/0\.85\)$/, "1)")), borderWidth: 1, borderRadius: 10, borderSkipped: false, maxBarThickness: 36 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 600, easing: "easeOutQuart" },
+        onClick: (_event, elements) => {
+          const index = elements?.[0]?.index;
+          if (Number.isInteger(index)) onYearClick(entries[index].year);
+        },
+        onHover: (event, elements) => {
+          if (event?.native?.target) event.native.target.style.cursor = elements?.length ? "pointer" : "default";
+        },
+        layout: { padding: { top: 10, right: 6, bottom: 4, left: 4 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: context => `${context.parsed.y} ${context.parsed.y === 1 ? singular : plural}` } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
+          y: { beginAtZero: true, grid: { color: "rgba(15, 118, 110, 0.08)", borderDash: [3, 3] }, ticks: { color: "#46535c", precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
+        }
+      }
+    }));
   };
 
   const renderBirthdayRows = (containerId, birthdays, emptyText, getBadgeText) => {
@@ -222,8 +260,10 @@ export const createDashboard = ({
   };
 
   const refresh = () => {
+    const today = new Date();
     const activeMembers = state.members.filter(isActiveMember);
     const clubMembers = activeMembers.filter(member => !isGuestMember(member));
+    const formerClubMembers = state.members.filter(member => !isActiveMember(member) && !isGuestMember(member));
     const total = clubMembers.length;
     const guests = activeMembers.filter(isGuestMember).length;
     const clubPaid = clubMembers.filter(member => asBoolean(member.beitragClubBezahlt)).length;
@@ -251,7 +291,6 @@ export const createDashboard = ({
       }),
       { label: "95+", min: 95, max: Infinity, count: 0 }
     ];
-    const today = new Date();
     clubMembers.forEach(member => {
       const genderKey = String(member.geschlecht || "").toLowerCase();
       if (genderKey === "m" || genderKey === "w") genderCounts[genderKey] += 1;
@@ -277,6 +316,22 @@ export const createDashboard = ({
       .sort((a, b) => germanCollator.compare(a.label, b.label))
       .slice(0, Object.keys(interestGroupMap).length);
     renderInterestGroupChart(groupRows, total);
+    renderMembershipDatesPerYearChart({
+      canvasId: "entryChart",
+      entries: getEntriesPerYear(clubMembers, today),
+      label: "Eintritte pro Jahr",
+      onYearClick: showOverviewForEntryYear,
+      singular: "Eintritt",
+      plural: "Eintritte"
+    });
+    renderMembershipDatesPerYearChart({
+      canvasId: "exitChart",
+      entries: getExitsPerYear(formerClubMembers, today),
+      label: "Austritte pro Jahr",
+      onYearClick: showHistoricalForExitYear,
+      singular: "Austritt",
+      plural: "Austritte"
+    });
     renderBirthdayList(clubMembers, today);
     renderRoundBirthdayList(clubMembers, today);
     renderNewestMembers(clubMembers);

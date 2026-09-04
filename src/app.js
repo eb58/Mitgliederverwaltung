@@ -157,7 +157,9 @@ const {
   resolveMemberPhotoDataUrl: member => resolveMemberPhotoDataUrl(member),
   setFallbackPhoto: wrapper => setFallbackPhoto(wrapper),
   showOverviewForAgeBucket: bucket => showOverviewForAgeBucket(bucket),
-  showOverviewForInterestGroup: group => showOverviewForInterestGroup(group)
+  showOverviewForEntryYear: year => showOverviewForEntryYear(year),
+  showOverviewForInterestGroup: group => showOverviewForInterestGroup(group),
+  showHistoricalForExitYear: year => showHistoricalForExitYear(year)
 });
 
 let uiInitialized = false;
@@ -614,7 +616,7 @@ const getHistoricalColumns = () => [
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
-  { headerName: "Austrittsdatum", field: "austrittsdatum", valueFormatter: dateFormatter, minWidth: 150 },
+  { headerName: "Austrittsdatum", field: "austrittsdatum", valueFormatter: dateFormatter, filter: "agDateColumnFilter", filterParams: { buttons: ["reset"], comparator: compareIsoDateToFilterDate, inRangeInclusive: true }, minWidth: 150 },
   { headerName: "Austrittsgrund", field: "austrittsgrund", valueFormatter: params => austrittsgrundMap[Number(params.value)] || "", minWidth: 170 },
   { headerName: "Email", field: "email", minWidth: 220 },
   { headerName: "Handy", field: "handy", minWidth: 150 },
@@ -1036,18 +1038,21 @@ const clearAllFilters = () => {
   refreshAllViews();
 };
 
-const showOverviewWithFilter = filterModel => {
+const showMemberGridWithFilter = (gridKey, tabId, filterModel) => {
   clearGlobalSearch();
   refreshAllViews();
 
-  const overviewApi = gridApis.overview;
-  clearGridFilters(overviewApi);
-  overviewApi?.setFilterModel?.(filterModel);
-  overviewApi?.onFilterChanged?.();
+  const api = gridApis[gridKey];
+  clearGridFilters(api);
+  api?.setFilterModel?.(filterModel);
+  api?.onFilterChanged?.();
 
-  const overviewTab = document.getElementById("overview-tab");
-  if (overviewTab) Tab.getOrCreateInstance(overviewTab).show();
+  const tab = document.getElementById(tabId);
+  if (tab) Tab.getOrCreateInstance(tab).show();
 };
+
+const showOverviewWithFilter = filterModel => showMemberGridWithFilter("overview", "overview-tab", filterModel);
+const showHistoricalWithFilter = filterModel => showMemberGridWithFilter("historical", "historical-tab", filterModel);
 
 const showGuestOverview = () => {
   clearGlobalSearch();
@@ -1088,6 +1093,16 @@ const showOverviewForAgeBucket = bucket => {
     }
   });
 };
+
+const yearDateFilter = year => ({
+  filterType: "date",
+  type: "inRange",
+  dateFrom: `${year}-01-01`,
+  dateTo: `${year}-12-31`
+});
+
+const showOverviewForEntryYear = year => showOverviewWithFilter({ eintrittsdatum: yearDateFilter(year) });
+const showHistoricalForExitYear = year => showHistoricalWithFilter({ austrittsdatum: yearDateFilter(year) });
 
 const clearInactiveQuickFilters = () => {
   const activeApi = getActiveGridApi();
