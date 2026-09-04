@@ -890,8 +890,10 @@ const refreshAllViews = () => {
   setGridData(gridApis.guests, guests);
   renderFunctionOverview(nonGuests);
 
+  // Auch ausgetretene Gaeste gehoeren hierher - sonst stehen sie in gar keiner
+  // Ansicht. Die Zeilenmarkierung des Grids weist sie weiterhin als Gaeste aus.
   const historicalMembers = [...state.members]
-    .filter(m => !isActiveMember(m) && !isGuestMember(m))
+    .filter(m => !isActiveMember(m))
     .sort(sortByName);
   setGridData(gridApis.historical, historicalMembers);
   eventAdmins.forEach(admin => gridApis[admin.key]?.refreshCells({ columns: ["passbild"], force: true }));

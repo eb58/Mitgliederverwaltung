@@ -59,6 +59,20 @@ const members = [
     clubzugehoerigkeit: 9,
     interessengruppen: [],
     funktionen: []
+  },
+  {
+    id: 5,
+    name: "Ehemalig",
+    vorname: "Gerda",
+    geschlecht: "w",
+    geburtstag: "1957-03-09",
+    eintrittsdatum: "2019-01-01",
+    austrittsdatum: "2023-05-31",
+    austrittsgrund: 6,
+    ort: "Berlin",
+    clubzugehoerigkeit: 8,
+    interessengruppen: [],
+    funktionen: []
   }
 ];
 
@@ -617,6 +631,17 @@ test("Teilnehmerliste lässt sich als PDF herunterladen", async ({ page }) => {
   expect(pdf.startsWith("%PDF-1.4")).toBeTruthy();
   expect(pdf).toContain(String.raw`(Teilnehmerliste Warnem\374nde) Tj`);
   expect(pdf).toContain(String.raw`(M\374ller) Tj`);
+});
+
+test("ausgetretene Gäste stehen in der Ehemaligen-Liste", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#historical-tab").click();
+
+  const grid = page.locator("#historicalGrid");
+  await expect(grid).toContainText("Schmidt");
+  await expect(grid).toContainText("Ehemalig");
+  // Der ausgetretene Gast bleibt als Gast erkennbar.
+  await expect(grid.locator(".ag-center-cols-container .ag-row.guest-row")).toHaveCount(1);
 });
 
 test("Eventteilnehmer werden unscharf mit Mitgliedern und Gästen abgeglichen", async ({ page }) => {
