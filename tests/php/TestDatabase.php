@@ -105,7 +105,7 @@ final class TestDatabase
         // Das tmpfs der Test-DB ist nach einem Container-Neustart leer.
         if (!self::schemaIsComplete($pdo)) self::loadSchema($pdo);
 
-        $tables = ['eisbeinessen_teilnehmer', 'warnemuende_teilnehmer', 'mitglied_aenderung', 'mitglied_passbild', 'mitglied_funktion', 'mitglied_interessengruppe', 'mitglied_weihnachtsessen', 'mitglied', 'app_session', 'app_user', ...self::REFERENCE_TABLES];
+        $tables = ['eisbeinessen_teilnehmer', 'warnemuende_teilnehmer', 'mitglied_aenderung', 'mitglied_passbild', 'mitglied_funktion', 'mitglied_interessengruppe', 'mitglied_weihnachtsessen', 'mitglied', 'app_login_attempt', 'app_session', 'app_user', ...self::REFERENCE_TABLES];
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
         foreach ($tables as $table) {
             $pdo->exec('TRUNCATE TABLE ' . $table);

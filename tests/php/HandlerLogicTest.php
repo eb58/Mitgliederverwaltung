@@ -124,7 +124,8 @@ final class HandlerLogicTest extends TestCase
         $payload = parsePhotoJsonPayload(['base64' => base64_encode('bilddaten')]);
         $this->assertSame('bilddaten', $payload['content']);
         $this->assertSame('passbild.jpg', $payload['fileName']);
-        $this->assertSame('image/jpeg', $payload['mimeType']);
+        // Der Typ kommt aus dem Inhalt, nicht aus dem Payload.
+        $this->assertArrayNotHasKey('mimeType', $payload);
     }
 
     public function testParsePhotoJsonPayloadRejectsMissingOrInvalidBase64(): void

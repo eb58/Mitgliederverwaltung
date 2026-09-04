@@ -14,7 +14,7 @@ if (!$username || !$password) {
     exit(1);
 }
 
-$role = normalizeUserRole($argv[3] ?? 'admin');
+$role = normalizeUserRole($argv[3] ?? null, 'admin');
 $pdo = db();
 $hash = password_hash((string) $password, PASSWORD_DEFAULT);
 $statement = $pdo->prepare(

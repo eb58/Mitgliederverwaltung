@@ -15,7 +15,9 @@ $config = [
     'auth' => [
         'session_ttl_seconds' => (int) $env('MEMBER_API_SESSION_TTL_SECONDS', "1800" ), // half an hour
     ],
-    'cors_origin' => $env('MEMBER_API_CORS_ORIGIN', '*'),
+    // Leer = nur gleiche Origin. Fremde Origins gehoeren ausdruecklich freigegeben,
+    // nicht per Default geoeffnet.
+    'cors_origin' => $env('MEMBER_API_CORS_ORIGIN', ''),
 ];
 
 $localConfig = __DIR__ . '/config.local.php';

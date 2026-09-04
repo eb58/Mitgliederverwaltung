@@ -9,5 +9,7 @@ return [
         'user' => 'db_user',
         'password' => 'db_passwort',
     ],
-    'cors_origin' => '*',
+    // Nur noetig, wenn das Frontend unter einer anderen Origin laeuft als die API.
+    // Leer lassen heisst: gleiche Origin - der Normalfall bei diesem Deployment.
+    'cors_origin' => '',
 ];

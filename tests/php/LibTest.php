@@ -7,9 +7,11 @@ final class LibTest extends TestCase
 {
     public function testNormalizeUserRoleDefaultsToAdmin(): void
     {
-        $this->assertSame('admin', normalizeUserRole(null));
-        $this->assertSame('admin', normalizeUserRole(''));
+        $this->assertSame('user', normalizeUserRole(null));
+        $this->assertSame('user', normalizeUserRole(''));
         $this->assertSame('user', normalizeUserRole('user'));
+        $this->assertSame('admin', normalizeUserRole('admin'));
+        $this->assertSame('admin', normalizeUserRole(null, 'admin'));
     }
 
     public function testNormalizeUserRoleRejectsUnknownRole(): void

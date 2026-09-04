@@ -3,6 +3,13 @@ RewriteEngine On
 RewriteCond %{HTTP:Authorization} .
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+# Ohne mod_headers ignoriert Apache den Block, statt mit 500 zu antworten.
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
 RewriteRule ^mitgliederverwaltung/api(/.*)?$ mitgliederverwaltung/php-api/index.php [QSA,L]
 RewriteRule ^mitgliederverwaltung/health$ mitgliederverwaltung/php-api/index.php [QSA,L]
 

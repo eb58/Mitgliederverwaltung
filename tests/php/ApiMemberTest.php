@@ -5,6 +5,15 @@ final class ApiMemberTest extends DatabaseTestCase
 {
     private const ADMIN = ['id' => 1, 'username' => 'admin', 'role' => 'admin'];
 
+    /** Der Passbild-Upload prueft den Inhalt, nicht den gemeldeten Typ - also echte Bilder. */
+    private const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    private const JPEG_BASE64 = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+
+    private static function png(): string
+    {
+        return (string) base64_decode(self::PNG_BASE64, true);
+    }
+
     private function validMember(array $overrides = []): array
     {
         return array_merge([
@@ -264,18 +273,20 @@ final class ApiMemberTest extends DatabaseTestCase
     {
         TestDatabase::insertMemberRow(3, 'Müller', 'Anna');
         $_SERVER['CONTENT_TYPE'] = 'application/json';
-        $this->request('PUT', ['fileName' => 'anna.png', 'mimeType' => 'image/png', 'base64' => base64_encode('BILD')]);
+        $this->request('PUT', ['fileName' => 'anna.png', 'base64' => self::PNG_BASE64]);
 
         $stored = $this->capture(static fn() => handleMemberPhoto(3, self::ADMIN));
         $this->assertSame('anna.png', $stored->payload['photo']['fileName']);
-        $this->assertSame(4, $stored->payload['photo']['size']);
+        $this->assertSame('image/png', $stored->payload['photo']['mimeType']);
+        $this->assertSame(strlen(self::png()), $stored->payload['photo']['size']);
         $this->assertSame(1, $this->countRows('mitglied_aenderung', 'mitglied_id = 3 AND aktion = ?', ['photo_updated']));
 
         unset($_SERVER['CONTENT_TYPE']);
         $this->request('GET');
         $served = $this->capture(static fn() => handleMemberPhoto(3, self::ADMIN));
-        $this->assertSame('BILD', $served->rawBody);
+        $this->assertSame(self::png(), $served->rawBody);
         $this->assertSame('image/png', $served->headers['Content-Type']);
+        $this->assertSame('nosniff', $served->headers['X-Content-Type-Options']);
 
         $_SERVER['HTTP_IF_NONE_MATCH'] = $served->headers['ETag'];
         $notModified = $this->capture(static fn() => handleMemberPhoto(3, self::ADMIN));
@@ -302,7 +313,7 @@ final class ApiMemberTest extends DatabaseTestCase
     public function testMemberPhotoUploadRequiresExistingMember(): void
     {
         $_SERVER['CONTENT_TYPE'] = 'application/json';
-        $this->request('PUT', ['base64' => base64_encode('BILD')]);
+        $this->request('PUT', ['base64' => self::PNG_BASE64]);
         $this->assertApiError(404, 'Mitglied nicht gefunden', static fn() => handleMemberPhoto(999, self::ADMIN));
     }
 
@@ -312,11 +323,35 @@ final class ApiMemberTest extends DatabaseTestCase
         $_SERVER['CONTENT_TYPE'] = 'image/jpeg';
         $_SERVER['HTTP_X_FILE_NAME'] = 'foto%20neu.jpg';
         $_SERVER['REQUEST_METHOD'] = 'PUT';
-        requestBody('ROHDATEN');
+        requestBody((string) base64_decode(self::JPEG_BASE64, true));
 
         $response = $this->capture(static fn() => handleMemberPhoto(3, self::ADMIN));
 
         $this->assertSame('foto neu.jpg', $response->payload['photo']['fileName']);
         $this->assertSame('image/jpeg', $response->payload['photo']['mimeType']);
+    }
+
+    public function testMemberPhotoRejectsNonImageContent(): void
+    {
+        TestDatabase::insertMemberRow(3, 'Müller', 'Anna');
+        $_SERVER['CONTENT_TYPE'] = 'application/json';
+        $this->request('PUT', ['fileName' => 'boese.png', 'base64' => base64_encode('<html><script>alert(1)</script>')]);
+
+        $this->assertApiError(400, 'JPG-, PNG- oder WebP-Bild', static fn() => handleMemberPhoto(3, self::ADMIN));
+        $this->assertSame(0, $this->countRows('mitglied_passbild', 'mitglied_id = 3'));
+    }
+
+    /** Der gemeldete Content-Type darf den erkannten Typ nicht ueberschreiben. */
+    public function testMemberPhotoIgnoresClaimedContentTypeAndStoresDetectedOne(): void
+    {
+        TestDatabase::insertMemberRow(3, 'Müller', 'Anna');
+        $_SERVER['CONTENT_TYPE'] = 'text/html';
+        $_SERVER['REQUEST_METHOD'] = 'PUT';
+        requestBody(self::png());
+
+        $response = $this->capture(static fn() => handleMemberPhoto(3, self::ADMIN));
+
+        $this->assertSame('image/png', $response->payload['photo']['mimeType']);
+        $this->assertSame(1, $this->countRows('mitglied_passbild', 'mitglied_id = 3 AND mime_type = ?', ['image/png']));
     }
 }

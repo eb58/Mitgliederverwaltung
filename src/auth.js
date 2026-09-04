@@ -48,10 +48,11 @@ export const createAuth = ({
   };
 
   const clearPasswordChangeForm = () => {
+    document.getElementById("currentPassword").value = "";
     document.getElementById("newPassword").value = "";
     document.getElementById("confirmNewPassword").value = "";
     document.getElementById("passwordChangeError").hidden = true;
-    hidePasswordFields("newPassword", "confirmNewPassword");
+    hidePasswordFields("currentPassword", "newPassword", "confirmNewPassword");
   };
 
   const showLoginForm = () => {
@@ -67,8 +68,12 @@ export const createAuth = ({
     document.getElementById("loginForm").hidden = true;
     document.getElementById("passwordChangeForm").hidden = false;
     document.getElementById("passwordChangeCancelBtn").hidden = false;
+    // Beim erzwungenen Wechsel gibt es kein gueltiges altes Passwort, nach dem man fragen koennte.
+    const currentPasswordField = document.getElementById("currentPasswordField");
+    currentPasswordField.hidden = required;
+    document.getElementById("currentPassword").required = !required;
     clearPasswordChangeForm();
-    setTimeout(() => document.getElementById("newPassword")?.focus(), 150);
+    setTimeout(() => document.getElementById(required ? "newPassword" : "currentPassword")?.focus(), 150);
   };
 
   const setAuthToken = (token, { persist = true } = {}) => {
@@ -150,6 +155,7 @@ export const createAuth = ({
 
   const handlePasswordChangeSubmit = async event => {
     event.preventDefault();
+    const currentPasswordInput = document.getElementById("currentPassword");
     const passwordInput = document.getElementById("newPassword");
     const confirmPasswordInput = document.getElementById("confirmNewPassword");
     const errorElement = document.getElementById("passwordChangeError");
@@ -162,10 +168,11 @@ export const createAuth = ({
       if (username && username.toLocaleLowerCase("de") === password.toLocaleLowerCase("de")) {
         throw new Error("Das neue Passwort darf nicht dem Benutzernamen entsprechen.");
       }
-      const payload = await changeOwnPassword(password);
+      const payload = await changeOwnPassword(password, passwordChangeRequiredFlow ? "" : currentPasswordInput.value);
       state.currentUser = payload?.user || { ...state.currentUser, passwordChangeRequired: false };
       if (state.authToken) setAuthToken(state.authToken);
       updateUserVisibility();
+      currentPasswordInput.value = "";
       passwordInput.value = "";
       confirmPasswordInput.value = "";
       await (passwordChangeRequiredFlow ? finishLogin() : handlePasswordChangeCancel());

@@ -242,3 +242,20 @@ CREATE TABLE eisbeinessen_teilnehmer (
   INDEX idx_eisbeinessen_teilnehmer_name (name, vorname),
   CONSTRAINT fk_eisbeinessen_teilnehmer_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Sicherheits-Nachtrag: schwaechere Standardrolle, neue Benutzer muessen Admin
+-- ausdruecklich bekommen. Bestehende Zeilen bleiben unveraendert.
+ALTER TABLE app_user ALTER COLUMN role SET DEFAULT 'user';
+
+-- Drosselt Anmeldeversuche. Fehlt die Tabelle, meldet sich die API weiterhin an,
+-- nur eben ungedrosselt (siehe loginThrottlingAvailable() in lib.php).
+CREATE TABLE app_login_attempt (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  username VARCHAR(80) NOT NULL,
+  ip VARCHAR(45) NOT NULL DEFAULT '',
+  attempted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_app_login_attempt_username (username, attempted_at),
+  INDEX idx_app_login_attempt_ip (ip, attempted_at),
+  INDEX idx_app_login_attempt_attempted_at (attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

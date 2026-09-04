@@ -3,6 +3,17 @@ declare(strict_types=1);
 
 final class ApiAuthTest extends DatabaseTestCase
 {
+    /** So reicht requireAuth() den Benutzer an handleSessionPassword() weiter. */
+    private static function forcedChangeUser(): array
+    {
+        return ['id' => 1, 'username' => 'admin', 'role' => 'admin', 'passwordChangeRequired' => true];
+    }
+
+    private static function voluntaryChangeUser(): array
+    {
+        return ['id' => 1, 'username' => 'admin', 'role' => 'admin', 'passwordChangeRequired' => false];
+    }
+
     public function testRequireAuthRejectsMissingAndUnknownToken(): void
     {
         $this->assertApiError(401, 'Anmeldung erforderlich', static fn() => requireAuth());
@@ -111,7 +122,7 @@ final class ApiAuthTest extends DatabaseTestCase
         $token = $this->authenticateAs(1, true);
         $this->request('POST', ['password' => 'neuesPasswort1']);
 
-        $response = $this->capture(static fn() => handleSessionPassword(['id' => 1, 'username' => 'admin', 'role' => 'admin']));
+        $response = $this->capture(static fn() => handleSessionPassword(self::forcedChangeUser()));
 
         $this->assertFalse($response->payload['user']['passwordChangeRequired']);
         $statement = db()->prepare('SELECT password_hash FROM app_user WHERE id = 1');
@@ -123,13 +134,89 @@ final class ApiAuthTest extends DatabaseTestCase
     public function testSessionPasswordRejectsEmptyPasswordAndUsername(): void
     {
         $this->authenticateAs(1);
-        $currentUser = ['id' => 1, 'username' => 'admin', 'role' => 'admin'];
+        $currentUser = self::forcedChangeUser();
 
         $this->request('POST', ['password' => '']);
         $this->assertApiError(400, 'Passwort ist erforderlich', static fn() => handleSessionPassword($currentUser));
 
         $this->request('POST', ['password' => 'ADMIN']);
         $this->assertApiError(400, 'nicht dem Benutzernamen entsprechen', static fn() => handleSessionPassword($currentUser));
+    }
+
+    /** Ohne erzwungenen Wechsel reicht das blosse Token nicht - sonst uebernimmt ein gestohlenes Token das Konto. */
+    public function testSessionPasswordRequiresCurrentPasswordForVoluntaryChange(): void
+    {
+        $this->authenticateAs(1);
+        $currentUser = self::voluntaryChangeUser();
+
+        $this->request('POST', ['password' => 'neuesPasswort1']);
+        $this->assertApiError(403, 'aktuelle Passwort ist falsch', static fn() => handleSessionPassword($currentUser));
+
+        $this->request('POST', ['password' => 'neuesPasswort1', 'currentPassword' => 'falsch']);
+        $this->assertApiError(403, 'aktuelle Passwort ist falsch', static fn() => handleSessionPassword($currentUser));
+
+        $statement = db()->prepare('SELECT password_hash FROM app_user WHERE id = 1');
+        $statement->execute();
+        $this->assertTrue(password_verify(TestDatabase::PASSWORD, (string) $statement->fetchColumn()));
+    }
+
+    public function testSessionPasswordAcceptsCorrectCurrentPassword(): void
+    {
+        $this->authenticateAs(1);
+        $this->request('POST', ['password' => 'neuesPasswort1', 'currentPassword' => TestDatabase::PASSWORD]);
+
+        $response = $this->capture(static fn() => handleSessionPassword(self::voluntaryChangeUser()));
+
+        $this->assertFalse($response->payload['user']['passwordChangeRequired']);
+        $statement = db()->prepare('SELECT password_hash FROM app_user WHERE id = 1');
+        $statement->execute();
+        $this->assertTrue(password_verify('neuesPasswort1', (string) $statement->fetchColumn()));
+    }
+
+    public function testSessionPasswordEndsAllOtherSessionsOfTheUser(): void
+    {
+        $otherToken = TestDatabase::createSessionToken(1);
+        $foreignToken = TestDatabase::createSessionToken(2);
+        $token = $this->authenticateAs(1, true);
+        $this->request('POST', ['password' => 'neuesPasswort1']);
+
+        $this->capture(static fn() => handleSessionPassword(self::forcedChangeUser()));
+
+        $this->assertSame(1, $this->countRows('app_session', 'token_hash = ?', [tokenHash($token)]));
+        $this->assertSame(0, $this->countRows('app_session', 'token_hash = ?', [tokenHash($otherToken)]));
+        $this->assertSame(1, $this->countRows('app_session', 'token_hash = ?', [tokenHash($foreignToken)]));
+    }
+
+    public function testLoginThrottlingBlocksAfterRepeatedFailuresAndClearsOnSuccess(): void
+    {
+        for ($attempt = 0; $attempt < LOGIN_ATTEMPT_LIMIT_USERNAME; $attempt++) {
+            $this->request('POST', ['username' => 'admin', 'password' => 'falsch']);
+            $this->assertApiError(401, 'Benutzername oder Passwort', static fn() => handleSession());
+        }
+        $this->assertSame(LOGIN_ATTEMPT_LIMIT_USERNAME, $this->countRows('app_login_attempt', 'username = ?', ['admin']));
+
+        // Auch das richtige Passwort kommt jetzt nicht mehr durch.
+        $this->request('POST', ['username' => 'admin', 'password' => TestDatabase::PASSWORD]);
+        $this->assertApiError(429, 'Zu viele Fehlversuche', static fn() => handleSession());
+
+        // Ein anderer Benutzer ist davon nicht betroffen.
+        $this->request('POST', ['username' => 'anna', 'password' => TestDatabase::PASSWORD]);
+        $this->assertSame(200, $this->capture(static fn() => handleSession())->statusCode);
+
+        db()->prepare('DELETE FROM app_login_attempt WHERE username = ?')->execute(['admin']);
+        $this->request('POST', ['username' => 'admin', 'password' => TestDatabase::PASSWORD]);
+        $this->assertSame(200, $this->capture(static fn() => handleSession())->statusCode);
+        $this->assertSame(0, $this->countRows('app_login_attempt', 'username = ?', ['admin']));
+    }
+
+    public function testExpiredSessionsAreRemovedOnLogin(): void
+    {
+        $expired = TestDatabase::createSessionToken(2, '-1 minute');
+
+        $this->request('POST', ['username' => 'admin', 'password' => TestDatabase::PASSWORD]);
+        $this->capture(static fn() => handleSession());
+
+        $this->assertSame(0, $this->countRows('app_session', 'token_hash = ?', [tokenHash($expired)]));
     }
 
     public function testUsersCollectionListsUsersWithoutHashesForAdminOnly(): void

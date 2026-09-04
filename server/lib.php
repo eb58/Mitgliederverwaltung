@@ -84,7 +84,9 @@ function tableExists(string $table): bool
 
 function sendCorsHeaders(): void
 {
-    header('Access-Control-Allow-Origin: ' . config()['cors_origin']);
+    // Leer heisst: nur gleiche Origin. Fremde Origins muss der Betreiber ausdruecklich freigeben.
+    $origin = (string) config()['cors_origin'];
+    if ($origin !== '') header('Access-Control-Allow-Origin: ' . $origin);
     header('Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS');
     header('Access-Control-Allow-Headers: Authorization,Content-Type,X-Auth-Token,X-File-Name');
 }
@@ -239,6 +241,9 @@ function sessionExpiresAtSql(): string
 
 function createSession(array $user): string
 {
+    // Der Login ist der einzige regelmaessige Zeitpunkt, an dem ohne Cronjob
+    // aufgeraeumt werden kann - sonst waechst die Tabelle unbegrenzt.
+    db()->exec('DELETE FROM app_session WHERE expires_at < NOW()');
     $token = base64UrlEncode(random_bytes(32));
     if (tableHasColumn('app_session', 'password_change_required')) {
         $statement = db()->prepare(
@@ -295,9 +300,10 @@ function requireAdmin(array $user): void
     }
 }
 
-function normalizeUserRole(mixed $role): string
+/** Ohne ausdrueckliche Angabe die schwaechere Rolle - Admin muss man wollen. */
+function normalizeUserRole(mixed $role, string $fallback = 'user'): string
 {
-    $value = trim((string) ($role ?: 'admin')) ?: 'admin';
+    $value = trim((string) ($role ?: $fallback)) ?: $fallback;
     if (!in_array($value, ['admin', 'user'], true)) {
         throw new ApiError('Ungueltige Benutzerrolle.', 400);
     }
@@ -349,23 +355,88 @@ function isPasswordChangeRequiredForUser(array $user, ?string $password = null):
     return false;
 }
 
+const LOGIN_ATTEMPT_WINDOW_SECONDS = 900;
+const LOGIN_ATTEMPT_LIMIT_USERNAME = 10;
+// Hoeher als je Benutzer: hinter einem gemeinsamen Anschluss melden sich mehrere Leute an.
+const LOGIN_ATTEMPT_LIMIT_IP = 30;
+
+/**
+ * Vergleichswert fuer unbekannte Benutzer. Ohne ihn verriete die Antwortzeit, welche
+ * Benutzernamen existieren - nur bei denen liefe ueberhaupt ein password_verify.
+ */
+const DUMMY_PASSWORD_HASH = '$2y$12$vBbLwCGvEkOGafHfuipgEeJMY.Qno4b7ifC9pwULufHJks1kVVxle';
+
+function clientIp(): string
+{
+    return substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
+}
+
+/** Ohne die Tabelle laeuft der Login ungedrosselt weiter - eine fehlende Migration darf niemanden aussperren. */
+function loginThrottlingAvailable(): bool
+{
+    return tableExists('app_login_attempt');
+}
+
+function assertLoginAllowed(string $username, string $ip): void
+{
+    if (!loginThrottlingAvailable()) return;
+    $statement = db()->prepare(
+        "SELECT COALESCE(SUM(username = ?), 0) AS by_username, COALESCE(SUM(ip = ? AND ip <> ''), 0) AS by_ip
+         FROM app_login_attempt
+         WHERE attempted_at > DATE_SUB(NOW(), INTERVAL " . LOGIN_ATTEMPT_WINDOW_SECONDS . " SECOND)"
+    );
+    $statement->execute([$username, $ip]);
+    $failures = $statement->fetch();
+    if ((int) $failures['by_username'] >= LOGIN_ATTEMPT_LIMIT_USERNAME || (int) $failures['by_ip'] >= LOGIN_ATTEMPT_LIMIT_IP) {
+        throw new ApiError('Zu viele Fehlversuche. Bitte in einigen Minuten erneut versuchen.', 429);
+    }
+}
+
+function recordLoginFailure(string $username, string $ip): void
+{
+    if (!loginThrottlingAvailable()) return;
+    db()->prepare('INSERT INTO app_login_attempt (username, ip) VALUES (?, ?)')->execute([$username, $ip]);
+}
+
+/** Raeumt nebenbei die abgelaufenen Versuche weg - ein erfolgreicher Login ist der passende Anlass. */
+function clearLoginFailures(string $username, string $ip): void
+{
+    if (!loginThrottlingAvailable()) return;
+    db()->prepare(
+        "DELETE FROM app_login_attempt
+         WHERE username = ? OR (ip = ? AND ip <> '')
+            OR attempted_at <= DATE_SUB(NOW(), INTERVAL " . LOGIN_ATTEMPT_WINDOW_SECONDS . " SECOND)"
+    )->execute([$username, $ip]);
+}
+
+function verifyLoginPassword(mixed $user, string $password): bool
+{
+    if (!is_array($user)) {
+        password_verify($password, DUMMY_PASSWORD_HASH);
+        return false;
+    }
+    $passwordHash = (string) ($user['password_hash'] ?? '');
+    return isPasswordUnset($passwordHash) ? $password === '' : password_verify($password, $passwordHash);
+}
+
 function handleSession(): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['POST', 'GET', 'DELETE']);
     if ($method === 'POST') {
         $body = readJsonBody();
-        $statement = db()->prepare('SELECT id, username, password_hash, role, active FROM app_user WHERE username = ?');
-        $statement->execute([(string) ($body['username'] ?? '')]);
-        $user = $statement->fetch();
+        $username = (string) ($body['username'] ?? '');
         $password = (string) ($body['password'] ?? '');
-        $passwordUnset = $user ? isPasswordUnset($user['password_hash'] ?? '') : false;
-        $passwordMatches = $passwordUnset
-            ? $password === ''
-            : ($user && password_verify($password, (string) $user['password_hash']));
-        if (!$user || !(bool) $user['active'] || !$passwordMatches) {
+        $ip = clientIp();
+        assertLoginAllowed($username, $ip);
+        $statement = db()->prepare('SELECT id, username, password_hash, role, active FROM app_user WHERE username = ?');
+        $statement->execute([$username]);
+        $user = $statement->fetch();
+        if (!verifyLoginPassword($user, $password) || !(bool) $user['active']) {
+            recordLoginFailure($username, $ip);
             throw new ApiError('Benutzername oder Passwort ist falsch.', 401);
         }
+        clearLoginFailures($username, $ip);
         $publicUser = [
             'id' => (int) $user['id'],
             'username' => $user['username'],
@@ -388,6 +459,21 @@ function handleSession(): void
     }
 }
 
+/**
+ * Ein erzwungener Wechsel hat kein gueltiges altes Passwort, das man abfragen koennte.
+ * Sonst schuetzt die Abfrage davor, dass ein entwendetes Token das Konto dauerhaft
+ * uebernimmt - das blosse Token reicht dann nicht mehr aus.
+ */
+function assertCurrentPassword(int $userId, string $password): void
+{
+    $statement = db()->prepare('SELECT password_hash FROM app_user WHERE id = ?');
+    $statement->execute([$userId]);
+    $passwordHash = (string) $statement->fetchColumn();
+    if (isPasswordUnset($passwordHash) ? $password !== '' : !password_verify($password, $passwordHash)) {
+        throw new ApiError('Das aktuelle Passwort ist falsch.', 403);
+    }
+}
+
 function handleSessionPassword(array $currentUser): void
 {
     assertMethodAllowed($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'PATCH']);
@@ -400,10 +486,16 @@ function handleSessionPassword(array $currentUser): void
     if (valuesMatchIgnoringCase($currentUser['username'] ?? '', $password)) {
         throw new ApiError('Das neue Passwort darf nicht dem Benutzernamen entsprechen.', 400);
     }
+    $userId = (int) $currentUser['id'];
+    if (!($currentUser['passwordChangeRequired'] ?? false)) {
+        assertCurrentPassword($userId, (string) ($body['currentPassword'] ?? $body['oldPassword'] ?? ''));
+    }
 
     $statement = db()->prepare('UPDATE app_user SET password_hash = ? WHERE id = ?');
-    $statement->execute([password_hash($password, PASSWORD_DEFAULT), (int) $currentUser['id']]);
+    $statement->execute([password_hash($password, PASSWORD_DEFAULT), $userId]);
     $token = bearerToken();
+    // Ein gestohlenes Token soll den Wechsel nicht ueberleben.
+    db()->prepare('DELETE FROM app_session WHERE user_id = ? AND token_hash <> ?')->execute([$userId, tokenHash($token)]);
     if ($token !== '' && tableHasColumn('app_session', 'password_change_required')) {
         db()->prepare('UPDATE app_session SET password_change_required = 0 WHERE token_hash = ?')->execute([tokenHash($token)]);
     }
@@ -442,7 +534,7 @@ function handleUsersCollection(array $currentUser): void
         $body = readJsonBody();
         $username = trim((string) ($body['username'] ?? ''));
         $password = (string) ($body['password'] ?? '');
-        $role = normalizeUserRole($body['role'] ?? 'admin');
+        $role = normalizeUserRole($body['role'] ?? null);
         $active = array_key_exists('active', $body) ? (bool) $body['active'] : true;
         if ($username === '' || $password === '') {
             throw new ApiError('Benutzername und Passwort sind erforderlich.', 400);
@@ -1200,7 +1292,6 @@ function parsePhotoJsonPayload(array $body): array
     }
     return [
         'fileName' => (string) ($body['fileName'] ?? 'passbild.jpg'),
-        'mimeType' => (string) ($body['mimeType'] ?? 'image/jpeg'),
         'content' => $content,
     ];
 }
@@ -1210,6 +1301,30 @@ function assertPhotoSize(string $content): void
     if (strlen($content) > MAX_PHOTO_BYTES) {
         throw new ApiError('Passbild darf maximal 5 MB gross sein.', 400);
     }
+}
+
+const ALLOWED_PHOTO_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+/**
+ * Der vom Client gemeldete Content-Type ist nur eine Behauptung. Massgeblich ist der
+ * am Inhalt erkannte Typ - sonst laesst sich HTML als Passbild ablegen und spaeter
+ * unter derselben Origin wie die App ausliefern (gespeichertes XSS).
+ */
+function detectPhotoMimeType(string $content): string
+{
+    $info = @getimagesizefromstring($content);
+    $mimeType = is_array($info) ? (string) ($info['mime'] ?? '') : '';
+    if (!in_array($mimeType, ALLOWED_PHOTO_MIME_TYPES, true)) {
+        throw new ApiError('Passbild muss ein JPG-, PNG- oder WebP-Bild sein.', 400);
+    }
+    return $mimeType;
+}
+
+/** Altbestand kann beliebige Typen tragen - beim Ausliefern nochmals absichern. */
+function safePhotoMimeType(mixed $mimeType): string
+{
+    $value = (string) $mimeType;
+    return in_array($value, ALLOWED_PHOTO_MIME_TYPES, true) ? $value : 'application/octet-stream';
 }
 
 function handleMemberPhoto(int $id, array $currentUser): void
@@ -1223,7 +1338,8 @@ function handleMemberPhoto(int $id, array $currentUser): void
         if (!$photo) throw new ApiError('Passbild nicht gefunden.', 404);
         $etag = '"' . $photo['sha256'] . '"';
         $headers = [
-            'Content-Type' => $photo['mime_type'],
+            'Content-Type' => safePhotoMimeType($photo['mime_type']),
+            'X-Content-Type-Options' => 'nosniff',
             'Content-Disposition' => 'inline; filename="' . addslashes($photo['dateiname']) . '"',
             'Cache-Control' => 'private, max-age=3600',
             'ETag' => $etag,
@@ -1241,13 +1357,13 @@ function handleMemberPhoto(int $id, array $currentUser): void
         $hadPhoto = (bool) $photoStatement->fetchColumn();
         $contentType = $_SERVER['CONTENT_TYPE'] ?? 'application/octet-stream';
         if (str_starts_with($contentType, 'application/json')) {
-            ['fileName' => $fileName, 'mimeType' => $mimeType, 'content' => $content] = parsePhotoJsonPayload(readJsonBody());
+            ['fileName' => $fileName, 'content' => $content] = parsePhotoJsonPayload(readJsonBody());
         } else {
             $fileName = rawurldecode((string) ($_SERVER['HTTP_X_FILE_NAME'] ?? 'passbild.jpg')) ?: 'passbild.jpg';
-            $mimeType = explode(';', $contentType)[0] ?: 'application/octet-stream';
             $content = requestBody();
         }
         assertPhotoSize($content);
+        $mimeType = detectPhotoMimeType($content);
         $sha = hash('sha256', $content);
         db()->prepare(
             "INSERT INTO mitglied_passbild (mitglied_id, dateiname, mime_type, groesse_bytes, sha256, inhalt)

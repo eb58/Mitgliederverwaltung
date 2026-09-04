@@ -139,7 +139,7 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
   };
 
   return {
-    changeOwnPassword: password => request("/api/session/password", { method: "PUT", body: { password } }),
+    changeOwnPassword: (password, currentPassword = "") => request("/api/session/password", { method: "PUT", body: { password, currentPassword } }),
     clearMemberPhotoCache,
     createMember,
     createReferenceItem: (type, item) => request(`/api/reference-data/${type}`, { method: "POST", body: item }),
