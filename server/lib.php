@@ -1539,7 +1539,7 @@ function normalizeEventInput(string $event, array $payload, bool $partial = fals
     foreach (['name', 'vorname'] as $field) {
         if ($partial && !array_key_exists($field, $payload)) continue;
         $participant[$field] = trim((string) ($payload[$field] ?? ''));
-        if ($participant[$field] === '') throw new ApiError('Name und Vorname sind erforderlich.', 400);
+        if ($field === 'name' && $participant[$field] === '') throw new ApiError('Name ist erforderlich.', 400);
     }
     if ($meals && (!$partial || array_key_exists('essensauswahl', $payload))) {
         $participant['essensauswahl'] = normalizeEventMeal($event, $payload['essensauswahl'] ?? $meals[0]);

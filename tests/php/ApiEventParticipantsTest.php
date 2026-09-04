@@ -67,7 +67,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
     public function testCreateRejectsEmptyNameUnknownFieldsAndUnknownMeal(): void
     {
         $this->request('POST', ['name' => '  ', 'vorname' => 'Erich']);
-        $this->assertApiError(400, 'Name und Vorname', static fn() => handleEventParticipantCollection('warnemuende'));
+        $this->assertApiError(400, 'Name ist erforderlich', static fn() => handleEventParticipantCollection('warnemuende'));
 
         $this->request('POST', ['name' => 'Brandl', 'vorname' => 'Erich', 'tischnummer' => 3]);
         $this->assertApiError(400, 'Unbekannte Felder', static fn() => handleEventParticipantCollection('warnemuende'));
@@ -92,6 +92,17 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
 
         $this->assertTrue($participant['bezahlt']);
         $this->assertSame('zahlt im Bus', $participant['bemerkung']);
+    }
+
+    public function testCreateAcceptsParticipantWithoutFirstName(): void
+    {
+        $this->request('POST', ['name' => 'Namenlos', 'vorname' => '']);
+
+        $participant = $this->capture(static fn() => handleEventParticipantCollection('warnemuende'))->payload['participant'];
+
+        $this->assertSame('Namenlos', $participant['name']);
+        $this->assertSame('', $participant['vorname']);
+        $this->assertNull($participant['mitgliedId']);
     }
 
     public function testResourceUpdatesParticipant(): void

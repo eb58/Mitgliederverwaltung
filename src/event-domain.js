@@ -50,21 +50,24 @@ const nameSimilarity = (left, right) => {
 export const findEventMemberMatches = (members, participant, limit = 6) => {
   const name = normalizePersonName(participant?.name);
   const vorname = normalizePersonName(participant?.vorname);
-  if (!name || !vorname) return { kind: "none", candidates: [] };
+  if (!name && !vorname) return { kind: "none", candidates: [] };
 
   const comparable = members
     .filter(member => Number(member?.id) > 0)
     .map(member => ({ member, name: normalizePersonName(member.name), vorname: normalizePersonName(member.vorname) }));
-  const exact = comparable.filter(candidate => candidate.name === name && candidate.vorname === vorname);
+  const exact = vorname ? comparable.filter(candidate => candidate.name === name && candidate.vorname === vorname) : [];
   if (exact.length) return { kind: "exact", candidates: exact.map(candidate => candidate.member).slice(0, limit) };
 
   const candidates = comparable
     .map(candidate => {
       const nameScore = nameSimilarity(name, candidate.name);
-      const vornameScore = nameSimilarity(vorname, candidate.vorname);
-      return { ...candidate, score: nameScore * 0.65 + vornameScore * 0.35, nameScore, vornameScore };
+      const vornameScore = vorname ? nameSimilarity(vorname, candidate.vorname) : null;
+      const score = vornameScore === null ? nameScore : nameScore * 0.65 + vornameScore * 0.35;
+      return { ...candidate, score, nameScore, vornameScore };
     })
-    .filter(candidate => candidate.nameScore >= 0.5 && candidate.vornameScore >= 0.35 && candidate.score >= 0.58)
+    .filter(candidate => candidate.nameScore >= 0.5
+      && (candidate.vornameScore === null || candidate.vornameScore >= 0.35)
+      && candidate.score >= 0.58)
     .sort((left, right) => right.score - left.score || Number(left.member.id) - Number(right.member.id))
     .slice(0, limit)
     .map(candidate => candidate.member);

@@ -626,7 +626,6 @@ test("Eventteilnehmer werden unscharf mit Mitgliedern und Gästen abgeglichen", 
 
   const form = page.locator("#warnemuendeForm");
   await form.locator('[name="name"]').fill("Gästefreun");
-  await form.locator('[name="vorname"]').fill("Bert");
   await form.getByRole("button", { name: "Hinzufügen" }).click();
 
   const matchModal = page.locator("#eventMemberMatchModal");

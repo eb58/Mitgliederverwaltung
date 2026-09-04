@@ -139,6 +139,13 @@ describe("Mitgliederabgleich fuer neue Teilnehmer", () => {
     expect(result.candidates.map(member => member.id)).toEqual([1, 2]);
   });
 
+  it("sucht bei fehlendem Vornamen allein nach dem Nachnamen", () => {
+    const result = findEventMemberMatches(members, { name: "Müller", vorname: "" });
+
+    expect(result.kind).toBe("fuzzy");
+    expect(result.candidates.map(member => member.id)).toEqual([1, 2]);
+  });
+
   it("meldet bei einem unpassenden Namen keinen Treffer", () => {
     expect(findEventMemberMatches(members, { name: "Schmidt", vorname: "Peter" }))
       .toEqual({ kind: "none", candidates: [] });
