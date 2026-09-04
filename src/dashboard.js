@@ -313,8 +313,7 @@ export const createDashboard = ({
     const groupRows = Object.keys(groupCounts)
       .map(id => ({ id: Number(id), label: interestGroupMap[id] || `Gruppe ${id}`, count: groupCounts[id] }))
       .filter(item => item.count > 0)
-      .sort((a, b) => germanCollator.compare(a.label, b.label))
-      .slice(0, Object.keys(interestGroupMap).length);
+      .sort((a, b) => germanCollator.compare(a.label, b.label));
     renderInterestGroupChart(groupRows, total);
     renderMembershipDatesPerYearChart({
       canvasId: "entryChart",

@@ -84,10 +84,10 @@ export const createEventAdmin = ({
     }
   };
 
-  const handleCellValueChanged = async event => {
+  const handleCellValueChanged = async cellEvent => {
     try {
       setError("");
-      const updated = await updateParticipant({ id: event.data.id, ...toParticipantPayload(event.data) });
+      const updated = await updateParticipant({ id: cellEvent.data.id, ...toParticipantPayload(cellEvent.data) });
       participants = participants.map(participant => participant.id === updated.id ? updated : participant);
       render();
       showToast(`${updated.vorname} ${updated.name} gespeichert.`);
@@ -136,9 +136,9 @@ export const createEventAdmin = ({
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  const handleSubmit = async event => {
-    event.preventDefault();
-    const form = event.target;
+  const handleSubmit = async submitEvent => {
+    submitEvent.preventDefault();
+    const form = submitEvent.target;
     try {
       setError("");
       const created = await createParticipant(toParticipantPayload({
@@ -355,9 +355,9 @@ export const createEventAdmin = ({
     editModal.show();
   };
 
-  const handleEditSubmit = async event => {
-    event.preventDefault();
-    const form = event.target;
+  const handleEditSubmit = async submitEvent => {
+    submitEvent.preventDefault();
+    const form = submitEvent.target;
     const existing = participants.find(participant => participant.id === editingId);
     try {
       setEditError("");
@@ -384,23 +384,24 @@ export const createEventAdmin = ({
 
   const init = () => {
     buildForm();
-    gridApi = createGrid(key, domId("Grid"), getColumns(), {
+    const columnDefs = getColumns();
+    gridApi = createGrid(key, domId("Grid"), columnDefs, {
       // Unveraendert uebernehmen: ohne eigene Sortierung wuerde createGrid sonst nach Namen sortieren.
-      columnDefs: getColumns(),
+      columnDefs,
       // Ohne Blaettern bleiben die Nachruecker am Ende der Liste sichtbar.
       pagination: false,
       rowClassRules: {
         "event-nachruecker-row": params => Boolean(rowNumbering(params.node)?.nachruecker),
         "event-abgesagt-row": params => Boolean(params.data?.abgesagt)
       },
-      onRowDoubleClicked: event => openEdit(event.data),
+      onRowDoubleClicked: rowEvent => openEdit(rowEvent.data),
       onCellValueChanged: handleCellValueChanged,
-      onModelUpdated: event => renumberDisplayedRows(event.api),
+      onModelUpdated: modelEvent => renumberDisplayedRows(modelEvent.api),
       stopEditingWhenCellsLoseFocus: true
     });
     document.getElementById(domId("Form"))?.addEventListener("submit", handleSubmit);
     document.getElementById(domId("ExportBtn"))?.addEventListener("click", exportPdf);
-    editModal = editModal || new Modal(document.getElementById(domId("EditModal")));
+    editModal ||= new Modal(document.getElementById(domId("EditModal")));
     document.getElementById(domId("EditForm"))?.addEventListener("submit", handleEditSubmit);
     render();
     return gridApi;

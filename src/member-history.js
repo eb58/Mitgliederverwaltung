@@ -10,6 +10,8 @@ const actionLabel = action => ({
   photo_updated: "Passbild geändert",
   photo_deleted: "Passbild entfernt"
 }[action] || "Änderung");
+// preisClub und preisComputer liefert die API seit "Bereinige Filter und Preisfelder" nicht mehr -
+// aeltere Protokollzeilen in der Datenbank tragen sie aber weiterhin. Der Filter bleibt deshalb.
 const hiddenFields = new Set(["preisClub", "preisComputer", "gruppenwahl", "auswahl"]);
 const hiddenLabels = new Set(["Preis Club", "Preis Computer", "Gruppenwahl", "Auswahl"]);
 const visibleChanges = changes => Array.isArray(changes)
@@ -31,15 +33,15 @@ export const createMemberHistory = ({ loadMemberChanges, loadRecentChanges, open
   const renderMemberHistory = (items, { message = "" } = {}) => {
     const container = document.getElementById("memberChangeHistory");
     if (!container) return;
-    container.innerHTML = "";
     const itemsToRender = visibleItems(items);
     if (message || !itemsToRender.length) {
       const empty = document.createElement("div");
       empty.className = "member-change-history__empty";
       empty.textContent = message || "Noch keine Änderungen protokolliert.";
-      container.appendChild(empty);
+      container.replaceChildren(empty);
       return;
     }
+    container.replaceChildren();
     itemsToRender.forEach(item => {
       const entry = document.createElement("article");
       entry.className = "member-change-entry";
@@ -125,13 +127,12 @@ export const createMemberHistory = ({ loadMemberChanges, loadRecentChanges, open
   const renderRecentChanges = (items, { message = "" } = {}) => {
     const container = document.getElementById("recentChangesList");
     if (!container) return;
-    container.innerHTML = "";
     const itemsToRender = visibleItems(items);
     if (message || !itemsToRender.length) {
       const empty = document.createElement("div");
       empty.className = "recent-change-list__empty";
       empty.textContent = message || "Noch keine Änderungen protokolliert.";
-      container.appendChild(empty);
+      container.replaceChildren(empty);
       return;
     }
     container.replaceChildren(...itemsToRender.map(createRecentEntry));

@@ -10,7 +10,7 @@ final class ApiReferenceDataTest extends DatabaseTestCase
     {
         $this->request('GET');
 
-        $payload = $this->capture(static fn() => handleReferenceDataOverview(self::USER))->payload;
+        $payload = $this->capture(static fn() => handleReferenceDataOverview())->payload;
 
         $this->assertSame(['interestGroups', 'functions', 'exitReasons', 'seniorClubs'], array_keys($payload));
         $this->assertNotEmpty($payload['interestGroups']);
@@ -23,7 +23,7 @@ final class ApiReferenceDataTest extends DatabaseTestCase
         db()->exec('UPDATE interessengruppe SET active = 0 WHERE id = 4');
         $this->request('GET');
 
-        $labels = array_column($this->capture(static fn() => handleReferenceDataOverview(self::USER))->payload['interestGroups'], 'id');
+        $labels = array_column($this->capture(static fn() => handleReferenceDataOverview())->payload['interestGroups'], 'id');
 
         $this->assertNotContains(4, $labels);
     }
@@ -130,6 +130,6 @@ final class ApiReferenceDataTest extends DatabaseTestCase
         $this->assertApiError(405, 'Methode nicht erlaubt', static fn() => handleReferenceDataResource(self::ADMIN, 'interest-groups', 4));
 
         $this->request('POST');
-        $this->assertApiError(405, 'Methode nicht erlaubt', static fn() => handleReferenceDataOverview(self::ADMIN));
+        $this->assertApiError(405, 'Methode nicht erlaubt', static fn() => handleReferenceDataOverview());
     }
 }

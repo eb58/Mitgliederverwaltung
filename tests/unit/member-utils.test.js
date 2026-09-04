@@ -205,6 +205,39 @@ describe("API- und Listenhilfen", () => {
     expect(attempts).toBe(3);
   });
 
+  it("wiederholt einen Client-Fehler nicht", async () => {
+    let attempts = 0;
+    let caughtError = null;
+    try {
+      await retryAsync(async () => {
+        attempts += 1;
+        const error = new Error("Mitglied nicht gefunden.");
+        error.statusCode = 404;
+        throw error;
+      }, { attempts: 3, delayMs: 0 });
+    } catch (error) {
+      caughtError = error;
+    }
+    expect(caughtError?.statusCode).toBe(404);
+    expect(attempts).toBe(1);
+  });
+
+  it("wiederholt einen Serverfehler weiterhin", async () => {
+    let attempts = 0;
+    const result = await retryAsync(async () => {
+      attempts += 1;
+      if (attempts < 2) {
+        const error = new Error("Interner Serverfehler.");
+        error.statusCode = 500;
+        throw error;
+      }
+      return "geladen";
+    }, { attempts: 3, delayMs: 0 });
+
+    expect(result).toBe("geladen");
+    expect(attempts).toBe(2);
+  });
+
   it("reicht den letzten Fehler nach allen Versuchen weiter", async () => {
     let attempts = 0;
     let caughtError = null;

@@ -190,6 +190,13 @@ CREATE TABLE app_session (
   CONSTRAINT fk_app_session_user FOREIGN KEY (user_id) REFERENCES app_user (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ---------------------------------------------------------------------------
+-- Ab hier Nachtraege in der Reihenfolge ihrer Entstehung. Sie bleiben absichtlich
+-- getrennt von den CREATE-TABLE-Anweisungen darueber: eine bestehende Datenbank
+-- laesst sich so Stueck fuer Stueck nachziehen, eine frische verarbeitet die
+-- Datei einfach von oben nach unten.
+-- ---------------------------------------------------------------------------
+
 ALTER TABLE seniorenclub ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
 ALTER TABLE austrittsgrund ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
 ALTER TABLE interessengruppe ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;

@@ -38,7 +38,7 @@ try {
     }
 
     if ($path === '/api/reference-data') {
-        handleReferenceDataOverview($user);
+        handleReferenceDataOverview();
     }
 
     if (preg_match('#^/api/reference-data/([a-z-]+)$#', $path, $matches)) {

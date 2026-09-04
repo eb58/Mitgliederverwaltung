@@ -168,6 +168,16 @@ function assertMethodAllowed(string $method, array $allowed): void
     }
 }
 
+/**
+ * Jeder Handler wirft seine Antwort. Kehrt einer zurueck, fehlt der Zweig fuer eine
+ * Methode, die assertMethodAllowed durchgelassen hat - ohne diesen Abschluss fiele
+ * die Anfrage still bis zum 404 des Einstiegspunkts durch.
+ */
+function unhandledMethod(): void
+{
+    throw new ApiError('Methode wird von diesem Endpunkt nicht behandelt.', 500);
+}
+
 function decodeJsonBody(string $raw): array
 {
     if ($raw === '') return [];
@@ -457,6 +467,7 @@ function handleSession(): void
         }
         noContent();
     }
+    unhandledMethod();
 }
 
 /**
@@ -547,6 +558,7 @@ function handleUsersCollection(array $currentUser): void
         $id = (int) db()->lastInsertId();
         jsonResponse(['user' => findUserById($id)], 201);
     }
+    unhandledMethod();
 }
 
 function findUserById(int $id): ?array
@@ -602,6 +614,7 @@ function handleUserResource(array $currentUser, int $id): void
         if ($statement->rowCount() === 0) throw new ApiError('Benutzer nicht gefunden.', 404);
         noContent();
     }
+    unhandledMethod();
 }
 
 function referenceDefinitions(): array
@@ -638,7 +651,7 @@ function listReferenceItems(string $type, bool $includeInactive = false): array
     ], $statement->fetchAll());
 }
 
-function handleReferenceDataOverview(array $currentUser): void
+function handleReferenceDataOverview(): void
 {
     assertMethodAllowed($_SERVER['REQUEST_METHOD'], ['GET']);
     $payload = [];
@@ -696,6 +709,7 @@ function handleReferenceDataCollection(array $currentUser, string $type): void
         $statement->execute([$item['id'], $item['label']]);
         jsonResponse(['item' => $item + ['active' => true]], 201);
     }
+    unhandledMethod();
 }
 
 function handleReferenceDataResource(array $currentUser, string $type, int $id): void
@@ -733,6 +747,7 @@ function handleReferenceDataResource(array $currentUser, string $type, int $id):
         }
         noContent();
     }
+    unhandledMethod();
 }
 
 function mainMemberFields(): array
@@ -901,7 +916,7 @@ function rowToMember(array $row): array
         } elseif (in_array($jsonKey, dateFields(), true)) {
             $member[$jsonKey] = $value ? substr((string) $value, 0, 10) : null;
         } elseif (in_array($jsonKey, numberFields(), true)) {
-            $member[$jsonKey] = $value === null ? null : (float) $value + 0;
+            $member[$jsonKey] = $value === null ? null : (float) $value;
         } else {
             $member[$jsonKey] = $value === null ? '' : $value;
         }
@@ -1205,6 +1220,7 @@ function handleMembersCollection(array $currentUser): void
         assertValidMember($member);
         jsonResponse(['member' => findMemberById(createMemberRecord($member, $currentUser))], 201);
     }
+    unhandledMethod();
 }
 
 function handleMemberResource(int $id, array $currentUser): void
@@ -1262,6 +1278,7 @@ function handleMemberResource(int $id, array $currentUser): void
         }
         noContent();
     }
+    unhandledMethod();
 }
 
 function insertMember(array $member): void
@@ -1434,6 +1451,7 @@ function handleMemberPhoto(int $id, array $currentUser): void
         ]], $currentUser);
         noContent();
     }
+    unhandledMethod();
 }
 
 /**
@@ -1582,13 +1600,12 @@ function eventParticipantValues(string $event, array $participant): array
 function linkEventParticipantToMember(string $event, int $participantId): void
 {
     $table = eventDefinition($event)['table'];
-    db()->exec(
+    db()->prepare(
         'UPDATE ' . $table . ' t JOIN ('
         . 'SELECT name, vorname, MIN(id) AS id FROM mitglied GROUP BY name, vorname HAVING COUNT(*) = 1'
         . ') m ON m.name = t.name AND m.vorname = t.vorname '
-        . 'SET t.mitglied_id = m.id WHERE t.mitglied_id IS NULL'
-        . ' AND t.id = ' . $participantId
-    );
+        . 'SET t.mitglied_id = m.id WHERE t.mitglied_id IS NULL AND t.id = ?'
+    )->execute([$participantId]);
 }
 
 /** Gemeinsame SELECT-Liste fuer Collection und Einzelressource. */
@@ -1630,6 +1647,7 @@ function handleEventParticipantCollection(string $event): void
         linkEventParticipantToMember($event, $id);
         jsonResponse(['participant' => findEventParticipantById($event, $id)], 201);
     }
+    unhandledMethod();
 }
 
 function handleEventParticipantResource(string $event, int $id): void
@@ -1662,4 +1680,5 @@ function handleEventParticipantResource(string $event, int $id): void
         db()->prepare('DELETE FROM ' . $table . ' WHERE id = ?')->execute([$id]);
         noContent();
     }
+    unhandledMethod();
 }

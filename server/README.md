@@ -62,6 +62,9 @@ Die PHP-API verwendet `password_hash()`/`password_verify()`.
 Die Teilnehmerlisten der Events werden nicht mitgeliefert: Sie enthalten Personendaten und werden ueber
 `/api/{event}-participants` bzw. direkt in der Oberflaeche gepflegt.
 
+`PUT` und `PATCH` verhalten sich auf `/api/members/{id}` und den Teilnehmerlisten gleich: Beide
+aktualisieren nur die mitgesendeten Felder. Ein `PUT` ersetzt den Datensatz also nicht vollstaendig.
+
 Die Angaben zum Weihnachtsessen liegen in der 1:1-Nebentabelle `mitglied_weihnachtsessen` und
 werden von der Mitglieder-API gemeinsam mit den Stammdaten gelesen und geschrieben.
 

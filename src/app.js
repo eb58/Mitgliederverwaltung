@@ -1113,10 +1113,6 @@ const clearInactiveQuickFilters = () => {
   });
 };
 
-const refreshAllGridCells = () => Object.values(gridApis).forEach(api => api?.refreshCells?.({ force: true }));
-
-const findMemberById = id => state.members.find(member => member.id === id);
-
 const resolveMemberPhotoDataUrl = async member => {
   if (member?.id && member.hasPassbildInDb) {
     return fetchMemberPhotoObjectUrl(member.id);

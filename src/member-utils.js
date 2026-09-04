@@ -127,12 +127,16 @@ export const createMemberApiUrlForBase = (baseUrl, path, params = {}) => {
   return url.toString();
 };
 
+// Ein 4xx ist die endgueltige Antwort der API - nur Netz- und Serverfehler sind fluechtig.
+const isWorthRetrying = error => !error?.sessionExpired
+  && !(error?.statusCode >= 400 && error?.statusCode < 500);
+
 export const retryAsync = async (operation, { attempts = 3, delayMs = 250 } = {}) => {
   const run = async attempt => {
     try {
       return await operation();
     } catch (error) {
-      if (error?.sessionExpired || attempt >= attempts) throw error;
+      if (!isWorthRetrying(error) || attempt >= attempts) throw error;
       await new Promise(resolve => setTimeout(resolve, delayMs));
       return run(attempt + 1);
     }
