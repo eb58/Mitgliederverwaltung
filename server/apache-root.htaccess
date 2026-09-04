@@ -4,9 +4,14 @@ RewriteCond %{HTTP:Authorization} .
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
 # Ohne mod_headers ignoriert Apache den Block, statt mit 500 zu antworten.
+# Das unset vor jedem set haelt den Wert eindeutig: sonst steht bei einer intern
+# aufgeloesten Anfrage (index.php/health) jeder Header doppelt in der Antwort.
 <IfModule mod_headers.c>
+  Header always unset X-Content-Type-Options
   Header always set X-Content-Type-Options "nosniff"
+  Header always unset X-Frame-Options
   Header always set X-Frame-Options "SAMEORIGIN"
+  Header always unset Referrer-Policy
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
