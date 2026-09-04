@@ -1,4 +1,5 @@
 import { Modal } from "bootstrap";
+import { describeMemberMatch } from "./event-domain.js";
 import { formatMemberName, isActiveMember, isGuestMember } from "./member-domain.js";
 import { formatDateDE } from "./member-utils.js";
 
@@ -37,9 +38,7 @@ export const createEventMemberMatchDialog = () => {
     resolveCurrent({ confirmed: false, member: null });
     state.resolve = resolve;
     const enteredName = `${participant.vorname} ${participant.name}`.trim();
-    message.textContent = kind === "exact"
-      ? `Mehrere Personen passen zu „${enteredName}“. Welche ist gemeint?`
-      : `Kein exakter Treffer für „${enteredName}“. Ist eine dieser Personen gemeint?`;
+    message.textContent = describeMemberMatch({ kind, count: candidates.length, enteredName });
     candidateList.replaceChildren(...candidates.map(member => {
       const button = document.createElement("button");
       const name = document.createElement("strong");

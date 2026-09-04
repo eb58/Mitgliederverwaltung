@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
 
 import { eventConfigs } from "../../src/event-config.js";
-import { createEventDomain, findEventMemberMatches } from "../../src/event-domain.js";
+import { createEventDomain, describeMemberMatch, findEventMemberMatches } from "../../src/event-domain.js";
 
 const warnemuende = createEventDomain(eventConfigs.warnemuende);
 const eisbeinessen = createEventDomain(eventConfigs.eisbeinessen);
@@ -149,5 +149,22 @@ describe("Mitgliederabgleich fuer neue Teilnehmer", () => {
   it("meldet bei einem unpassenden Namen keinen Treffer", () => {
     expect(findEventMemberMatches(members, { name: "Schmidt", vorname: "Peter" }))
       .toEqual({ kind: "none", candidates: [] });
+  });
+});
+
+describe("describeMemberMatch", () => {
+  it("fragt im Singular, wenn nur eine Person zur Auswahl steht", () => {
+    expect(describeMemberMatch({ kind: "fuzzy", count: 1, enteredName: "ewald" }))
+      .toBe("Kein exakter Treffer für „ewald“. Ist diese Person gemeint?");
+  });
+
+  it("fragt im Plural bei mehreren unscharfen Treffern", () => {
+    expect(describeMemberMatch({ kind: "fuzzy", count: 3, enteredName: "ewald" }))
+      .toBe("Kein exakter Treffer für „ewald“. Ist eine dieser Personen gemeint?");
+  });
+
+  it("weist bei exakten Namensgleichen auf die Mehrdeutigkeit hin", () => {
+    expect(describeMemberMatch({ kind: "exact", count: 2, enteredName: "Erika Doppelt" }))
+      .toBe("Mehrere Personen passen zu „Erika Doppelt“. Welche ist gemeint?");
   });
 });

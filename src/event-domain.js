@@ -74,6 +74,17 @@ export const findEventMemberMatches = (members, participant, limit = 6) => {
   return { kind: candidates.length ? "fuzzy" : "none", candidates };
 };
 
+/** Fragt im Singular, wenn nur eine Person zur Auswahl steht. */
+export const describeMemberMatch = ({ kind, count, enteredName }) => {
+  const einleitung = kind === "exact"
+    ? `Mehrere Personen passen zu „${enteredName}“.`
+    : `Kein exakter Treffer für „${enteredName}“.`;
+  const frage = count === 1
+    ? "Ist diese Person gemeint?"
+    : kind === "exact" ? "Welche ist gemeint?" : "Ist eine dieser Personen gemeint?";
+  return `${einleitung} ${frage}`;
+};
+
 export const summarizeMeals = (participants, mealOptions = []) =>
   mealOptions.map(option => `${option}: ${participants.filter(participant => isMitfahrend(participant) && participant.essensauswahl === option).length}`).join(" · ");
 
