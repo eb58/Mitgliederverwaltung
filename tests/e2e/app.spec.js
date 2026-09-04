@@ -619,6 +619,46 @@ test("Teilnehmerliste lässt sich als PDF herunterladen", async ({ page }) => {
   expect(pdf).toContain(String.raw`(M\374ller) Tj`);
 });
 
+test("Eventteilnehmer werden unscharf mit Mitgliedern und Gästen abgeglichen", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#events-group-toggle").click();
+  await page.locator("#warnemuende-tab").click();
+
+  const form = page.locator("#warnemuendeForm");
+  await form.locator('[name="name"]').fill("Gästefreun");
+  await form.locator('[name="vorname"]').fill("Bert");
+  await form.getByRole("button", { name: "Hinzufügen" }).click();
+
+  const matchModal = page.locator("#eventMemberMatchModal");
+  await expect(matchModal).toHaveClass(/show/);
+  await expect(matchModal).toContainText("Kein exakter Treffer");
+  await expect(matchModal).toContainText("Gast · Nr. 2");
+  await matchModal.getByRole("button", { name: /Bert Gästefreund/ }).click();
+
+  await expect(matchModal).not.toHaveClass(/show/);
+  await expect(page.locator('#warnemuendeGrid [row-id="2"] [col-id="name"]')).toHaveText("Gästefreund");
+});
+
+test("Eventteilnehmer ohne Treffer brauchen eine Sicherheitsabfrage", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#events-group-toggle").click();
+  await page.locator("#eisbeinessen-tab").click();
+
+  const form = page.locator("#eisbeinessenForm");
+  await form.locator('[name="name"]').fill("Namenlos");
+  await form.locator('[name="vorname"]').fill("Fantasie");
+  page.once("dialog", dialog => {
+    expect(dialog.message()).toContain("Kein Mitglied oder Gast");
+    dialog.dismiss();
+  });
+  await form.getByRole("button", { name: "Hinzufügen" }).click();
+  await expect(page.locator("#eisbeinessenGrid")).not.toContainText("Namenlos");
+
+  page.once("dialog", dialog => dialog.accept());
+  await form.getByRole("button", { name: "Hinzufügen" }).click();
+  await expect(page.locator("#eisbeinessenGrid")).toContainText("Namenlos");
+});
+
 test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
