@@ -70,10 +70,12 @@ werden von der Mitglieder-API gemeinsam mit den Stammdaten gelesen und geschrieb
 
 Wenn die Datenbank bereits existiert, muss sie dem Schema in `server/db/schema.mysql.sql` entsprechen. Fehlende Schemaerweiterungen sind vor dem Betrieb manuell einzuspielen, zum Beispiel über phpMyAdmin.
 
-Fuer eine bestehende Installation sind zuletzt zwei Anweisungen dazugekommen (beide am Ende von
-`schema.mysql.sql`): `ALTER TABLE app_user ALTER COLUMN role SET DEFAULT 'user'` und die Tabelle
-`app_login_attempt`. Ohne die Tabelle meldet sich die API weiterhin an, nur eben ohne Drosselung
-der Fehlversuche.
+Was einer bestehenden Installation noch fehlt, steht im Nachtragsteil am Ende von
+`schema.mysql.sql`. Zuletzt dazugekommen sind die schwaechere Standardrolle
+(`ALTER TABLE app_user ALTER COLUMN role SET DEFAULT 'user'`), die Tabelle `app_login_attempt`
+und das Entfernen der ungenutzten Spalten `preis_club`, `preis_computer` und `preis_weihnachten`.
+Ohne `app_login_attempt` meldet sich die API weiterhin an, nur eben ohne Drosselung der
+Fehlversuche.
 
 Ausnahme sind die Teilnehmertabellen der Events: Fehlt `<key>_teilnehmer`, legt die API sie beim ersten Zugriff selbst an. Ein neues Event laeuft damit ohne Schema-Import - vorausgesetzt, der DB-Benutzer darf `CREATE TABLE`. Darf er es nicht, meldet die API weiterhin einen lesbaren 503er.
 

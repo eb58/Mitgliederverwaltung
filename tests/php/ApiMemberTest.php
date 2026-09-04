@@ -114,6 +114,14 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertFalse(tableHasColumn('mitglied', 'tischnummer'));
     }
 
+    /** Der Sollbeitrag steht in paidAmountDefaults, nicht mehr in der Datenbank. */
+    public function testSchemaHasNoPriceColumnsLeft(): void
+    {
+        $this->assertFalse(tableHasColumn('mitglied', 'preis_club'));
+        $this->assertFalse(tableHasColumn('mitglied', 'preis_computer'));
+        $this->assertFalse(tableHasColumn('mitglied_weihnachtsessen', 'preis_weihnachten'));
+    }
+
     public function testMembersCollectionAssignsNextFreeIdWhenMissing(): void
     {
         TestDatabase::insertMemberRow(7, 'Alt', 'Otto');

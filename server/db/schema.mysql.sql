@@ -266,3 +266,9 @@ CREATE TABLE app_login_attempt (
   INDEX idx_app_login_attempt_ip (ip, attempted_at),
   INDEX idx_app_login_attempt_attempted_at (attempted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Die Preisspalten hielten den Sollbeitrag aus dem Alt-Import. Seit "Bereinige Filter
+-- und Preisfelder" steht der in paidAmountDefaults (src/member-config.js), die Spalten
+-- las und schrieb seitdem niemand mehr.
+ALTER TABLE mitglied DROP COLUMN preis_club, DROP COLUMN preis_computer;
+ALTER TABLE mitglied_weihnachtsessen DROP COLUMN preis_weihnachten;
