@@ -120,6 +120,38 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->assertSame('Monika', $participant['vorname']);
     }
 
+    public function testNameChangeReplacesStaleMemberReferenceWithUniqueMatch(): void
+    {
+        TestDatabase::insertMemberRow(80, 'Jeschon', 'Peter');
+        TestDatabase::insertMemberRow(81, 'Witt', 'Gisela');
+        $id = $this->insertParticipant('Jeschon', 'Peter', 'Rind', 80);
+        $this->request('PUT', [
+            'name' => 'Witt',
+            'vorname' => 'Gisela',
+            'essensauswahl' => 'Rind',
+            'mitgliedId' => 80,
+        ]);
+
+        $participant = $this->capture(static fn() => handleEventParticipantResource('warnemuende', $id))->payload['participant'];
+
+        $this->assertSame(81, $participant['mitgliedId']);
+        $this->assertSame(81, (int) db()->query('SELECT mitglied_id FROM warnemuende_teilnehmer WHERE id = ' . $id)->fetchColumn());
+    }
+
+    public function testNameChangeClearsStaleMemberReferenceWithoutUniqueMatch(): void
+    {
+        TestDatabase::insertMemberRow(80, 'Jeschon', 'Peter');
+        TestDatabase::insertMemberRow(81, 'Doppelt', 'Erika');
+        TestDatabase::insertMemberRow(82, 'Doppelt', 'Erika');
+        $id = $this->insertParticipant('Jeschon', 'Peter', 'Rind', 80);
+        $this->request('PATCH', ['name' => 'Doppelt', 'vorname' => 'Erika', 'mitgliedId' => 80]);
+
+        $participant = $this->capture(static fn() => handleEventParticipantResource('warnemuende', $id))->payload['participant'];
+
+        $this->assertNull($participant['mitgliedId']);
+        $this->assertNull(db()->query('SELECT mitglied_id FROM warnemuende_teilnehmer WHERE id = ' . $id)->fetchColumn());
+    }
+
     public function testUpdateClearsMemberReferenceWithZero(): void
     {
         TestDatabase::insertMemberRow(80, 'Jeschon', 'Peter');

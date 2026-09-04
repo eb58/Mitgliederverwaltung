@@ -1498,6 +1498,8 @@ function handleEventParticipantResource(string $event, int $id): void
     if ($method === 'PUT' || $method === 'PATCH') {
         $patch = normalizeEventInput($event, readJsonBody(), $method === 'PATCH');
         $participant = array_replace($existing, $patch);
+        $nameChanged = $participant['name'] !== $existing['name'] || $participant['vorname'] !== $existing['vorname'];
+        if ($nameChanged) $participant['mitgliedId'] = null;
         assertEventMemberExists($participant['mitgliedId']);
         $assignments = implode(', ', array_map(static fn(string $column) => $column . ' = ?', eventParticipantColumns($event)));
         db()->prepare('UPDATE ' . $table . ' SET ' . $assignments . ' WHERE id = ?')
