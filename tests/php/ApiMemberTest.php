@@ -114,6 +114,34 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertFalse(tableHasColumn('mitglied', 'tischnummer'));
     }
 
+    public function testMembersCollectionStoresPaymentsInSideTable(): void
+    {
+        $this->request('POST', $this->validMember([
+            'id' => 6,
+            'beitragClubBezahlt' => true,
+            'betragClubBar' => 10,
+            'gezahlterBetragClub' => 30,
+            'einzahlungClubAm' => '2026-01-15',
+            'beitragComputerBezahlt' => true,
+            'betragComputerBar' => 5,
+            'gezahlterBetragComputer' => 20,
+            'einzahlungComputerAm' => '2026-02-16',
+        ]));
+
+        $member = $this->capture(static fn() => handleMembersCollection(self::ADMIN))->payload['member'];
+        $row = db()->query('SELECT * FROM mitglied_zahlung WHERE mitglied_id = 6')->fetch();
+
+        $this->assertTrue($member['beitragClubBezahlt']);
+        $this->assertSame(30.0, $member['gezahlterBetragClub']);
+        $this->assertSame('2026-02-16', $member['einzahlungComputerAm']);
+        $this->assertSame('1', (string) $row['beitrag_club_bezahlt']);
+        $this->assertSame('10.00', (string) $row['betrag_club_bar']);
+        $this->assertSame('20.00', (string) $row['gezahlter_betrag_computer']);
+        $this->assertFalse(tableHasColumn('mitglied', 'beitrag_club_bezahlt'));
+        $this->assertFalse(tableHasColumn('mitglied', 'gezahlter_betrag_club'));
+        $this->assertFalse(tableHasColumn('mitglied', 'einzahlung_computer_am'));
+    }
+
     /** Der Sollbeitrag steht in paidAmountDefaults, nicht mehr in der Datenbank. */
     public function testSchemaHasNoPriceColumnsLeft(): void
     {
@@ -246,6 +274,28 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertSame('4', (string) $row['tischnummer']);
         $this->assertSame(
             ['weihnachtsessen', 'wnEssenBezahlt', 'gezahlterBetragWeihnachten', 'tischnummer'],
+            array_column($audit, 'field')
+        );
+    }
+
+    public function testMemberResourceUpdatesPaymentsInSideTableAndAuditsChange(): void
+    {
+        TestDatabase::insertMemberRow(3, 'Müller', 'Anna');
+        $this->request('PATCH', [
+            'beitragClubBezahlt' => true,
+            'gezahlterBetragClub' => 30,
+            'einzahlungClubAm' => '2026-03-17',
+        ]);
+
+        $member = $this->capture(static fn() => handleMemberResource(3, self::ADMIN))->payload['member'];
+        $row = db()->query('SELECT * FROM mitglied_zahlung WHERE mitglied_id = 3')->fetch();
+        $audit = json_decode((string) db()->query('SELECT aenderungen_json FROM mitglied_aenderung WHERE mitglied_id = 3')->fetchColumn(), true);
+
+        $this->assertTrue($member['beitragClubBezahlt']);
+        $this->assertSame(30.0, $member['gezahlterBetragClub']);
+        $this->assertSame('2026-03-17', $row['einzahlung_club_am']);
+        $this->assertSame(
+            ['beitragClubBezahlt', 'gezahlterBetragClub', 'einzahlungClubAm'],
             array_column($audit, 'field')
         );
     }

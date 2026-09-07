@@ -277,3 +277,43 @@ ALTER TABLE mitglied_weihnachtsessen DROP COLUMN preis_weihnachten;
 -- naechste freie ID selbst, was sich zwei gleichzeitige Anlagen teilen konnten.
 -- Der Zaehler startet automatisch bei MAX(id) + 1, bestehende IDs bleiben.
 ALTER TABLE mitglied MODIFY id INT NOT NULL AUTO_INCREMENT;
+
+-- Zahlungsdaten fuer Club und Computerkurse aus den Mitgliedsstammdaten loesen.
+CREATE TABLE mitglied_zahlung (
+  mitglied_id INT NOT NULL,
+  beitrag_club_bezahlt TINYINT(1) NOT NULL DEFAULT 0,
+  betrag_club_bar DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  beitrag_computer_bezahlt TINYINT(1) NOT NULL DEFAULT 0,
+  betrag_computer_bar DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  gezahlter_betrag_club DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  einzahlung_club_am DATE NULL,
+  gezahlter_betrag_computer DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  einzahlung_computer_am DATE NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (mitglied_id),
+  CONSTRAINT fk_mitglied_zahlung_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO mitglied_zahlung (
+  mitglied_id, beitrag_club_bezahlt, betrag_club_bar,
+  beitrag_computer_bezahlt, betrag_computer_bar,
+  gezahlter_betrag_club, einzahlung_club_am,
+  gezahlter_betrag_computer, einzahlung_computer_am
+)
+SELECT
+  id, beitrag_club_bezahlt, betrag_club_bar,
+  beitrag_computer_bezahlt, betrag_computer_bar,
+  gezahlter_betrag_club, einzahlung_club_am,
+  gezahlter_betrag_computer, einzahlung_computer_am
+FROM mitglied;
+
+ALTER TABLE mitglied
+  DROP COLUMN beitrag_club_bezahlt,
+  DROP COLUMN betrag_club_bar,
+  DROP COLUMN beitrag_computer_bezahlt,
+  DROP COLUMN betrag_computer_bar,
+  DROP COLUMN gezahlter_betrag_club,
+  DROP COLUMN einzahlung_club_am,
+  DROP COLUMN gezahlter_betrag_computer,
+  DROP COLUMN einzahlung_computer_am;

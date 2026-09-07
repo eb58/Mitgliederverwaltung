@@ -773,6 +773,13 @@ function mainMemberFields(): array
         'auswahl' => 'auswahl',
         'ausweisErteilt' => 'ausweis_erteilt',
         'clubzugehoerigkeit' => 'clubzugehoerigkeit_id',
+        'bemerkung' => 'bemerkung',
+    ];
+}
+
+function zahlungsFields(): array
+{
+    return [
         'beitragClubBezahlt' => 'beitrag_club_bezahlt',
         'betragClubBar' => 'betrag_club_bar',
         'beitragComputerBezahlt' => 'beitrag_computer_bezahlt',
@@ -781,7 +788,6 @@ function mainMemberFields(): array
         'einzahlungClubAm' => 'einzahlung_club_am',
         'gezahlterBetragComputer' => 'gezahlter_betrag_computer',
         'einzahlungComputerAm' => 'einzahlung_computer_am',
-        'bemerkung' => 'bemerkung',
     ];
 }
 
@@ -795,10 +801,10 @@ function weihnachtsessenFields(): array
     ];
 }
 
-/** Gemeinsame API-Sicht auf die Haupt- und Weihnachtsessen-Tabelle. */
+/** Gemeinsame API-Sicht auf Stammdaten, Zahlungen und Weihnachtsessen. */
 function memberApiFields(): array
 {
-    return array_merge(mainMemberFields(), weihnachtsessenFields());
+    return array_merge(mainMemberFields(), zahlungsFields(), weihnachtsessenFields());
 }
 
 function booleanFields(): array
@@ -893,6 +899,14 @@ function assertValidMember(array $member): void
 function baseSelect(): string
 {
     return "SELECT m.*,
+      COALESCE(mz.beitrag_club_bezahlt, 0) AS beitrag_club_bezahlt,
+      COALESCE(mz.betrag_club_bar, 0.00) AS betrag_club_bar,
+      COALESCE(mz.beitrag_computer_bezahlt, 0) AS beitrag_computer_bezahlt,
+      COALESCE(mz.betrag_computer_bar, 0.00) AS betrag_computer_bar,
+      COALESCE(mz.gezahlter_betrag_club, 0.00) AS gezahlter_betrag_club,
+      mz.einzahlung_club_am AS einzahlung_club_am,
+      COALESCE(mz.gezahlter_betrag_computer, 0.00) AS gezahlter_betrag_computer,
+      mz.einzahlung_computer_am AS einzahlung_computer_am,
       COALESCE(mw.weihnachtsessen, 0) AS weihnachtsessen,
       COALESCE(mw.wn_essen_bezahlt, 0) AS wn_essen_bezahlt,
       COALESCE(mw.gezahlter_betrag_weihnachten, 0.00) AS gezahlter_betrag_weihnachten,
@@ -903,6 +917,7 @@ function baseSelect(): string
        FROM mitglied_funktion mf WHERE mf.mitglied_id = m.id) AS funktionen,
       EXISTS (SELECT 1 FROM mitglied_passbild mp WHERE mp.mitglied_id = m.id) AS has_passbild_in_db
       FROM mitglied m
+      LEFT JOIN mitglied_zahlung mz ON mz.mitglied_id = m.id
       LEFT JOIN mitglied_weihnachtsessen mw ON mw.mitglied_id = m.id";
 }
 
@@ -1276,6 +1291,7 @@ function insertMember(array $member): int
     $statement = db()->prepare('INSERT INTO mitglied (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')');
     $statement->execute(array_map(static fn(string $key): mixed => $member[$key] ?? null, $keys));
     $id = $chosenId > 0 ? $chosenId : (int) db()->lastInsertId();
+    updateMemberZahlungen($id, $member);
     updateMemberWeihnachtsessen($id, $member);
     return $id;
 }
@@ -1294,18 +1310,29 @@ function updateMemberColumns(int $id, array $patch): void
         $values[] = $id;
         db()->prepare('UPDATE mitglied SET ' . implode(', ', $assignments) . ' WHERE id = ?')->execute($values);
     }
+    updateMemberZahlungen($id, $patch);
     updateMemberWeihnachtsessen($id, $patch);
+}
+
+function updateMemberZahlungen(int $memberId, array $values): void
+{
+    updateMemberSideTable('mitglied_zahlung', zahlungsFields(), $memberId, $values);
 }
 
 function updateMemberWeihnachtsessen(int $memberId, array $values): void
 {
-    $fields = array_intersect_key(weihnachtsessenFields(), $values);
+    updateMemberSideTable('mitglied_weihnachtsessen', weihnachtsessenFields(), $memberId, $values);
+}
+
+function updateMemberSideTable(string $table, array $definedFields, int $memberId, array $values): void
+{
+    $fields = array_intersect_key($definedFields, $values);
     if (!$fields) return;
     $columns = array_values($fields);
     $placeholders = implode(', ', array_fill(0, count($columns) + 1, '?'));
     $updates = implode(', ', array_map(static fn(string $column): string => $column . ' = VALUES(' . $column . ')', $columns));
     db()->prepare(
-        'INSERT INTO mitglied_weihnachtsessen (mitglied_id, ' . implode(', ', $columns) . ') '
+        'INSERT INTO ' . $table . ' (mitglied_id, ' . implode(', ', $columns) . ') '
         . 'VALUES (' . $placeholders . ') ON DUPLICATE KEY UPDATE ' . $updates
     )->execute([$memberId, ...array_map(static fn(string $key): mixed => $values[$key], array_keys($fields))]);
 }

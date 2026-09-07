@@ -287,10 +287,12 @@ final class HandlerLogicTest extends TestCase
         }
     }
 
-    public function testApiFieldsCombineDisjointMainAndChristmasFields(): void
+    public function testApiFieldsCombineDisjointMainPaymentAndChristmasFields(): void
     {
         $this->assertSame([], array_intersect_key(mainMemberFields(), weihnachtsessenFields()));
-        $this->assertSame(array_merge(mainMemberFields(), weihnachtsessenFields()), memberApiFields());
+        $this->assertSame([], array_intersect_key(mainMemberFields(), zahlungsFields()));
+        $this->assertSame([], array_intersect_key(zahlungsFields(), weihnachtsessenFields()));
+        $this->assertSame(array_merge(mainMemberFields(), zahlungsFields(), weihnachtsessenFields()), memberApiFields());
     }
 
     public function testEveryAuditedFieldHasALabel(): void
