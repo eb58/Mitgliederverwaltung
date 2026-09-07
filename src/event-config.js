@@ -4,7 +4,8 @@
  * und den Schluessel des gespeicherten Spaltenzustands.
  */
 export const eventConfigs = {
-  warnemuende: { key: "warnemuende", label: "Warnemünde", mealOptions: ["Zander", "Rind", "Vegie"], maxSeats: 49 },
+  // 49 Teilnehmerplaetze plus den Reiseleiter, der extra zaehlt.
+  warnemuende: { key: "warnemuende", label: "Warnemünde", mealOptions: ["Zander", "Rind", "Vegie"], maxSeats: 50 },
   eisbeinessen: {
     key: "eisbeinessen",
     label: "Eisbeinessen",

@@ -9,9 +9,9 @@ const eisbeinessen = createEventDomain(eventConfigs.eisbeinessen);
 const { numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } = warnemuende;
 
 describe("Events", () => {
-  it("kennt Warnemuende mit drei Essensauswahlen und 49 Plaetzen", () => {
+  it("kennt Warnemuende mit drei Essensauswahlen und 50 Plaetzen", () => {
     expect(warnemuende.mealOptions).toEqual(["Zander", "Rind", "Vegie"]);
-    expect(warnemuende.maxSeats).toBe(49);
+    expect(warnemuende.maxSeats).toBe(50);
   });
 
   it("kennt das Eisbeinessen ohne Essensauswahl mit 30 Plaetzen", () => {
@@ -34,10 +34,10 @@ describe("Teilnehmernummerierung", () => {
     expect(sortByAnmeldung([{ id: 30 }, { id: 7 }]).map(participant => participant.id)).toEqual([7, 30]);
   });
 
-  it("markiert alles ab Platz 50 als Nachruecker", () => {
-    const numbered = numberParticipants(Array.from({ length: 51 }, (unused, index) => ({ id: index + 1 })));
+  it("markiert alles ab Platz 51 als Nachruecker", () => {
+    const numbered = numberParticipants(Array.from({ length: 52 }, (unused, index) => ({ id: index + 1 })));
 
-    expect(numbered.filter(participant => participant.nachruecker).map(participant => participant.nr)).toEqual([50, 51]);
+    expect(numbered.filter(participant => participant.nachruecker).map(participant => participant.nr)).toEqual([51, 52]);
   });
 
   it("nutzt je Event die eigene Platzzahl", () => {
@@ -58,13 +58,13 @@ describe("Teilnehmernummerierung", () => {
   });
 
   it("laesst durch eine Absage den ersten Nachruecker aufruecken", () => {
-    const participants = Array.from({ length: 50 }, (unused, index) => ({ id: index + 1 }));
+    const participants = Array.from({ length: 51 }, (unused, index) => ({ id: index + 1 }));
 
-    expect(numberParticipants(participants)[49].nachruecker).toBe(true);
+    expect(numberParticipants(participants)[50].nachruecker).toBe(true);
 
     participants[0].abgesagt = true;
 
-    expect(numberParticipants(participants)[49].nachruecker).toBe(false);
+    expect(numberParticipants(participants)[50].nachruecker).toBe(false);
   });
 });
 
