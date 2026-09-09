@@ -25,6 +25,7 @@ export const createEventAdmin = ({
   let participants = [];
   let editModal = null;
   let editingId = null;
+  let hideCancelled = false;
   // Nummer und Nachrueckerstatus haengen an der angezeigten Reihenfolge, nicht am Datensatz:
   // deshalb je Zeile gemerkt und bei jeder Sortierung neu vergeben.
   let displayNumbers = new Map();
@@ -68,8 +69,19 @@ export const createEventAdmin = ({
   const rowNumbering = node => displayNumbers.get(node?.id);
 
   const render = () => {
-    gridApi?.setGridOption("rowData", sortByAnmeldung(participants));
+    const visibleParticipants = hideCancelled
+      ? participants.filter(participant => !participant.abgesagt)
+      : participants;
+    gridApi?.setGridOption("rowData", sortByAnmeldung(visibleParticipants));
     updateSummary();
+  };
+
+  const toggleCancelledVisibility = () => {
+    hideCancelled = !hideCancelled;
+    const button = document.getElementById(domId("HideCancelledBtn"));
+    button?.setAttribute("aria-pressed", String(hideCancelled));
+    button?.classList.toggle("active", hideCancelled);
+    render();
   };
 
   // Faengt seine Ladefehler selbst ab: eine fehlende Teilnehmertabelle soll den Start
@@ -417,6 +429,7 @@ export const createEventAdmin = ({
       stopEditingWhenCellsLoseFocus: true
     });
     document.getElementById(domId("Form"))?.addEventListener("submit", handleSubmit);
+    document.getElementById(domId("HideCancelledBtn"))?.addEventListener("click", toggleCancelledVisibility);
     document.getElementById(domId("ExportBtn"))?.addEventListener("click", exportPdf);
     editModal ||= new Modal(document.getElementById(domId("EditModal")));
     document.getElementById(domId("EditForm"))?.addEventListener("submit", handleEditSubmit);

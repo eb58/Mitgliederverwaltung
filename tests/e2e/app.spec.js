@@ -753,6 +753,15 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("");
   await expect(summary).toHaveText("1 Teilnehmer · 1 abgesagt · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
 
+  const hideCancelled = page.locator("#warnemuendeHideCancelledBtn");
+  await hideCancelled.click();
+  await expect(hideCancelled).toHaveAttribute("aria-pressed", "true");
+  await expect(hideCancelled).toHaveClass(/active/);
+  await expect(grid).not.toContainText("Gästefreund");
+  await expect(summary).toHaveText("1 Teilnehmer · 1 abgesagt · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
+  await hideCancelled.click();
+  await expect(grid).toContainText("Gästefreund");
+
   await grid.locator('[row-id="2"]').getByRole("button", { name: "Absage zurücknehmen" }).click();
   await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("2");
   await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 1 · bezahlt: 1");
@@ -783,6 +792,14 @@ test("Eisbeinessen führt die Liste ohne Essensauswahl und mit 30 Plätzen", asy
 
   await expect(grid).toContainText("Gästefreund");
   await expect(summary).toHaveText("2 Teilnehmer · bezahlt: 0");
+
+  await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer absagen" }).click();
+  const hideCancelled = page.locator("#eisbeinessenHideCancelledBtn");
+  await hideCancelled.click();
+  await expect(hideCancelled).toHaveAttribute("aria-pressed", "true");
+  await expect(grid).not.toContainText("Gästefreund");
+  await hideCancelled.click();
+  await expect(grid).toContainText("Gästefreund");
 
   // Eigene Tabelle: der Warnemuende-Eintrag taucht hier nicht auf.
   await page.locator("#warnemuende-tab").click();
