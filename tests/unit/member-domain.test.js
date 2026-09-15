@@ -104,14 +104,7 @@ describe("normalizeMember", () => {
     expect(normalizeMember({ interessengruppen: "1,2" }).interessengruppen).toEqual([]);
   });
 
-  it("übernimmt bei Barwert -1 den gezahlten Betrag", () => {
-    const member = normalizeMember({ betragClubBar: -1, gezahlterBetragClub: "30,00 €", betragComputerBar: "5,00" });
-    expect(member.betragClubBar).toBe(30);
-    expect(member.betragComputerBar).toBe(5);
-    expect(member.gezahlterBetragClub).toBe(30);
-  });
-
-  it("normalisiert historische Wahrheitswerte", () => {
+it("normalisiert historische Wahrheitswerte", () => {
     const member = normalizeMember({ auswahl: -1, ausweisErteilt: "YES", beitragClubBezahlt: 0, wnEssenBezahlt: "nein" });
     expect(member.auswahl).toBe(true);
     expect(member.ausweisErteilt).toBe(true);

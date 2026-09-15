@@ -119,11 +119,9 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->request('POST', $this->validMember([
             'id' => 6,
             'beitragClubBezahlt' => true,
-            'betragClubBar' => 10,
             'gezahlterBetragClub' => 30,
             'einzahlungClubAm' => '2026-01-15',
             'beitragComputerBezahlt' => true,
-            'betragComputerBar' => 5,
             'gezahlterBetragComputer' => 20,
             'einzahlungComputerAm' => '2026-02-16',
         ]));
@@ -136,7 +134,6 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertSame('2026-02-16', $member['einzahlungComputerAm']);
         $this->assertSame('1', (string) $row['beitrag_club_bezahlt']);
         $this->assertSame('2026', (string) $row['beitragsjahr']);
-        $this->assertSame('10.00', (string) $row['betrag_club_bar']);
         $this->assertSame('20.00', (string) $row['gezahlter_betrag_computer']);
         $this->assertFalse(tableHasColumn('mitglied', 'beitrag_club_bezahlt'));
         $this->assertFalse(tableHasColumn('mitglied', 'gezahlter_betrag_club'));

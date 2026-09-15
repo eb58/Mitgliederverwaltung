@@ -13,7 +13,6 @@ import {
   normalizeGroupText,
   normalizePhotoFileName,
   parseIsoDate,
-  parseLegacyCashAmount,
   parseLegacyCurrency,
   parseLegacyDate,
   percent,
@@ -98,12 +97,7 @@ describe("Import- und Anzeigeformate", () => {
     expect(formatCurrency(12.5)).toContain("12,50");
   });
 
-  it("übernimmt bei altem -1-Barwert den bereits gezahlten Betrag", () => {
-    expect(parseLegacyCashAmount(-1, "30,00 €")).toBe(30);
-    expect(parseLegacyCashAmount("5,00 €", "30,00 €")).toBe(5);
-  });
-
-  it("normalisiert historische Wahrheitswerte", () => {
+it("normalisiert historische Wahrheitswerte", () => {
     [true, 1, -1, "true", "YES", " -1 "].forEach(value => expect(asBoolean(value)).toBe(true));
     [false, 0, null, "nein", ""].forEach(value => expect(asBoolean(value)).toBe(false));
   });

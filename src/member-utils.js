@@ -41,11 +41,6 @@ export const parseLegacyCurrency = value => {
   return Number.isFinite(parsed) ? roundCurrency(parsed) : 0;
 };
 
-export const parseLegacyCashAmount = (cashValue, paidValue) => {
-  const parsedCashValue = parseLegacyCurrency(cashValue);
-  return parsedCashValue === -1 ? parseLegacyCurrency(paidValue) : parsedCashValue;
-};
-
 export const asBoolean = value => {
   if (value === true || value === 1 || value === -1) return true;
   if (typeof value !== "string") return false;

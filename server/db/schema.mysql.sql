@@ -332,3 +332,9 @@ WHERE beitrag_club_bezahlt = 0 AND betrag_club_bar = 0
   AND beitrag_computer_bezahlt = 0 AND betrag_computer_bar = 0
   AND gezahlter_betrag_club = 0 AND einzahlung_club_am IS NULL
   AND gezahlter_betrag_computer = 0 AND einzahlung_computer_am IS NULL;
+
+-- Die Bar-Spalten hielten einen Alt-Import-Sentinel (-1 = "wie gezahlter Betrag").
+-- Das Formular bietet dafuer kein Eingabefeld mehr, seitdem liest und schreibt sie niemand mehr.
+ALTER TABLE mitglied_zahlung
+  DROP COLUMN betrag_club_bar,
+  DROP COLUMN betrag_computer_bar;

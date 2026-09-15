@@ -781,9 +781,7 @@ function zahlungsFields(): array
 {
     return [
         'beitragClubBezahlt' => 'beitrag_club_bezahlt',
-        'betragClubBar' => 'betrag_club_bar',
         'beitragComputerBezahlt' => 'beitrag_computer_bezahlt',
-        'betragComputerBar' => 'betrag_computer_bar',
         'gezahlterBetragClub' => 'gezahlter_betrag_club',
         'einzahlungClubAm' => 'einzahlung_club_am',
         'gezahlterBetragComputer' => 'gezahlter_betrag_computer',
@@ -830,8 +828,6 @@ function numberFields(): array
         'austrittsgrund',
         'clubzugehoerigkeit',
         'weihnachtsessen',
-        'betragClubBar',
-        'betragComputerBar',
         'gezahlterBetragClub',
         'gezahlterBetragComputer',
         'gezahlterBetragWeihnachten',
@@ -931,9 +927,7 @@ function baseSelect(): string
 {
     return "SELECT m.*,
       COALESCE(mz.beitrag_club_bezahlt, 0) AS beitrag_club_bezahlt,
-      COALESCE(mz.betrag_club_bar, 0.00) AS betrag_club_bar,
       COALESCE(mz.beitrag_computer_bezahlt, 0) AS beitrag_computer_bezahlt,
-      COALESCE(mz.betrag_computer_bar, 0.00) AS betrag_computer_bar,
       COALESCE(mz.gezahlter_betrag_club, 0.00) AS gezahlter_betrag_club,
       mz.einzahlung_club_am AS einzahlung_club_am,
       COALESCE(mz.gezahlter_betrag_computer, 0.00) AS gezahlter_betrag_computer,
@@ -1006,9 +1000,7 @@ function memberAuditLabels(): array
         'weihnachtsessen' => 'Weihnachtsessen',
         'wnEssenBezahlt' => 'Weihnachtsessen bezahlt',
         'beitragClubBezahlt' => 'Beitrag Club bezahlt',
-        'betragClubBar' => 'Betrag Club bar',
         'beitragComputerBezahlt' => 'Beitrag Computer bezahlt',
-        'betragComputerBar' => 'Beitrag Computer bar',
         'gezahlterBetragClub' => 'Gezahlter Betrag Club',
         'einzahlungClubAm' => 'Einzahlung Club am',
         'gezahlterBetragComputer' => 'Gezahlter Betrag Computer',
@@ -1360,8 +1352,8 @@ function updateMemberZahlungen(int $memberId, array $values): void
     db()->prepare(
         'DELETE FROM mitglied_zahlung
          WHERE mitglied_id = ? AND beitragsjahr = ?
-           AND beitrag_club_bezahlt = 0 AND betrag_club_bar = 0
-           AND beitrag_computer_bezahlt = 0 AND betrag_computer_bar = 0
+           AND beitrag_club_bezahlt = 0
+           AND beitrag_computer_bezahlt = 0
            AND gezahlter_betrag_club = 0 AND einzahlung_club_am IS NULL
            AND gezahlter_betrag_computer = 0 AND einzahlung_computer_am IS NULL'
     )->execute([$memberId, aktuellesBeitragsjahr()]);

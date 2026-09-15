@@ -15,7 +15,6 @@ import {
   normalizeGroupText,
   normalizePhotoFileName,
   parseIsoDate,
-  parseLegacyCashAmount,
   parseLegacyCurrency,
   parseLegacyDate
 } from "./member-utils.js";
@@ -51,9 +50,7 @@ export const normalizeMember = raw => {
   member.weihnachtsessen = Number(member.weihnachtsessen) || 0;
   member.wnEssenBezahlt = asBoolean(member.wnEssenBezahlt);
   member.beitragClubBezahlt = asBoolean(member.beitragClubBezahlt);
-  member.betragClubBar = parseLegacyCashAmount(member.betragClubBar, member.gezahlterBetragClub);
   member.beitragComputerBezahlt = asBoolean(member.beitragComputerBezahlt);
-  member.betragComputerBar = parseLegacyCashAmount(member.betragComputerBar, member.gezahlterBetragComputer);
   member.gezahlterBetragClub = parseLegacyCurrency(member.gezahlterBetragClub);
   member.einzahlungClubAm = parseLegacyDate(member.einzahlungClubAm);
   member.gezahlterBetragComputer = parseLegacyCurrency(member.gezahlterBetragComputer);
