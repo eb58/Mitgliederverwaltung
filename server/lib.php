@@ -851,6 +851,29 @@ function normalizeFunctionIds(mixed $value): array
     return array_values(array_filter(array_map('intval', array_map('trim', explode(';', (string) $value))), static fn(int $id): bool => $id > 0));
 }
 
+function normalizeDateValue(string $jsonKey, mixed $value): ?string
+{
+    if ($value === '' || $value === null) return null;
+    $stringValue = substr((string) $value, 0, 10);
+    $valid = preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $stringValue, $parts)
+        && checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])
+        && (int) $parts[1] >= 1900 && (int) $parts[1] <= 2100;
+    if (!$valid) {
+        throw new ApiError("Ungueltiges Datum fuer $jsonKey (erwartet YYYY-MM-DD, Jahr 1900-2100): $stringValue", 400);
+    }
+    return $stringValue;
+}
+
+function normalizeEmailValue(mixed $value): string
+{
+    $stringValue = $value === null ? '' : trim((string) $value);
+    if ($stringValue === '') return '';
+    if (filter_var($stringValue, FILTER_VALIDATE_EMAIL) === false) {
+        throw new ApiError("Ungueltige Email-Adresse: $stringValue", 400);
+    }
+    return $stringValue;
+}
+
 function normalizeMemberInput(array $payload, bool $partial = false): array
 {
     $member = [];
@@ -861,7 +884,9 @@ function normalizeMemberInput(array $payload, bool $partial = false): array
         if (in_array($jsonKey, booleanFields(), true)) {
             $member[$jsonKey] = in_array($value, [true, 1, '1'], true) ? 1 : 0;
         } elseif (in_array($jsonKey, dateFields(), true)) {
-            $member[$jsonKey] = $value === '' || $value === null ? null : substr((string) $value, 0, 10);
+            $member[$jsonKey] = normalizeDateValue($jsonKey, $value);
+        } elseif ($jsonKey === 'email') {
+            $member[$jsonKey] = normalizeEmailValue($value);
         } elseif (in_array($jsonKey, numberFields(), true)) {
             $number = $value === '' || $value === null ? null : (float) $value;
             $member[$jsonKey] = isset($nullableNumbers[$jsonKey])

@@ -137,6 +137,41 @@ final class LibTest extends TestCase
         $this->assertSame(['name' => 'Foo'], normalizeMemberInput(['name' => 'Foo'], true));
     }
 
+    public function testNormalizeMemberInputRejectsInvalidDate(): void
+    {
+        $this->expectException(ApiError::class);
+        $this->expectExceptionMessage('Ungueltiges Datum');
+        normalizeMemberInput(['name' => 'Foo', 'geburtstag' => '2024-13-99'], true);
+    }
+
+    public function testNormalizeMemberInputRejectsImplausibleYear(): void
+    {
+        $this->expectException(ApiError::class);
+        normalizeMemberInput(['name' => 'Foo', 'geburtstag' => '0026-02-27'], true);
+    }
+
+    public function testNormalizeMemberInputAcceptsNullDate(): void
+    {
+        $member = normalizeMemberInput(['name' => 'Foo', 'geburtstag' => ''], true);
+        $this->assertNull($member['geburtstag']);
+    }
+
+    public function testNormalizeMemberInputRejectsInvalidEmail(): void
+    {
+        $this->expectException(ApiError::class);
+        $this->expectExceptionMessage('Ungueltige Email-Adresse');
+        normalizeMemberInput(['name' => 'Foo', 'email' => 'keine-email'], true);
+    }
+
+    public function testNormalizeMemberInputAcceptsValidEmailAndEmptyEmail(): void
+    {
+        $member = normalizeMemberInput(['name' => 'Foo', 'email' => 'foo@example.com'], true);
+        $this->assertSame('foo@example.com', $member['email']);
+
+        $member = normalizeMemberInput(['name' => 'Foo', 'email' => ''], true);
+        $this->assertSame('', $member['email']);
+    }
+
     public function testAssertKnownFieldsRejectsUnknownKeys(): void
     {
         $this->expectException(ApiError::class);
