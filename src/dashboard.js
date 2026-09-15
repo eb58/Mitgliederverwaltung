@@ -273,7 +273,7 @@ export const createDashboard = ({
     setText("metricClubPaidLabel", `Club bezahlt ${beitragsjahr}`);
     setText("metricClubOpenLabel", `Club offen ${beitragsjahr}`);
     setText("metricComputerPaidLabel", `Computergruppe bezahlt ${beitragsjahr}`);
-    setText("metricComputerOpenLabel", `Computergruppe nicht bezahlt ${beitragsjahr}`);
+    setText("metricComputerOpenLabel", `Computergruppe offen ${beitragsjahr}`);
     setText("metricClubPaymentsLabel", `Einzahlungen Club ${beitragsjahr}`);
     setText("metricComputerPaymentsLabel", `Einzahlungen Computerclub ${beitragsjahr}`);
     setText("metricTotal", String(total));

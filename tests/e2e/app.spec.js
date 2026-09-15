@@ -206,7 +206,7 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await expect(page.locator("#metricClubPaidBtn .metric-label")).toHaveText("Club bezahlt 2026");
   await expect(page.locator("#metricClubOpenBtn .metric-label")).toHaveText("Club offen 2026");
   await expect(page.locator("#metricComputerPaidBtn .metric-label")).toHaveText("Computergruppe bezahlt 2026");
-  await expect(page.locator("#metricComputerOpenBtn .metric-label")).toHaveText("Computergruppe nicht bezahlt 2026");
+  await expect(page.locator("#metricComputerOpenBtn .metric-label")).toHaveText("Computergruppe offen 2026");
   await expect(page.locator("#metricClubPaymentsLabel")).toHaveText("Einzahlungen Club 2026");
   await expect(page.locator("#metricComputerPaymentsLabel")).toHaveText("Einzahlungen Computerclub 2026");
   await expect(page.locator("#payments-tab .sidebar__nav-label")).toHaveText("Clubbeitrag");
