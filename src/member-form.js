@@ -1,6 +1,6 @@
 import { Modal, Tab } from "bootstrap";
 import { fieldDefinitions, formSections, paidAmountDefaults } from "./member-config.js";
-import { cloneMember, createEmptyMember, formatMemberName, normalizeMember } from "./member-domain.js";
+import { cloneMember, createEmptyMember, formatMemberName, istBeitragBezahlt, normalizeMember } from "./member-domain.js";
 import { asBoolean, calculateAge, formatIsoDate, roundCurrency } from "./member-utils.js";
 import { state } from "./state.js";
 import { showToast } from "./ui.js";
@@ -71,6 +71,16 @@ export const createMemberForm = ({
     }
     if (amountInput && config.amount !== undefined) amountInput.value = String(config.amount);
     if (dateInput && !dateInput.value) dateInput.value = formatIsoDate(new Date());
+  };
+
+  const paidCheckboxKeyForAmount = amountField => Object.entries(paidAmountDefaults)
+    .find(([, config]) => config.amountField === amountField)?.[0];
+
+  const applyPaidCheckboxFromAmount = amountField => {
+    const checkboxKey = paidCheckboxKeyForAmount(amountField);
+    const checkbox = checkboxKey ? document.getElementById(`field-${checkboxKey}`) : null;
+    const amountInput = document.getElementById(`field-${amountField}`);
+    if (checkbox && amountInput) checkbox.checked = istBeitragBezahlt(amountInput.value);
   };
 
   const createField = (field, className = "") => {
@@ -164,6 +174,9 @@ export const createMemberForm = ({
       if (field.type === "currency") {
         element.step = "0.01";
         element.min = "0";
+        if (paidCheckboxKeyForAmount(field.key)) {
+          element.addEventListener("input", () => applyPaidCheckboxFromAmount(field.key));
+        }
       }
       return element;
     })();

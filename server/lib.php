@@ -780,12 +780,19 @@ function mainMemberFields(): array
 function zahlungsFields(): array
 {
     return [
-        'beitragClubBezahlt' => 'beitrag_club_bezahlt',
-        'beitragComputerBezahlt' => 'beitrag_computer_bezahlt',
         'gezahlterBetragClub' => 'gezahlter_betrag_club',
         'einzahlungClubAm' => 'einzahlung_club_am',
         'gezahlterBetragComputer' => 'gezahlter_betrag_computer',
         'einzahlungComputerAm' => 'einzahlung_computer_am',
+    ];
+}
+
+/** API-Felder, die nicht gespeichert, sondern aus dem Zahlungsbetrag abgeleitet werden. */
+function abgeleiteteZahlungsFields(): array
+{
+    return [
+        'beitragClubBezahlt' => 'beitrag_club_bezahlt',
+        'beitragComputerBezahlt' => 'beitrag_computer_bezahlt',
     ];
 }
 
@@ -808,7 +815,7 @@ function weihnachtsessenFields(): array
 /** Gemeinsame API-Sicht auf Stammdaten, Zahlungen und Weihnachtsessen. */
 function memberApiFields(): array
 {
-    return array_merge(mainMemberFields(), zahlungsFields(), weihnachtsessenFields());
+    return array_merge(mainMemberFields(), abgeleiteteZahlungsFields(), zahlungsFields(), weihnachtsessenFields());
 }
 
 function booleanFields(): array
@@ -926,8 +933,8 @@ function assertValidMember(array $member): void
 function baseSelect(): string
 {
     return "SELECT m.*,
-      COALESCE(mz.beitrag_club_bezahlt, 0) AS beitrag_club_bezahlt,
-      COALESCE(mz.beitrag_computer_bezahlt, 0) AS beitrag_computer_bezahlt,
+      COALESCE(mz.gezahlter_betrag_club, 0.00) > 0 AS beitrag_club_bezahlt,
+      COALESCE(mz.gezahlter_betrag_computer, 0.00) > 0 AS beitrag_computer_bezahlt,
       COALESCE(mz.gezahlter_betrag_club, 0.00) AS gezahlter_betrag_club,
       mz.einzahlung_club_am AS einzahlung_club_am,
       COALESCE(mz.gezahlter_betrag_computer, 0.00) AS gezahlter_betrag_computer,
@@ -1352,8 +1359,6 @@ function updateMemberZahlungen(int $memberId, array $values): void
     db()->prepare(
         'DELETE FROM mitglied_zahlung
          WHERE mitglied_id = ? AND beitragsjahr = ?
-           AND beitrag_club_bezahlt = 0
-           AND beitrag_computer_bezahlt = 0
            AND gezahlter_betrag_club = 0 AND einzahlung_club_am IS NULL
            AND gezahlter_betrag_computer = 0 AND einzahlung_computer_am IS NULL'
     )->execute([$memberId, aktuellesBeitragsjahr()]);

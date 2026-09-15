@@ -32,6 +32,7 @@ import {
   getUpcomingBirthday,
   interestGroupFormatter,
   isActiveMember,
+  istBeitragBezahlt,
   isComputerGroupMember,
   isGuestMember,
   isOpenClubPaymentMember,
@@ -104,12 +105,25 @@ describe("normalizeMember", () => {
     expect(normalizeMember({ interessengruppen: "1,2" }).interessengruppen).toEqual([]);
   });
 
-it("normalisiert historische Wahrheitswerte", () => {
+  it("normalisiert historische Wahrheitswerte", () => {
     const member = normalizeMember({ auswahl: -1, ausweisErteilt: "YES", beitragClubBezahlt: 0, wnEssenBezahlt: "nein" });
     expect(member.auswahl).toBe(true);
     expect(member.ausweisErteilt).toBe(true);
     expect(member.beitragClubBezahlt).toBe(false);
     expect(member.wnEssenBezahlt).toBe(false);
+  });
+
+  it("leitet beide Beitragshaken ausschliesslich aus dem Zahlbetrag ab", () => {
+    const member = normalizeMember({
+      beitragClubBezahlt: false,
+      gezahlterBetragClub: "7,50 €",
+      beitragComputerBezahlt: true,
+      gezahlterBetragComputer: 0
+    });
+    expect(member.beitragClubBezahlt).toBe(true);
+    expect(member.beitragComputerBezahlt).toBe(false);
+    expect(istBeitragBezahlt(0)).toBe(false);
+    expect(istBeitragBezahlt(20)).toBe(true);
   });
 
   it("akzeptiert nur unterstützte Passbilder und entfernt den Pfad", () => {

@@ -132,9 +132,10 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertTrue($member['beitragClubBezahlt']);
         $this->assertSame(30.0, $member['gezahlterBetragClub']);
         $this->assertSame('2026-02-16', $member['einzahlungComputerAm']);
-        $this->assertSame('1', (string) $row['beitrag_club_bezahlt']);
         $this->assertSame('2026', (string) $row['beitragsjahr']);
         $this->assertSame('20.00', (string) $row['gezahlter_betrag_computer']);
+        $this->assertFalse(tableHasColumn('mitglied_zahlung', 'beitrag_club_bezahlt'));
+        $this->assertFalse(tableHasColumn('mitglied_zahlung', 'beitrag_computer_bezahlt'));
         $this->assertFalse(tableHasColumn('mitglied', 'beitrag_club_bezahlt'));
         $this->assertFalse(tableHasColumn('mitglied', 'gezahlter_betrag_club'));
         $this->assertFalse(tableHasColumn('mitglied', 'einzahlung_computer_am'));
@@ -148,6 +149,21 @@ final class ApiMemberTest extends DatabaseTestCase
 
         $this->assertFalse($member['beitragClubBezahlt']);
         $this->assertSame(0, $this->countRows('mitglied_zahlung', 'mitglied_id = 6'));
+    }
+
+    public function testPaymentFlagsAreDerivedFromAmounts(): void
+    {
+        $this->request('POST', $this->validMember([
+            'id' => 6,
+            'beitragClubBezahlt' => false,
+            'gezahlterBetragClub' => 7.5,
+            'beitragComputerBezahlt' => true,
+            'gezahlterBetragComputer' => 0,
+        ]));
+        $member = $this->capture(static fn() => handleMembersCollection(self::ADMIN))->payload['member'];
+
+        $this->assertTrue($member['beitragClubBezahlt']);
+        $this->assertFalse($member['beitragComputerBezahlt']);
     }
 
     /** Der Sollbeitrag steht in paidAmountDefaults, nicht mehr in der Datenbank. */
@@ -313,9 +329,9 @@ final class ApiMemberTest extends DatabaseTestCase
     {
         TestDatabase::insertMemberRow(3, 'Müller', 'Anna');
         db()->prepare(
-            'INSERT INTO mitglied_zahlung (mitglied_id, beitragsjahr, beitrag_club_bezahlt, gezahlter_betrag_club) '
-            . 'VALUES (?, ?, ?, ?)'
-        )->execute([3, 2025, 1, 25]);
+            'INSERT INTO mitglied_zahlung (mitglied_id, beitragsjahr, gezahlter_betrag_club) '
+            . 'VALUES (?, ?, ?)'
+        )->execute([3, 2025, 25]);
 
         $before = $this->capture(static fn() => handleMemberResource(3, self::ADMIN))->payload['member'];
         $this->assertFalse($before['beitragClubBezahlt']);
@@ -334,9 +350,9 @@ final class ApiMemberTest extends DatabaseTestCase
     {
         TestDatabase::insertMemberRow(3, 'Müller', 'Anna');
         db()->exec(
-            'INSERT INTO mitglied_zahlung (mitglied_id, beitragsjahr, beitrag_club_bezahlt, gezahlter_betrag_club, einzahlung_club_am) VALUES
-             (3, 2025, 1, 25, "2024-11-15"),
-             (3, 2026, 1, 30, "2025-11-15")'
+            'INSERT INTO mitglied_zahlung (mitglied_id, beitragsjahr, gezahlter_betrag_club, einzahlung_club_am) VALUES
+             (3, 2025, 25, "2024-11-15"),
+             (3, 2026, 30, "2025-11-15")'
         );
         $this->request('PATCH', [
             'beitragClubBezahlt' => false,

@@ -19,6 +19,8 @@ import {
   parseLegacyDate
 } from "./member-utils.js";
 
+export const istBeitragBezahlt = betrag => parseLegacyCurrency(betrag) > 0;
+
 export const normalizeMember = raw => {
   const member = { ...raw };
   const numericId = Number(member.id);
@@ -49,11 +51,11 @@ export const normalizeMember = raw => {
   member.clubzugehoerigkeit = Number(member.clubzugehoerigkeit) || 0;
   member.weihnachtsessen = Number(member.weihnachtsessen) || 0;
   member.wnEssenBezahlt = asBoolean(member.wnEssenBezahlt);
-  member.beitragClubBezahlt = asBoolean(member.beitragClubBezahlt);
-  member.beitragComputerBezahlt = asBoolean(member.beitragComputerBezahlt);
   member.gezahlterBetragClub = parseLegacyCurrency(member.gezahlterBetragClub);
+  member.beitragClubBezahlt = istBeitragBezahlt(member.gezahlterBetragClub);
   member.einzahlungClubAm = parseLegacyDate(member.einzahlungClubAm);
   member.gezahlterBetragComputer = parseLegacyCurrency(member.gezahlterBetragComputer);
+  member.beitragComputerBezahlt = istBeitragBezahlt(member.gezahlterBetragComputer);
   member.einzahlungComputerAm = parseLegacyDate(member.einzahlungComputerAm);
   member.gezahlterBetragWeihnachten = parseLegacyCurrency(member.gezahlterBetragWeihnachten);
   member.bemerkung = member.bemerkung || "";

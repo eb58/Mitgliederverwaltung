@@ -33,7 +33,9 @@ const members = [
     beitragClubBezahlt: true,
     beitragComputerBezahlt: true,
     gezahlterBetragClub: 30,
-    einzahlungClubAm: "2026-01-15"
+    einzahlungClubAm: "2026-01-15",
+    gezahlterBetragComputer: 20,
+    einzahlungComputerAm: "2026-01-15"
   },
   {
     id: 2,
@@ -549,6 +551,19 @@ test("neues Mitglied wird mit Formulardaten an die API gesendet", async ({ page 
 
   expect(request.postDataJSON()).toMatchObject({ name: "Schäfer", vorname: "Erika", clubzugehoerigkeit: 9 });
   await expect(page.locator("#memberModal")).not.toHaveClass(/show/);
+});
+
+test("Beitragshaken folgt Club- und Computerbetrag", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#addMemberBtn").click();
+  await page.locator("#member-form-zahlungen-tab").click();
+
+  await page.locator("#field-gezahlterBetragClub").fill("7.50");
+  await expect(page.locator("#field-beitragClubBezahlt")).toBeChecked();
+  await page.locator("#field-gezahlterBetragComputer").fill("20");
+  await expect(page.locator("#field-beitragComputerBezahlt")).toBeChecked();
+  await page.locator("#field-gezahlterBetragComputer").fill("0");
+  await expect(page.locator("#field-beitragComputerBezahlt")).not.toBeChecked();
 });
 
 test("Events-Gruppe klappt Weihnachtsessen, Warnemünde und Eisbeinessen auf und markiert den aktiven Punkt", async ({ page }) => {

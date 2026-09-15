@@ -202,7 +202,7 @@ final class HandlerLogicTest extends TestCase
             'austrittsgrund_id' => null,
             'clubzugehoerigkeit_id' => '9',
             'ausweis_erteilt' => '1',
-            'beitrag_club_bezahlt' => '0',
+            'beitrag_club_bezahlt' => '1',
             'gezahlter_betrag_club' => '30.50',
             'bemerkung' => null,
             'interessengruppen' => '4,16',
@@ -217,7 +217,7 @@ final class HandlerLogicTest extends TestCase
         $this->assertNull($member['austrittsgrund']);
         $this->assertSame(9.0, $member['clubzugehoerigkeit']);
         $this->assertTrue($member['ausweisErteilt']);
-        $this->assertFalse($member['beitragClubBezahlt']);
+        $this->assertTrue($member['beitragClubBezahlt']);
         $this->assertSame(30.5, $member['gezahlterBetragClub']);
         $this->assertSame('', $member['bemerkung']);
         $this->assertSame([4, 16], $member['interessengruppen']);
@@ -290,9 +290,14 @@ final class HandlerLogicTest extends TestCase
     public function testApiFieldsCombineDisjointMainPaymentAndChristmasFields(): void
     {
         $this->assertSame([], array_intersect_key(mainMemberFields(), weihnachtsessenFields()));
+        $this->assertSame([], array_intersect_key(mainMemberFields(), abgeleiteteZahlungsFields()));
         $this->assertSame([], array_intersect_key(mainMemberFields(), zahlungsFields()));
+        $this->assertSame([], array_intersect_key(abgeleiteteZahlungsFields(), zahlungsFields()));
         $this->assertSame([], array_intersect_key(zahlungsFields(), weihnachtsessenFields()));
-        $this->assertSame(array_merge(mainMemberFields(), zahlungsFields(), weihnachtsessenFields()), memberApiFields());
+        $this->assertSame(
+            array_merge(mainMemberFields(), abgeleiteteZahlungsFields(), zahlungsFields(), weihnachtsessenFields()),
+            memberApiFields()
+        );
     }
 
     public function testEveryAuditedFieldHasALabel(): void

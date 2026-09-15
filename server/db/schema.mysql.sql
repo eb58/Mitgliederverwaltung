@@ -338,3 +338,9 @@ WHERE beitrag_club_bezahlt = 0 AND betrag_club_bar = 0
 ALTER TABLE mitglied_zahlung
   DROP COLUMN betrag_club_bar,
   DROP COLUMN betrag_computer_bar;
+
+-- "Bezahlt" ist keine eigenstaendige Information: Ein positiver Zahlbetrag
+-- bedeutet bezahlt. Die API leitet die beiden Haken deshalb aus dem Betrag ab.
+ALTER TABLE mitglied_zahlung
+  DROP COLUMN beitrag_club_bezahlt,
+  DROP COLUMN beitrag_computer_bezahlt;
