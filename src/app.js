@@ -630,6 +630,7 @@ const getPaymentColumns = () => [
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
+  { headerName: "Gruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, filterValueGetter: params => formatInterestGroups(params.data?.interessengruppen), minWidth: 220 },
   { headerName: "Beitrag bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: paidStatusCellRenderer },
   { headerName: "gezahlter Betrag Club", field: "gezahlterBetragClub", valueFormatter: currencyFormatter, minWidth: 190 },
   { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: paidStatusCellRenderer },
