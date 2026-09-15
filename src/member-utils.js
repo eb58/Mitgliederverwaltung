@@ -3,20 +3,7 @@ export const normalizeGroupText = value => String(value || "")
   .replace(/[\u0300-\u036f]/g, "")
   .toLowerCase();
 
-export const getBusinessYearRange = (referenceDate = new Date()) => {
-  const year = referenceDate.getMonth() >= 10
-    ? referenceDate.getFullYear()
-    : referenceDate.getFullYear() - 1;
-  return { from: `${year}-11-01`, to: `${year + 1}-10-31` };
-};
-
-export const isDateInRange = (value, from, to) => {
-  const date = String(value || "");
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= from && date <= to;
-};
-
-export const sumPaymentsInBusinessYear = (members, amountField, dateField, range) => members
-  .filter(member => isDateInRange(member[dateField], range.from, range.to))
+export const sumPayments = (members, amountField) => members
   .reduce((sum, member) => sum + (Number(member[amountField]) || 0), 0);
 
 export const formatDateDE = isoDate => {
@@ -143,4 +130,3 @@ export const retryAsync = async (operation, { attempts = 3, delayMs = 250 } = {}
   };
   return run(1);
 };
-

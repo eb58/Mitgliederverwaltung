@@ -317,3 +317,18 @@ ALTER TABLE mitglied
   DROP COLUMN einzahlung_club_am,
   DROP COLUMN gezahlter_betrag_computer,
   DROP COLUMN einzahlung_computer_am;
+
+-- Alle beim Einfuehren der Zahlungshistorie vorhandenen Zahlungen gehoeren zum
+-- Beitragsjahr 2026. Kuenftig bleibt je Mitglied ein Datensatz pro Jahr erhalten.
+ALTER TABLE mitglied_zahlung
+  ADD COLUMN beitragsjahr SMALLINT UNSIGNED NOT NULL DEFAULT 2026 AFTER mitglied_id,
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY (mitglied_id, beitragsjahr);
+
+-- Ohne Zahlungsmerkmal bedeutet das Fehlen einer Jahreszeile dasselbe wie die
+-- bisherigen Nullwerte. Solche Leerzeilen werden deshalb nicht historisiert.
+DELETE FROM mitglied_zahlung
+WHERE beitrag_club_bezahlt = 0 AND betrag_club_bar = 0
+  AND beitrag_computer_bezahlt = 0 AND betrag_computer_bar = 0
+  AND gezahlter_betrag_club = 0 AND einzahlung_club_am IS NULL
+  AND gezahlter_betrag_computer = 0 AND einzahlung_computer_am IS NULL;

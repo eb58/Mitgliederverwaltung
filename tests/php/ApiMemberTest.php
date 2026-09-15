@@ -135,11 +135,22 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertSame(30.0, $member['gezahlterBetragClub']);
         $this->assertSame('2026-02-16', $member['einzahlungComputerAm']);
         $this->assertSame('1', (string) $row['beitrag_club_bezahlt']);
+        $this->assertSame('2026', (string) $row['beitragsjahr']);
         $this->assertSame('10.00', (string) $row['betrag_club_bar']);
         $this->assertSame('20.00', (string) $row['gezahlter_betrag_computer']);
         $this->assertFalse(tableHasColumn('mitglied', 'beitrag_club_bezahlt'));
         $this->assertFalse(tableHasColumn('mitglied', 'gezahlter_betrag_club'));
         $this->assertFalse(tableHasColumn('mitglied', 'einzahlung_computer_am'));
+    }
+
+    public function testMembersCollectionDoesNotKeepEmptyPaymentRow(): void
+    {
+        $this->request('POST', $this->validMember(['id' => 6]));
+
+        $member = $this->capture(static fn() => handleMembersCollection(self::ADMIN))->payload['member'];
+
+        $this->assertFalse($member['beitragClubBezahlt']);
+        $this->assertSame(0, $this->countRows('mitglied_zahlung', 'mitglied_id = 6'));
     }
 
     /** Der Sollbeitrag steht in paidAmountDefaults, nicht mehr in der Datenbank. */
@@ -294,10 +305,53 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertTrue($member['beitragClubBezahlt']);
         $this->assertSame(30.0, $member['gezahlterBetragClub']);
         $this->assertSame('2026-03-17', $row['einzahlung_club_am']);
+        $this->assertSame('2026', (string) $row['beitragsjahr']);
         $this->assertSame(
             ['beitragClubBezahlt', 'gezahlterBetragClub', 'einzahlungClubAm'],
             array_column($audit, 'field')
         );
+    }
+
+    public function testMemberResourceKeepsOlderPaymentsAndUsesCurrentBeitragsjahr(): void
+    {
+        TestDatabase::insertMemberRow(3, 'Müller', 'Anna');
+        db()->prepare(
+            'INSERT INTO mitglied_zahlung (mitglied_id, beitragsjahr, beitrag_club_bezahlt, gezahlter_betrag_club) '
+            . 'VALUES (?, ?, ?, ?)'
+        )->execute([3, 2025, 1, 25]);
+
+        $before = $this->capture(static fn() => handleMemberResource(3, self::ADMIN))->payload['member'];
+        $this->assertFalse($before['beitragClubBezahlt']);
+
+        $this->request('PATCH', ['beitragClubBezahlt' => true, 'gezahlterBetragClub' => 30]);
+        $this->capture(static fn() => handleMemberResource(3, self::ADMIN));
+
+        $rows = db()->query(
+            'SELECT beitragsjahr, gezahlter_betrag_club FROM mitglied_zahlung WHERE mitglied_id = 3 ORDER BY beitragsjahr'
+        )->fetchAll();
+        $this->assertSame(['2025', '2026'], array_map(static fn(array $row): string => (string) $row['beitragsjahr'], $rows));
+        $this->assertSame(['25.00', '30.00'], array_map(static fn(array $row): string => (string) $row['gezahlter_betrag_club'], $rows));
+    }
+
+    public function testMemberResourceDeletesEmptyCurrentPaymentButKeepsOlderYear(): void
+    {
+        TestDatabase::insertMemberRow(3, 'Müller', 'Anna');
+        db()->exec(
+            'INSERT INTO mitglied_zahlung (mitglied_id, beitragsjahr, beitrag_club_bezahlt, gezahlter_betrag_club, einzahlung_club_am) VALUES
+             (3, 2025, 1, 25, "2024-11-15"),
+             (3, 2026, 1, 30, "2025-11-15")'
+        );
+        $this->request('PATCH', [
+            'beitragClubBezahlt' => false,
+            'gezahlterBetragClub' => 0,
+            'einzahlungClubAm' => null,
+        ]);
+
+        $member = $this->capture(static fn() => handleMemberResource(3, self::ADMIN))->payload['member'];
+        $years = db()->query('SELECT beitragsjahr FROM mitglied_zahlung WHERE mitglied_id = 3 ORDER BY beitragsjahr')->fetchAll();
+
+        $this->assertFalse($member['beitragClubBezahlt']);
+        $this->assertSame(['2025'], array_map(static fn(array $row): string => (string) $row['beitragsjahr'], $years));
     }
 
     public function testMemberResourceUpdateWithoutRealChangeWritesNoAuditEntry(): void

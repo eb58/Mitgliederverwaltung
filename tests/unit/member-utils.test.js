@@ -10,8 +10,6 @@ import {
   formatDateDE,
   formatIsoDate,
   getBirthDateRangeForAgeBucket,
-  getBusinessYearRange,
-  isDateInRange,
   normalizeGroupText,
   normalizePhotoFileName,
   parseIsoDate,
@@ -21,30 +19,17 @@ import {
   percent,
   retryAsync,
   roundCurrency,
-  sumPaymentsInBusinessYear
+  sumPayments
 } from "../../src/member-utils.js";
 
 describe("Datumslogik", () => {
-  it("bestimmt das Geschäftsjahr von November bis Oktober", () => {
-    expect(getBusinessYearRange(new Date(2026, 0, 15))).toEqual({ from: "2025-11-01", to: "2026-10-31" });
-    expect(getBusinessYearRange(new Date(2026, 10, 1))).toEqual({ from: "2026-11-01", to: "2027-10-31" });
-  });
-
-  it("behandelt die Grenzen des Geschäftsjahres inklusive", () => {
-    expect(isDateInRange("2025-11-01", "2025-11-01", "2026-10-31")).toBe(true);
-    expect(isDateInRange("2026-10-31", "2025-11-01", "2026-10-31")).toBe(true);
-    expect(isDateInRange("2026-11-01", "2025-11-01", "2026-10-31")).toBe(false);
-    expect(isDateInRange("31.10.2026", "2025-11-01", "2026-10-31")).toBe(false);
-  });
-
-  it("summiert nur Zahlungen im gewählten Geschäftsjahr", () => {
+  it("summiert alle vom Backend für das Beitragsjahr gelieferten Zahlungen", () => {
     const members = [
-      { amount: 10, paidAt: "2025-10-31" },
-      { amount: "12.50", paidAt: "2025-11-01" },
-      { amount: 7.5, paidAt: "2026-10-31" },
-      { amount: 99, paidAt: "2026-11-01" }
+      { amount: 10, paidAt: "2025-11-01" },
+      { amount: "12.50", paidAt: "2025-12-31" },
+      { amount: 7.5, paidAt: "2026-01-01" }
     ];
-    expect(sumPaymentsInBusinessYear(members, "amount", "paidAt", { from: "2025-11-01", to: "2026-10-31" })).toBe(20);
+    expect(sumPayments(members, "amount")).toBe(30);
   });
 
   it("normalisiert deutsche und ISO-Datumswerte", () => {

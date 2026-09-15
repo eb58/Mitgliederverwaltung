@@ -791,6 +791,12 @@ function zahlungsFields(): array
     ];
 }
 
+/** Das Beitragsjahr wird bewusst fachlich umgestellt und nicht aus dem Datum abgeleitet. */
+function aktuellesBeitragsjahr(): int
+{
+    return 2026;
+}
+
 function weihnachtsessenFields(): array
 {
     return [
@@ -917,7 +923,8 @@ function baseSelect(): string
        FROM mitglied_funktion mf WHERE mf.mitglied_id = m.id) AS funktionen,
       EXISTS (SELECT 1 FROM mitglied_passbild mp WHERE mp.mitglied_id = m.id) AS has_passbild_in_db
       FROM mitglied m
-      LEFT JOIN mitglied_zahlung mz ON mz.mitglied_id = m.id
+      LEFT JOIN mitglied_zahlung mz
+        ON mz.mitglied_id = m.id AND mz.beitragsjahr = " . aktuellesBeitragsjahr() . "
       LEFT JOIN mitglied_weihnachtsessen mw ON mw.mitglied_id = m.id";
 }
 
@@ -1316,7 +1323,23 @@ function updateMemberColumns(int $id, array $patch): void
 
 function updateMemberZahlungen(int $memberId, array $values): void
 {
-    updateMemberSideTable('mitglied_zahlung', zahlungsFields(), $memberId, $values);
+    $fields = array_intersect_key(zahlungsFields(), $values);
+    if (!$fields) return;
+    $columns = array_values($fields);
+    $placeholders = implode(', ', array_fill(0, count($columns) + 2, '?'));
+    $updates = implode(', ', array_map(static fn(string $column): string => $column . ' = VALUES(' . $column . ')', $columns));
+    db()->prepare(
+        'INSERT INTO mitglied_zahlung (mitglied_id, beitragsjahr, ' . implode(', ', $columns) . ') '
+        . 'VALUES (' . $placeholders . ') ON DUPLICATE KEY UPDATE ' . $updates
+    )->execute([$memberId, aktuellesBeitragsjahr(), ...array_map(static fn(string $key): mixed => $values[$key], array_keys($fields))]);
+    db()->prepare(
+        'DELETE FROM mitglied_zahlung
+         WHERE mitglied_id = ? AND beitragsjahr = ?
+           AND beitrag_club_bezahlt = 0 AND betrag_club_bar = 0
+           AND beitrag_computer_bezahlt = 0 AND betrag_computer_bar = 0
+           AND gezahlter_betrag_club = 0 AND einzahlung_club_am IS NULL
+           AND gezahlter_betrag_computer = 0 AND einzahlung_computer_am IS NULL'
+    )->execute([$memberId, aktuellesBeitragsjahr()]);
 }
 
 function updateMemberWeihnachtsessen(int $memberId, array $values): void

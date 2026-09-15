@@ -3,6 +3,7 @@ export const interestGroupMap = {};
 export const seniorenclubsMap = [];
 export const austrittsgrundMap = {};
 export const funktionsMap = {};
+export const beitragsjahr = 2026;
 
 export const christmasChoiceMap = {
   0: "Nein",

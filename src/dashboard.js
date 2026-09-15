@@ -1,5 +1,5 @@
 import Chart from "chart.js/auto";
-import { germanCollator, interestGroupMap } from "./member-config.js";
+import { beitragsjahr, germanCollator, interestGroupMap } from "./member-config.js";
 import {
   formatMemberName,
   getEntriesPerYear,
@@ -18,9 +18,8 @@ import {
   formatCurrency,
   formatDateDE,
   formatIsoDate,
-  getBusinessYearRange,
   percent,
-  sumPaymentsInBusinessYear
+  sumPayments
 } from "./member-utils.js";
 import { state } from "./state.js";
 import { setText } from "./ui.js";
@@ -271,6 +270,12 @@ export const createDashboard = ({
     const computerMembers = clubMembers.filter(isComputerGroupMember);
     const computerTotal = computerMembers.length;
     const computerPaid = computerMembers.filter(member => asBoolean(member.beitragComputerBezahlt)).length;
+    setText("metricClubPaidLabel", `Club bezahlt ${beitragsjahr}`);
+    setText("metricClubOpenLabel", `Club offen ${beitragsjahr}`);
+    setText("metricComputerPaidLabel", `Computergruppe bezahlt ${beitragsjahr}`);
+    setText("metricComputerOpenLabel", `Computergruppe nicht bezahlt ${beitragsjahr}`);
+    setText("metricClubPaymentsLabel", `Einzahlungen Club ${beitragsjahr}`);
+    setText("metricComputerPaymentsLabel", `Einzahlungen Computerclub ${beitragsjahr}`);
     setText("metricTotal", String(total));
     setText("metricGuestCount", String(guests));
     setText("metricClubPaid", `${clubPaid} (${percent(clubPaid, total)}%)`);
@@ -278,9 +283,8 @@ export const createDashboard = ({
     setText("metricComputerPaid", `${computerPaid} (${percent(computerPaid, computerTotal)}%)`);
     setText("metricClubOpen", `${openClubPayments.length} (${percent(openClubPayments.length, total)}%)`);
     setText("metricComputerOpen", `${computerTotal - computerPaid} (${percent(computerTotal - computerPaid, computerTotal)}%)`);
-    const businessYearRange = getBusinessYearRange();
-    setText("metricClubBusinessYearSum", formatCurrency(sumPaymentsInBusinessYear(clubMembers, "gezahlterBetragClub", "einzahlungClubAm", businessYearRange)));
-    setText("metricComputerBusinessYearSum", formatCurrency(sumPaymentsInBusinessYear(computerMembers, "gezahlterBetragComputer", "einzahlungComputerAm", businessYearRange)));
+    setText("metricClubBeitragsjahrSum", formatCurrency(sumPayments(clubMembers, "gezahlterBetragClub")));
+    setText("metricComputerBeitragsjahrSum", formatCurrency(sumPayments(computerMembers, "gezahlterBetragComputer")));
 
     const genderCounts = { m: 0, w: 0, unknown: 0 };
     const ages = [];
