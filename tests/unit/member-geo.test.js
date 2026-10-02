@@ -45,10 +45,15 @@ describe("member-geo", () => {
     const schoenfliess = { address: { postcode: "16567", village: "Schönfließ", municipality: "Mühlenbecker Land" } };
     expect(addressWarning({ plz: "16567", ort: "Schönfliess" }, schoenfliess)).toBe(null);
     expect(addressWarning({ plz: "16567", ort: "Mühlenbecker Land" }, schoenfliess)).toBe(null);
-    expect(addressWarning({ plz: "13469", ort: "Berlin" }, schoenfliess)).toBe("PLZ 13469 passt nicht zur Adresse – laut OpenStreetMap: 16567 Schönfließ.");
-    expect(addressWarning({ plz: "16567", ort: "Berlin" }, schoenfliess)).toContain("Ort „Berlin“ passt nicht");
+    expect(addressWarning({ plz: "13469", ort: "Berlin" }, schoenfliess)).toEqual({ field: "plz", message: "PLZ 13469 passt nicht zur Adresse – laut OpenStreetMap: 16567 Schönfließ.", suggestion: { plz: "16567", ort: "Schönfließ" } });
+    expect(addressWarning({ plz: "16567", ort: "Berlin" }, schoenfliess).message).toContain("Ort „Berlin“ passt nicht");
     expect(addressWarning({ plz: "13469", ort: "Berlin" }, { address: { postcode: "13469", city: "Berlin", suburb: "Lübars" } })).toBe(null);
     expect(addressWarning({}, {})).toBe(null);
+    const roadOnly = { address: { road: "Zehntwerderweg", postcode: "13469", city: "Berlin", suburb: "Lübars" } };
+    const unknownNumber = addressWarning({ strasse: "Zehntwerderweg 5371 a", plz: "13469", ort: "Berlin" }, roadOnly);
+    expect(unknownNumber.field).toBe("strasse");
+    expect(unknownNumber.message).toContain("Zehntwerderweg (13469 Berlin), aber nicht die Hausnummer 5371 a");
+    expect(addressWarning({ strasse: "Zehntwerderweg", plz: "13469", ort: "Berlin" }, roadOnly)).toBe(null);
   });
 
   it("findet den naechsten Punkt im Umkreis", () => {

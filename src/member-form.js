@@ -6,6 +6,13 @@ import { state } from "./state.js";
 import { showToast } from "./ui.js";
 
 const ADDRESS_FIELDS = ["strasse", "plz", "ort"];
+const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+// "Kontakt › PLZ" fuer den Hinweisbereich
+const fieldPath = fieldKey => {
+  const section = formSections.find(item => [...(item.fieldKeys || []), ...(item.groups || []).flatMap(group => group.fieldKeys)].includes(fieldKey));
+  const label = fieldDefinitions.find(field => field.key === fieldKey)?.label || fieldKey;
+  return section ? `${section.label} › ${label}` : label;
+};
 
 export const createMemberForm = ({
   checkAddress,
@@ -24,8 +31,14 @@ export const createMemberForm = ({
   let modal = null;
   // Ungespeicherte Eingaben: Schliessen nur nach Rueckfrage
   let dirty = false;
+  // Was nach dem Verwerfen noch passieren soll (z.B. Sprung zur Karte)
+  let afterDiscard = null;
   // Stand beim Oeffnen: Warnungen gelten nur fuer geaenderte Felder
   let originalMember = null;
+  // Warnungen, die der Nutzer gesehen hat: ein zweiter Klick auf "Trotzdem speichern" speichert
+  let acknowledgedHints = null;
+  // Ergebnis der (langsamen) OSM-Adresspruefung je Anschrift, damit der zweite Klick nicht erneut wartet
+  let addressCheck = { key: null, result: null };
   let selectedPhotoFile = null;
   let selectedPhotoObjectUrl = null;
 
@@ -410,8 +423,9 @@ export const createMemberForm = ({
     mapItem.innerHTML = `<button type="button" id="memberShowOnMapBtn" class="btn member-form-map-btn" title="Wohnort auf der Karte zeigen"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Auf Karte zeigen</button>`;
     mapItem.querySelector("button").addEventListener("click", () => {
       const memberId = state.editingId;
+      // Bei ungespeicherten Aenderungen erst nach "Verwerfen" zur Karte
+      if (dirty) afterDiscard = () => showOnMap(memberId);
       modal.hide();
-      // Bei ungespeicherten Aenderungen kann das Schliessen abgelehnt worden sein
       if (!dirty) showOnMap(memberId);
     });
     tabs.appendChild(mapItem);
@@ -503,10 +517,72 @@ export const createMemberForm = ({
       container.insertAdjacentHTML("beforeend", `<div class="member-form-feedback member-form-feedback--${kind}"></div>`);
       container.lastElementChild.textContent = message;
     });
-    const pane = entries.map(({ field }) => fieldContainer(field)?.closest(".tab-pane")).find(Boolean);
+    const first = entries.find(({ field }) => fieldContainer(field));
+    if (first) showTabOf(first.field);
+  };
+
+  const submitButton = () => document.querySelector('#memberForm button[type="submit"]');
+  const showTabOf = field => {
+    const container = fieldContainer(field);
+    const pane = container?.closest(".tab-pane");
     const tab = pane && document.querySelector(`#memberFormTabs [data-bs-target="#${pane.id}"]`);
     if (tab) Tab.getOrCreateInstance(tab).show();
+    return container;
   };
+  const resetSubmitButton = () => {
+    acknowledgedHints = null;
+    submitButton().textContent = "Speichern";
+    submitButton().classList.replace("btn-warning", "btn-primary");
+  };
+  const hideReview = () => {
+    document.getElementById("memberFormReview").hidden = true;
+    resetSubmitButton();
+  };
+  // Nach einer Korrektur: Hinweise zu diesem Feld entfernen; jede Aenderung verlangt eine neue Pruefung ("Speichern")
+  const clearReviewFor = field => {
+    const review = document.getElementById("memberFormReview");
+    if (review.hidden) return;
+    review.querySelectorAll("li[data-fields]").forEach(item => { if (item.dataset.fields.split(" ").includes(field)) item.remove(); });
+    if (!review.querySelector("li")) hideReview();
+    else resetSubmitButton();
+  };
+  const showReview = (kind, entries) => {
+    const review = document.getElementById("memberFormReview");
+    const isError = kind === "error";
+    review.className = `member-form-review member-form-review--${kind}`;
+    review.innerHTML = `
+      <div class="member-form-review__head">
+        <strong>${isError ? "Bitte korrigieren" : "Bitte prüfen"}</strong>
+        <span>${isError ? "Diese Angaben können so nicht gespeichert werden." : "Diese Angaben sind ungewöhnlich. Korrigieren oder mit „Trotzdem speichern“ übernehmen."}</span>
+      </div>
+      <ul class="member-form-review__list">${entries.map((entry, index) => `
+        <li data-fields="${escapeHtml(entry.address ? ADDRESS_FIELDS.join(" ") : entry.field)}">
+          <div><span class="member-form-review__field">${escapeHtml(fieldPath(entry.field))}</span> ${escapeHtml(entry.message)}</div>
+          <div class="member-form-review__actions">
+            ${entry.suggestion ? `<button type="button" class="btn btn-sm btn-outline-dark" data-review-apply="${index}">${escapeHtml([entry.suggestion.plz, entry.suggestion.ort].filter(Boolean).join(" "))} übernehmen</button>` : ""}
+            <button type="button" class="btn btn-sm btn-link" data-review-field="${escapeHtml(entry.field)}">Zum Feld</button>
+          </div>
+        </li>`).join("")}
+      </ul>`;
+    review.hidden = false;
+    review.querySelectorAll("[data-review-field]").forEach(button => button.addEventListener("click", () => {
+      showTabOf(button.dataset.reviewField)?.querySelector("input, select, textarea")?.focus();
+    }));
+    review.querySelectorAll("[data-review-apply]").forEach(button => button.addEventListener("click", () => {
+      const { suggestion } = entries[Number(button.dataset.reviewApply)];
+      [["plz", suggestion.plz], ["ort", suggestion.ort]].filter(([, value]) => value).forEach(([field, value]) => {
+        const input = document.getElementById(`field-${field}`);
+        input.value = value;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    }));
+    if (!isError) {
+      submitButton().textContent = "Trotzdem speichern";
+      submitButton().classList.replace("btn-primary", "btn-warning");
+    }
+    review.scrollIntoView({ block: "nearest" });
+  };
+  const hintKey = hints => hints.map(hint => `${hint.field}:${hint.message}`).join("|");
 
   const handleSubmit = async event => {
     event.preventDefault();
@@ -515,18 +591,28 @@ export const createMemberForm = ({
     const { errors, warnings } = validateMember(formData, { original: originalMember, members: state.members });
     if (errors.length) {
       markFields(errors, "error");
-      showToast(!formData.name || !formData.vorname ? "Name und Vorname sind Pflichtfelder." : "Bitte die markierten Felder prüfen.");
+      showReview("error", errors);
+      if (!formData.name || !formData.vorname) showToast("Name und Vorname sind Pflichtfelder.");
       return;
     }
     // Adresse nur bei Aenderung gegen OpenStreetMap pruefen (dauert bis zu drei Sekunden)
     const addressChanged = formData.strasse && (!originalMember || ADDRESS_FIELDS.some(field => (formData[field] || "") !== (originalMember[field] || "")));
-    const submitButton = document.querySelector('#memberForm button[type="submit"]');
-    submitButton.disabled = true;
-    const addressHint = addressChanged ? await checkAddress(formData) : null;
-    submitButton.disabled = false;
-    const hints = [...warnings, ...(addressHint ? [{ field: "strasse", message: addressHint }] : [])];
-    if (hints.length && !confirm(`Bitte prüfen:\n\n• ${hints.map(hint => hint.message).join("\n• ")}\n\nTrotzdem speichern?`)) {
+    const addressKey = ADDRESS_FIELDS.map(field => formData[field] || "").join("|");
+    if (addressChanged && addressCheck.key !== addressKey) {
+      const button = submitButton();
+      const label = button.textContent;
+      button.disabled = true;
+      button.textContent = "Adresse wird geprüft …";
+      addressCheck = { key: addressKey, result: await checkAddress(formData) };
+      button.disabled = false;
+      button.textContent = label;
+    }
+    const addressHint = addressChanged ? addressCheck.result : null;
+    const hints = [...warnings, ...(addressHint ? [{ field: "strasse", ...addressHint, address: true }] : [])];
+    if (hints.length && hintKey(hints) !== acknowledgedHints) {
       markFields(hints, "warning");
+      showReview("warning", hints);
+      acknowledgedHints = hintKey(hints);
       return;
     }
     if (state.editingId === null) {
@@ -574,8 +660,11 @@ export const createMemberForm = ({
     clearSelectedPhoto();
     fill(member, isNew);
     clearFieldMarks();
+    hideReview();
+    addressCheck = { key: null, result: null };
     originalMember = isNew ? null : cloneMember(member);
     dirty = false;
+    toggleDiscardBar(false);
     renderMemberHistory([], {
       message: isNew
         ? "Änderungen werden nach dem ersten Speichern protokolliert."
@@ -587,6 +676,14 @@ export const createMemberForm = ({
     modal.show();
   };
 
+  // Statt Browser-Dialog: Leiste im Fuss der Maske mit Verwerfen / Weiter bearbeiten (Speichern bleibt daneben)
+  const toggleDiscardBar = show => {
+    document.getElementById("memberFormDiscard").hidden = !show;
+    document.querySelector("#memberModal .member-form-cancel").hidden = show;
+    if (show) document.querySelector('#memberFormDiscard [data-discard="cancel"]').focus();
+    else afterDiscard = null;
+  };
+
   const init = () => {
     build();
     modal ||= new Modal(document.getElementById("memberModal"));
@@ -596,12 +693,26 @@ export const createMemberForm = ({
       ["input", "change"].forEach(type => form.addEventListener(type, event => {
         dirty = true;
         const container = event.target.closest?.("div[data-field-key]");
-        if (container && !event.target.matches("[type=file]")) clearFieldMarks(container);
+        if (container && !event.target.matches("[type=file]")) {
+          clearFieldMarks(container);
+          clearReviewFor(container.dataset.fieldKey);
+        }
       }));
       // Gilt fuer Kreuz, Abbrechen, Esc, Klick neben den Dialog und den Kartenknopf
       document.getElementById("memberModal").addEventListener("hide.bs.modal", event => {
-        if (dirty && !confirm("Die Änderungen sind noch nicht gespeichert. Trotzdem schließen und die Änderungen verwerfen?")) event.preventDefault();
-        else dirty = false;
+        if (!dirty) return;
+        event.preventDefault();
+        toggleDiscardBar(true);
+      });
+      document.getElementById("memberFormDiscard").addEventListener("click", event => {
+        const action = event.target.closest("[data-discard]")?.dataset.discard;
+        if (!action) return;
+        const next = afterDiscard;
+        toggleDiscardBar(false);
+        if (action !== "confirm") return;
+        dirty = false;
+        modal.hide();
+        next?.();
       });
       window.addEventListener("beforeunload", event => { if (dirty) event.preventDefault(); });
       form.dataset.memberFormWired = "true";

@@ -977,43 +977,51 @@ test("Mitgliedsmaske fragt vor dem Verwerfen ungespeicherter Änderungen nach", 
   await openAuthenticatedApp(page);
   await page.locator("#overview-tab").click();
   const modal = page.locator("#memberModal");
+  const discardBar = page.locator("#memberFormDiscard");
   const openAnna = async () => {
     await page.locator('#overviewGrid [row-id="1"] .edit-icon-btn').click();
     await expect(modal).toBeVisible();
   };
-  const dialogs = [];
-  page.on("dialog", dialog => dialogs.push(dialog));
+  let browserDialog = false;
+  page.on("dialog", dialog => { browserDialog = true; dialog.dismiss(); });
 
   // Ohne Aenderung schliesst der Dialog ohne Rueckfrage
   await openAnna();
   await page.locator("#memberModal .btn-close").click();
   await expect(modal).toBeHidden();
-  expect(dialogs).toHaveLength(0);
 
-  // Mit Aenderung: Abbrechen der Rueckfrage laesst den Dialog offen
+  // Mit Aenderung: Leiste statt Browser-Dialog; "Weiter bearbeiten" behaelt die Eingabe
   await openAnna();
   await page.locator("#field-vorname").fill("Annette");
-  page.once("dialog", dialog => dialog.dismiss());
-  await page.locator("#memberModal .btn-close").click();
-  await expect.poll(() => dialogs.length).toBe(1);
+  await page.locator("#memberModal .member-form-cancel").click();
+  await expect(discardBar).toBeVisible();
+  await expect(discardBar).toContainText("Es gibt ungespeicherte Änderungen.");
+  await expect(page.locator("#memberModal .member-form-cancel")).toBeHidden();
+  await discardBar.getByRole("button", { name: "Weiter bearbeiten" }).click();
+  await expect(discardBar).toBeHidden();
   await expect(modal).toBeVisible();
   await expect(page.locator("#field-vorname")).toHaveValue("Annette");
 
-  // Bestaetigen verwirft die Aenderung; der Kartenknopf fragt ebenfalls nach
-  page.once("dialog", dialog => dialog.accept());
-  await page.locator("#memberModal .modal-footer .btn-outline-secondary").click();
+  // Das Kreuz fragt ebenfalls, "Verwerfen" schliesst und verwirft
+  await page.locator("#memberModal .btn-close").click();
+  await discardBar.getByRole("button", { name: "Verwerfen" }).click();
   await expect(modal).toBeHidden();
-  expect(dialogs[1].message()).toContain("noch nicht gespeichert");
   await openAnna();
   await expect(page.locator("#field-vorname")).toHaveValue("Anna");
+  await expect(discardBar).toBeHidden();
+
+  // Kartenknopf: erst nach "Verwerfen" zur Karte
   await page.locator("#field-vorname").fill("Annette");
-  page.once("dialog", dialog => dialog.dismiss());
   await page.locator("#memberShowOnMapBtn").click();
-  await expect(modal).toBeVisible();
+  await expect(discardBar).toBeVisible();
   await expect(page.locator("#overview-tab")).toHaveClass(/active/);
+  await discardBar.getByRole("button", { name: "Verwerfen" }).click();
+  await expect(modal).toBeHidden();
+  await expect(page.locator("#member-map-tab")).toHaveClass(/active/);
+  expect(browserDialog).toBe(false);
 });
 
-test("Plausibilitätsprüfung markiert Fehler und fragt bei abweichender Adresse nach", async ({ page }) => {
+test("Plausibilitätsprüfung zeigt Fehler und Warnungen im Hinweisbereich der Maske", async ({ page }) => {
   await openAuthenticatedApp(page);
   const saved = [];
   await page.route("**/mitgliederverwaltung/php-api/index.php/api/members/1", route => {
@@ -1022,29 +1030,63 @@ test("Plausibilitätsprüfung markiert Fehler und fragt bei abweichender Adresse
   });
   // OSM kennt die Strasse nur in Schoenfliess
   await page.route("https://nominatim.openstreetmap.org/search*", route => json(route, [{ lon: "13.318", lat: "52.644", address: { house_number: "32", postcode: "16567", village: "Schönfließ" } }]));
-  await page.locator("#overview-tab").click();
-  await page.locator('#overviewGrid [row-id="1"] .edit-icon-btn').click();
+  const review = page.locator("#memberFormReview");
+  const submit = page.locator('#memberForm button[type="submit"]');
+  const openAnna = async () => {
+    await page.locator("#overview-tab").click();
+    await page.locator('#overviewGrid [row-id="1"] .edit-icon-btn').click();
+    await expect(page.locator("#memberModal")).toBeVisible();
+  };
+  await openAnna();
 
-  // Fehler: blockiert, markiert das Feld und springt zum Reiter
+  // Fehler: blockiert, nennt Reiter und Feld, markiert das Feld und springt zum Reiter
   await page.locator("#member-form-kontakt-tab").click();
   await page.locator("#field-plz").fill("1346");
   await page.locator("#member-form-basis-tab").click();
-  await page.locator('#memberForm button[type="submit"]').click();
-  await expect(page.locator(".toast-item__message").last()).toHaveText("Bitte die markierten Felder prüfen.");
+  await submit.click();
+  await expect(review).toHaveClass(/member-form-review--error/);
+  await expect(review).toContainText("Bitte korrigieren");
+  await expect(review).toContainText("Kontakt › PLZ");
   await expect(page.locator("#member-form-kontakt-tab")).toHaveClass(/active/);
   await expect(page.locator('div[data-field-key="plz"] .member-form-feedback--error')).toHaveText("PLZ muss aus genau 5 Ziffern bestehen.");
   await page.locator("#field-plz").fill("13469");
   await expect(page.locator('div[data-field-key="plz"] .member-form-feedback')).toHaveCount(0);
+  await expect(review).toBeHidden();
 
-  // Warnung: abweichende PLZ laut OSM, Abbrechen markiert gelb, Bestaetigen speichert
-  let message = "";
-  page.once("dialog", dialog => { message = dialog.message(); dialog.dismiss(); });
-  await page.locator('#memberForm button[type="submit"]').click();
-  await expect(page.locator('div[data-field-key="strasse"] .member-form-feedback--warning')).toContainText("laut OpenStreetMap: 16567 Schönfließ");
-  expect(message).toContain("PLZ 13469 passt nicht zur Adresse");
+  // Warnung: OSM schlaegt PLZ und Ort vor, "uebernehmen" fuellt die Felder
+  await submit.click();
+  await expect(review).toHaveClass(/member-form-review--warning/);
+  await expect(review).toContainText("Kontakt › PLZ");
+  await expect(review).toContainText("PLZ 13469 passt nicht zur Adresse");
+  await expect(submit).toHaveText("Trotzdem speichern");
   expect(saved).toHaveLength(0);
-  page.once("dialog", dialog => dialog.accept());
-  await page.locator('#memberForm button[type="submit"]').click();
+  await review.getByRole("button", { name: "16567 Schönfließ übernehmen" }).click();
+  await expect(page.locator("#field-plz")).toHaveValue("16567");
+  await expect(page.locator("#field-ort")).toHaveValue("Schönfließ");
+  await expect(review).toBeHidden();
+  await expect(submit).toHaveText("Speichern");
+  await submit.click();
   await expect(page.locator("#memberModal")).toBeHidden();
-  expect(saved[0]).toMatchObject({ plz: "13469" });
+  expect(saved[0]).toMatchObject({ plz: "16567", ort: "Schönfließ" });
+
+  // "Trotzdem speichern" uebernimmt eine gesehene Warnung beim zweiten Klick
+  await openAnna();
+  await page.locator("#member-form-kontakt-tab").click();
+  await page.locator("#field-telefon").fill("abends");
+  await page.locator("#field-handy").fill("so nicht");
+  await submit.click();
+  await expect(review).toContainText("Kontakt › Telefon");
+  await expect(submit).toHaveText("Trotzdem speichern");
+  // Korrigiertes Feld verschwindet aus der Liste, der Knopf verlangt eine neue Pruefung
+  await page.locator("#field-handy").fill("0171 1234567");
+  await expect(review).not.toContainText("Kontakt › Handy");
+  await expect(review).toContainText("Kontakt › Telefon");
+  await expect(submit).toHaveText("Speichern");
+  await submit.click();
+  await expect(submit).toHaveText("Trotzdem speichern");
+  await page.locator('#memberFormReview [data-review-field="telefon"]').click();
+  await expect(page.locator("#field-telefon")).toBeFocused();
+  await submit.click();
+  await expect(page.locator("#memberModal")).toBeHidden();
+  expect(saved[1]).toMatchObject({ telefon: "abends" });
 });

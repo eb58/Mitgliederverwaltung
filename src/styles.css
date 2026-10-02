@@ -2347,3 +2347,15 @@ body {
 .member-form-feedback--error { color: #b42318; }
 .member-form-feedback--warning { color: #8a5a00; }
 .member-form-field--warning input, .member-form-field--warning select, .member-form-field--warning textarea { border-color: #d99a00; box-shadow: 0 0 0 0.15rem rgba(217, 154, 0, 0.18); }
+.member-form-review { margin-bottom: 1rem; padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid; border-left-width: 5px; }
+.member-form-review--warning { background: #fff8e6; border-color: #f0d9a0; border-left-color: #d99a00; }
+.member-form-review--error { background: #fdecea; border-color: #f3c3bd; border-left-color: #b42318; }
+.member-form-review__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.6rem; margin-bottom: 0.5rem; }
+.member-form-review__head span { color: var(--muted); font-size: 0.9rem; }
+.member-form-review__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.member-form-review__list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 0.75rem; padding: 0.4rem 0.6rem; background: rgba(255, 255, 255, 0.7); border-radius: 6px; }
+.member-form-review__field { font-weight: 600; margin-right: 0.35rem; }
+.member-form-review__actions { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
+.member-form-discard { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-right: auto; padding: 0.35rem 0.5rem 0.35rem 0.85rem; background: #fdecea; border: 1px solid #f3c3bd; border-radius: 8px; }
+.member-form-discard[hidden] { display: none; }
+.member-form-discard__text { font-weight: 600; color: #8a1c12; margin-right: 0.25rem; }

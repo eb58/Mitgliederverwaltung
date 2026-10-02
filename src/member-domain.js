@@ -201,6 +201,12 @@ const isValidIsoDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && Boolean(par
 export const isValidPlz = value => /^\d{5}$/.test(String(value ?? "").trim());
 export const isValidEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value ?? "").trim());
 export const isValidPhone = value => /^\+?[\d\s/()-]+$/.test(String(value ?? "").trim()) && String(value).replace(/\D/g, "").length >= 5;
+// Hausnummer am Ende der Strasse, z.B. "Zehntwerderweg 53 a" -> { number: 53, text: "53 a" }
+export const parseHouseNumber = strasse => {
+  const match = String(strasse ?? "").trim().match(/(\d+)\s*([a-zA-Z])?(?:\s*[-/]\s*\d+\s*[a-zA-Z]?)?$/);
+  return match ? { number: Number(match[1]), text: match[0].trim() } : null;
+};
+const MAX_PLAUSIBLE_HOUSE_NUMBER = 500;
 const nameKey = member => `${(member.name || "").trim().toLowerCase()}|${(member.vorname || "").trim().toLowerCase()}`;
 
 export const validateMember = (member, { original = null, members = [], today = new Date() } = {}) => {
@@ -244,7 +250,9 @@ export const validateMember = (member, { original = null, members = [], today = 
   if (member.strasse && changed("strasse", "plz", "ort")) {
     if (!member.plz) warn("plz", "PLZ fehlt.");
     if (!member.ort) warn("ort", "Ort fehlt.");
-    if (!/\d/.test(member.strasse)) warn("strasse", "Hausnummer fehlt.");
+    const houseNumber = parseHouseNumber(member.strasse);
+    if (!houseNumber) warn("strasse", "Hausnummer fehlt.");
+    else if (houseNumber.number > MAX_PLAUSIBLE_HOUSE_NUMBER) warn("strasse", `Hausnummer ${houseNumber.text} ist ungewöhnlich hoch.`);
   }
   if (member.name && member.vorname && changed("name", "vorname", "geburtstag")) {
     const duplicate = members.find(other => other.id !== member.id && nameKey(other) === nameKey(member)

@@ -24,7 +24,7 @@ export const checkMemberAddress = async member => {
       const result = parseGeocodeResult(results);
       if (result && inBbox(result, REGION_BBOX)) return addressWarning(member, results[0]);
     }
-    return `Die Adresse „${[member.strasse, [member.plz, member.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ")}“ wurde bei OpenStreetMap nicht gefunden.`;
+    return { message: `Die Adresse „${[member.strasse, [member.plz, member.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ")}“ wurde bei OpenStreetMap nicht gefunden.` };
   } catch {
     return null;
   }

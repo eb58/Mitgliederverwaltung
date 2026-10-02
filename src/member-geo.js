@@ -87,14 +87,19 @@ export const nearestIndex = (points, [x, y], maxDist) => points.reduce((best, [p
 }, { index: -1, dist: Infinity }).index;
 
 const normalizePlace = value => String(value ?? "").trim().toLowerCase().replaceAll("ß", "ss");
-// Vergleicht die eingegebene PLZ/Ort mit dem, was OSM zu der Adresse kennt (z.B. "Berlin" statt Schoenfliess)
+// Vergleicht die eingegebene PLZ/Ort mit dem, was OSM zu der Adresse kennt (z.B. "Berlin" statt Schoenfliess).
+// Liefert null oder { field, message, suggestion: { plz, ort } } zum Uebernehmen in die Maske.
 export const addressWarning = (member, hit) => {
   const address = hit?.address ?? {};
   const places = [address.city, address.town, address.village, address.municipality, address.suburb, address.hamlet, address.city_district].filter(Boolean);
-  const where = [address.postcode, address.village || address.town || address.city || address.municipality].filter(Boolean).join(" ");
+  const suggestion = { plz: address.postcode ?? "", ort: address.village || address.town || address.city || address.municipality || "" };
+  const where = [suggestion.plz, suggestion.ort].filter(Boolean).join(" ");
   const plz = String(member.plz ?? "").trim();
   const ort = normalizePlace(member.ort);
-  if (plz && address.postcode && plz !== address.postcode) return `PLZ ${plz} passt nicht zur Adresse – laut OpenStreetMap: ${where}.`;
-  if (ort && places.length && !places.some(place => normalizePlace(place).includes(ort) || ort.includes(normalizePlace(place)))) return `Ort „${member.ort}“ passt nicht zur Adresse – laut OpenStreetMap: ${where}.`;
+  if (plz && address.postcode && plz !== address.postcode) return { field: "plz", message: `PLZ ${plz} passt nicht zur Adresse – laut OpenStreetMap: ${where}.`, suggestion };
+  if (ort && places.length && !places.some(place => normalizePlace(place).includes(ort) || ort.includes(normalizePlace(place)))) return { field: "ort", message: `Ort „${member.ort}“ passt nicht zur Adresse – laut OpenStreetMap: ${where}.`, suggestion };
+  // OSM ist nicht ueberall vollstaendig: nur ein Hinweis, die Strasse selbst gibt es
+  const houseNumber = String(member.strasse ?? "").trim().match(/\d+\s*[a-zA-Z]?$/)?.[0];
+  if (houseNumber && !address.house_number) return { field: "strasse", message: `OpenStreetMap kennt ${address.road || "die Straße"}${where ? ` (${where})` : ""}, aber nicht die Hausnummer ${houseNumber}. Bitte prüfen – OSM ist allerdings nicht überall vollständig.` };
   return null;
 };

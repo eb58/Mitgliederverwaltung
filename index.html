@@ -460,10 +460,16 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
           </div>
           <div class="modal-body">
+            <div id="memberFormReview" class="member-form-review" role="alert" hidden></div>
             <div id="formFields"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+            <div id="memberFormDiscard" class="member-form-discard" role="alert" hidden>
+              <span class="member-form-discard__text">Es gibt ungespeicherte Änderungen.</span>
+              <button type="button" class="btn btn-outline-danger" data-discard="confirm">Verwerfen</button>
+              <button type="button" class="btn btn-outline-secondary" data-discard="cancel">Weiter bearbeiten</button>
+            </div>
+            <button type="button" class="btn btn-outline-secondary member-form-cancel" data-bs-dismiss="modal">Abbrechen</button>
             <button type="submit" class="btn btn-primary">Speichern</button>
           </div>
         </form>

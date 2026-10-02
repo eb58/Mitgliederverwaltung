@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
-import { isValidEmail, isValidPhone, isValidPlz, validateMember } from "../../src/member-domain.js";
+import { isValidEmail, isValidPhone, isValidPlz, parseHouseNumber, validateMember } from "../../src/member-domain.js";
 
 const today = new Date(2026, 9, 2);
 const base = { id: 1, name: "Müller", vorname: "Anna", geburtstag: "1950-02-03", eintrittsdatum: "2020-01-01", strasse: "Alt-Lübars 8", plz: "13469", ort: "Berlin" };
@@ -48,6 +48,10 @@ describe("validateMember", () => {
   it("warnt bei unvollstaendiger Anschrift", () => {
     expect(fields(check({ plz: "", ort: "" }).warnings)).toEqual(["plz", "ort"]);
     expect(fields(check({ strasse: "Alt-Lübars" }).warnings)).toEqual(["strasse"]);
+    expect(check({ strasse: "Zehntwerderweg 5371 a" }).warnings[0].message).toBe("Hausnummer 5371 a ist ungewöhnlich hoch.");
+    expect(check({ strasse: "Zehntwerderweg 53 a" }).warnings).toEqual([]);
+    expect(parseHouseNumber("Hauptstr. 12-14")).toEqual({ number: 12, text: "12-14" });
+    expect(parseHouseNumber("Am Hegewinkel")).toBe(null);
   });
 
   it("warnt vor moeglichen Doppelten", () => {
