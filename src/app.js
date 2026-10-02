@@ -20,6 +20,7 @@ import { createMemberForm } from "./member-form.js";
 import { createMemberHistory } from "./member-history.js";
 import { createReferenceAdmin } from "./reference-admin.js";
 import { createDashboard } from "./dashboard.js";
+import { createMemberMap } from "./member-map.js";
 import { GRID_COLUMN_STATE_PREFIX, createGridTheme, gridApiByTabTarget, gridLocaleText, searchableTabTargets } from "./grid-config.js";
 import {
   austrittsgrundMap,
@@ -65,7 +66,9 @@ const {
   invalidateMemberPhotoCache,
   loadMemberChanges: loadMemberChangesViaApi,
   loadMembers: loadMembersFromApi,
+  loadGeocodeCache,
   loadRecentMemberChanges: loadRecentMemberChangesViaApi,
+  saveGeocode,
   loadReferenceData: loadReferenceDataFromApi,
   loadReferenceItems: loadReferenceItemsFromApi,
   loadUsers: loadUsersFromApi,
@@ -166,6 +169,8 @@ const {
   showHistoricalForExitYear: year => showHistoricalForExitYear(year)
 });
 
+const memberMap = createMemberMap({ openMemberModal: memberId => memberForm.open(memberId), loadGeocodeCache: () => loadGeocodeCache(), saveGeocode: (key, result) => saveGeocode(key, result), resolveMemberPhotoDataUrl: member => resolveMemberPhotoDataUrl(member) });
+
 let uiInitialized = false;
 // Erst nach dem Laden der Stammdaten aufrufen: memberForm.build() baut die Auswahlfelder daraus.
 const initUiOnce = () => {
@@ -258,6 +263,7 @@ const wireUi = () => {
     tabButton.addEventListener("shown.bs.tab", event => {
       updateGlobalSearchVisibility(event.target.dataset.bsTarget);
       syncSidebarGroups(event.target);
+      if (event.target.dataset.bsTarget === "#member-map-pane") memberMap.render();
       if (event.target.dataset.bsTarget === "#changes-pane") {
         refreshRecentChanges({ force: true });
       }

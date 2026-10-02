@@ -157,6 +157,8 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     loadMemberChanges,
     loadMembers,
     loadRecentMemberChanges: () => request("/api/member-changes", { params: { limit: 100 } }),
+    loadGeocodeCache: async () => (await request("/api/geocode-cache"))?.entries ?? {},
+    saveGeocode: (key, result) => request("/api/geocode-cache", { method: "POST", body: { key, result } }),
     loadReferenceData: () => request("/api/reference-data"),
     loadReferenceItems: type => request(`/api/reference-data/${type}`),
     loadUsers: () => request("/api/users"),

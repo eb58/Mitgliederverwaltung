@@ -25,6 +25,8 @@ const members = [
     geschlecht: "w",
     geburtstag: "1960-02-03",
     eintrittsdatum: "2025-11-01",
+    strasse: "Alt-Lübars 8",
+    hasPassbildInDb: true,
     ort: "Berlin",
     clubzugehoerigkeit: 9,
     interessengruppen: [16],
@@ -86,6 +88,7 @@ const json = (route, body, status = 200) => route.fulfill({
 
 const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0, staleToken = "" } = {}) => {
   const currentReferenceData = structuredClone(referenceData);
+  const geocodeEntries = {};
   const participantsByEvent = {
     warnemuende: [{ id: 1, name: "Müller", vorname: "Anna", essensauswahl: "Zander", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }],
     eisbeinessen: [{ id: 1, name: "Müller", vorname: "Anna", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }]
@@ -161,6 +164,15 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
       participants[index] = { ...participants[index], ...request.postDataJSON() };
       return json(route, { participant: participants[index] });
     }
+    if (apiPath === "/api/members/1/photo") {
+      return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64") });
+    }
+    if (apiPath === "/api/geocode-cache") {
+      if (request.method() === "GET") return json(route, { entries: geocodeEntries });
+      const { key, result } = request.postDataJSON();
+      geocodeEntries[key] = result;
+      return json(route, null, 204);
+    }
     if (apiPath === "/api/member-changes") return json(route, { changes: [] });
     if (/^\/api\/members\/\d+\/changes$/.test(apiPath)) return json(route, { changes: [] });
     if (apiPath === "/api/members" && request.method() === "GET") {
@@ -173,6 +185,15 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
     return json(route, { error: `Nicht gemockter E2E-Endpunkt: ${request.method()} ${apiPath}` }, 500);
   });
 };
+
+const mockGeocoding = (page, onRequest = () => {}) => page.route("https://nominatim.openstreetmap.org/search*", route => {
+  onRequest();
+  return route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify([{ lon: "13.3423", lat: "52.6137", address: { house_number: "8" } }])
+  });
+});
 
 const openAuthenticatedApp = async page => {
   await mockMemberApi(page);
@@ -846,4 +867,35 @@ test("Eisbeinessen-Teilnehmerliste lässt sich als PDF herunterladen", async ({ 
   expect(pdf).toContain("(Teilnehmerliste Eisbeinessen) Tj");
   expect(pdf).toContain("(Selbstbeteiligung liegt bei 20 Euro.) Tj");
   expect(pdf.includes("(Essensauswahl) Tj")).toBeFalsy();
+});
+
+test("Karte zeigt aktive Mitglieder mit Adresse und öffnet das Mitglied", async ({ page }) => {
+  let nominatimRequests = 0;
+  await mockGeocoding(page, () => { nominatimRequests += 1; });
+  await openAuthenticatedApp(page);
+  await page.locator("#member-map-tab").click();
+  await expect(page.locator("#memberMapSummary")).toHaveText(/1 von 1 aktiven Mitgliedern auf der Karte \(1 hausnummerngenau\)/);
+  await page.locator(".member-map__dot").hover();
+  await expect(page.locator("#memberMapInfo")).toContainText("Alt-Lübars 8");
+  await expect(page.locator("#memberMapInfo .member-map__photo")).toHaveCount(1);
+  const viewWidth = async () => Number((await page.locator(".member-map__svg").getAttribute("viewBox")).split(" ")[2]);
+  const before = await viewWidth();
+  await page.locator('[data-zoom="in"]').click();
+  expect(await viewWidth()).toBe(before / 2);
+  await page.locator(".member-map__svg").hover();
+  await page.mouse.wheel(0, 100);
+  await expect.poll(viewWidth).toBeGreaterThan(before / 2);
+  await page.locator('[data-zoom="home"]').click();
+  expect(await viewWidth()).toBe(before);
+  await page.locator(".member-map__dot").hover();
+  await page.locator("#memberMapInfo [data-member-id]").click();
+  await expect(page.locator("#memberModal")).toBeVisible();
+
+  // Zweites Oeffnen nutzt die zentral gespeicherten Koordinaten und fragt Nominatim nicht erneut
+  await page.locator("#memberModal .btn-close").click();
+  await expect(page.locator("#memberModal")).toBeHidden();
+  await page.locator("#dashboard-tab").click();
+  await page.locator("#member-map-tab").click();
+  await expect(page.locator(".member-map__dot")).toHaveCount(1);
+  expect(nominatimRequests).toBe(1);
 });

@@ -12,6 +12,8 @@ PATCH  /api/session/password
 GET    /api/members
 POST   /api/members
 GET    /api/member-changes
+GET    /api/geocode-cache
+POST   /api/geocode-cache
 GET    /api/members/{id}
 PUT    /api/members/{id}
 DELETE /api/members/{id}

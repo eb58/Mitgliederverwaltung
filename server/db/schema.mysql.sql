@@ -344,3 +344,15 @@ ALTER TABLE mitglied_zahlung
 ALTER TABLE mitglied_zahlung
   DROP COLUMN beitrag_club_bezahlt,
   DROP COLUMN beitrag_computer_bezahlt;
+
+-- Koordinaten zu Anschriften fuer die Karte (Nominatim-Treffer, vom Browser gemeldet).
+-- Schluessel ist die normalisierte Anschrift, lon/lat NULL = Anschrift nicht gefunden.
+-- Legt ensureGeocodeTable() im Betrieb beim ersten Zugriff selbst an.
+CREATE TABLE adress_koordinate (
+  adresse_key VARCHAR(255) NOT NULL,
+  lon DOUBLE NULL,
+  lat DOUBLE NULL,
+  genau TINYINT(1) NOT NULL DEFAULT 0,
+  ermittelt_am TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (adresse_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

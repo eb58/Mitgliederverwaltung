@@ -61,6 +61,10 @@ try {
         handleMembersCollection($user);
     }
 
+    if ($path === '/api/geocode-cache') {
+        handleGeocodeCache();
+    }
+
     if ($path === '/api/member-changes') {
         handleRecentMemberChanges();
     }

@@ -139,12 +139,13 @@ body {
 
 #mainTabs #dashboard-tab { order: 1; }
 #mainTabs #function-overview-tab { order: 2; }
-#mainTabs #overview-tab { order: 3; }
-#mainTabs #payments-tab { order: 4; }
-#mainTabs #guests-tab { order: 5; }
-#mainTabs #historical-tab { order: 6; }
-#mainTabs #changes-tab { order: 7; }
-#mainTabs .sidebar__group { order: 8; }
+#mainTabs #member-map-tab { order: 3; }
+#mainTabs #overview-tab { order: 4; }
+#mainTabs #payments-tab { order: 5; }
+#mainTabs #guests-tab { order: 6; }
+#mainTabs #historical-tab { order: 7; }
+#mainTabs #changes-tab { order: 8; }
+#mainTabs .sidebar__group { order: 9; }
 
 .sidebar__nav .nav-link {
   display: flex;
@@ -2305,3 +2306,23 @@ body {
     flex-basis: 100%;
   }
 }
+
+.member-map__header { margin-bottom: 1rem; }
+.member-map__layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 1rem; align-items: start; }
+.member-map__host { position: relative; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface-3); }
+.member-map__svg { display: block; width: 100%; aspect-ratio: 1 / 0.62; cursor: grab; touch-action: none; user-select: none; }
+.member-map__svg:active { cursor: grabbing; }
+.member-map__zoom { position: absolute; top: 0.75rem; right: 0.75rem; display: flex; flex-direction: column; gap: 2px; }
+.member-map__zoom button { width: 34px; height: 34px; border: 1px solid var(--border-strong); background: var(--surface); border-radius: 6px; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.member-map__zoom button:hover { background: var(--accent-soft); }
+.member-map__dot { fill: var(--accent-2); stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; opacity: 0.85; cursor: pointer; }
+.member-map__dot--genau { fill: var(--accent); }
+.member-map__dot--strasse { fill: var(--accent-alt); }
+.member-map__dot:hover { opacity: 1; stroke-width: 2.5; }
+.member-map__info, .member-map__side details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
+.member-map__info ul, .member-map__side details ul { margin: 0.5rem 0 0; padding-left: 1.1rem; }
+.member-map__credit { font-size: 0.75rem; margin: 0.5rem 0 0; }
+@media (max-width: 992px) { .member-map__layout { grid-template-columns: 1fr; } }
+.member-map__members { list-style: none; padding-left: 0 !important; }
+.member-map__members li { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+.member-map__photo { width: 72px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); flex-shrink: 0; }

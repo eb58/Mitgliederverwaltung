@@ -1762,3 +1762,66 @@ function handleEventParticipantResource(string $event, int $id): void
     }
     unhandledMethod();
 }
+
+
+const GEOCODE_TABLE_DDL = 'CREATE TABLE IF NOT EXISTS adress_koordinate (
+  adresse_key VARCHAR(255) NOT NULL,
+  lon DOUBLE NULL,
+  lat DOUBLE NULL,
+  genau TINYINT(1) NOT NULL DEFAULT 0,
+  ermittelt_am TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (adresse_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+
+/** Wie ensureEventTable: fehlt die Tabelle, legen wir sie an; sonst lesbarer Hinweis statt 500er. */
+function ensureGeocodeTable(): void
+{
+    if (tableExists('adress_koordinate')) return;
+    try {
+        db()->exec(GEOCODE_TABLE_DDL);
+    } catch (PDOException $error) {
+        error_log((string) $error);
+        throw new ApiError('Tabelle adress_koordinate fehlt und konnte nicht angelegt werden - bitte das Schema aus server/db/schema.mysql.sql einspielen.', 503);
+    }
+    clearSchemaCache();
+}
+
+/** Prueft einen vom Browser gemeldeten Nominatim-Treffer; null = Anschrift nicht gefunden. */
+function normalizeGeocodeInput(array $payload): array
+{
+    $key = trim((string) ($payload['key'] ?? ''));
+    if ($key === '' || strlen($key) > 255) throw new ApiError('Schluessel der Anschrift fehlt oder ist zu lang.', 400);
+    $result = $payload['result'] ?? null;
+    if ($result === null) return [$key, null, null, 0];
+
+    if (!is_array($result) || !is_numeric($result['lon'] ?? null) || !is_numeric($result['lat'] ?? null)) {
+        throw new ApiError('Koordinaten muessen Zahlen sein.', 400);
+    }
+    [$lon, $lat] = [(float) $result['lon'], (float) $result['lat']];
+    if ($lon < -180 || $lon > 180 || $lat < -90 || $lat > 90) throw new ApiError('Koordinaten ausserhalb des gueltigen Bereichs.', 400);
+    $quality = (string) ($result['quality'] ?? '');
+    if (!in_array($quality, ['genau', 'strasse'], true)) throw new ApiError('Genauigkeit muss genau oder strasse sein.', 400);
+    return [$key, $lon, $lat, $quality === 'genau' ? 1 : 0];
+}
+
+function handleGeocodeCache(): void
+{
+    $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'POST']);
+    ensureGeocodeTable();
+
+    if ($method === 'GET') {
+        $entries = [];
+        foreach (db()->query('SELECT adresse_key, lon, lat, genau FROM adress_koordinate')->fetchAll() as $row) {
+            $entries[$row['adresse_key']] = $row['lon'] === null ? null : ['lon' => (float) $row['lon'], 'lat' => (float) $row['lat'], 'quality' => (int) $row['genau'] === 1 ? 'genau' : 'strasse'];
+        }
+        jsonResponse(['entries' => (object) $entries]);
+    }
+
+    [$key, $lon, $lat, $exact] = normalizeGeocodeInput(readJsonBody());
+    db()->prepare(
+        'INSERT INTO adress_koordinate (adresse_key, lon, lat, genau) VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE lon = VALUES(lon), lat = VALUES(lat), genau = VALUES(genau), ermittelt_am = CURRENT_TIMESTAMP'
+    )->execute([$key, $lon, $lat, $exact]);
+    noContent();
+}

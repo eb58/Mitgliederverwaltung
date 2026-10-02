@@ -32,6 +32,10 @@
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           <span class="sidebar__nav-label">Übersicht</span>
         </button>
+        <button class="nav-link sidebar__nav-item" id="member-map-tab" data-bs-toggle="tab" data-bs-target="#member-map-pane" type="button" role="tab" aria-controls="member-map-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+          <span class="sidebar__nav-label">Karte</span>
+        </button>
         <button class="nav-link sidebar__nav-item" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane" type="button" role="tab" aria-controls="overview-pane" aria-selected="false">
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
           <span class="sidebar__nav-label">Mitglieder</span>
@@ -322,6 +326,23 @@
               <div id="functionOverviewSummary" class="function-overview__summary"></div>
             </header>
             <div id="functionOverviewGrid" class="function-overview__grid"></div>
+          </section>
+        </div>
+
+        <div class="tab-pane fade" id="member-map-pane" role="tabpanel" aria-labelledby="member-map-tab" tabindex="0">
+          <section class="member-map">
+            <header class="member-map__header">
+              <h2>Wohnorte der aktiven Mitglieder</h2>
+              <p id="memberMapSummary" class="text-muted mb-0"></p>
+            </header>
+            <div class="member-map__layout">
+              <div id="memberMapHost" class="member-map__host"></div>
+              <aside class="member-map__side">
+                <div id="memberMapInfo" class="member-map__info">Punkt auf der Karte anklicken, um die Mitglieder zu sehen.</div>
+                <div id="memberMapMissing"></div>
+              </aside>
+            </div>
+            <p class="member-map__credit text-muted">Karte: © OpenStreetMap-Mitwirkende</p>
           </section>
         </div>
 
