@@ -2315,9 +2315,12 @@ body {
 .member-map__zoom { position: absolute; top: 0.75rem; right: 0.75rem; display: flex; flex-direction: column; gap: 2px; }
 .member-map__zoom button { width: 34px; height: 34px; border: 1px solid var(--border-strong); background: var(--surface); border-radius: 6px; font-size: 1.2rem; line-height: 1; cursor: pointer; }
 .member-map__zoom button:hover { background: var(--accent-soft); }
-.member-map__dot { fill: var(--accent-2); stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; opacity: 0.85; cursor: pointer; }
-.member-map__dot--genau { fill: var(--accent); }
-.member-map__dot--strasse { fill: var(--accent-alt); }
+.member-map__dot { fill: var(--accent); stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; opacity: 0.85; cursor: pointer; }
+.member-map__dot--gast { fill: var(--accent-2); }
+.member-map__dot--strasse { opacity: 0.55; stroke-dasharray: 2 2; }
+.member-map__legend { font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; gap: 0.4rem; }
+.member-map__swatch { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 50%; background: var(--accent); border: 1.5px solid #fff; box-shadow: 0 0 0 1px var(--border-strong); }
+.member-map__swatch--gast { background: var(--accent-2); margin-left: 0.6rem; }
 .member-map__dot:hover { opacity: 1; stroke-width: 2.5; }
 .member-map__info, .member-map__side details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
 .member-map__info ul, .member-map__side details ul { margin: 0.5rem 0 0; padding-left: 1.1rem; }

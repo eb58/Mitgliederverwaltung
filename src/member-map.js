@@ -19,7 +19,7 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     const host = document.getElementById("memberMapHost");
     const summary = document.getElementById("memberMapSummary");
     const missingHost = document.getElementById("memberMapMissing");
-    const members = state.members.filter(member => isActiveMember(member) && !isGuestMember(member));
+    const members = state.members.filter(isActiveMember);
     // Koordinaten liegen zentral auf dem Server; ohne Server-Antwort suchen wir einfach neu
     const cache = await loadGeocodeCache().catch(() => ({}));
     if (run !== runId) return;
@@ -42,7 +42,7 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     buildPlaces();
 
     let view = homeView(BOUNDS);
-    host.innerHTML = `<svg class="member-map__svg" role="img" aria-label="Wohnorte der aktiven Mitglieder"><g class="member-map__tiles"></g><g class="member-map__dots"></g></svg>
+    host.innerHTML = `<svg class="member-map__svg" role="img" aria-label="Wohnorte der aktiven Mitglieder und Gäste"><g class="member-map__tiles"></g><g class="member-map__dots"></g></svg>
       <div class="member-map__zoom"><button type="button" data-zoom="in" title="Hineinzoomen" aria-label="Hineinzoomen">+</button><button type="button" data-zoom="out" title="Herauszoomen" aria-label="Herauszoomen">−</button><button type="button" data-zoom="home" title="Zurück nach Lübars" aria-label="Zurück nach Lübars">⌂</button><button type="button" data-zoom="all" title="Alle Mitglieder zeigen" aria-label="Alle Mitglieder zeigen">⤢</button></div>`;
     const svg = host.querySelector("svg");
     const tilesLayer = svg.querySelector(".member-map__tiles");
@@ -55,7 +55,7 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     const drawDots = () => {
       dotsLayer.innerHTML = places.map((place, index) => {
         const [x, y] = projectWorld(place);
-        return `<circle class="member-map__dot member-map__dot--${place.quality}" data-index="${index}" data-r="${dotRadius(place)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(dotRadius(place) / pxPerUnit()).toFixed(2)}"></circle>`;
+        return `<circle class="member-map__dot member-map__dot--${place.quality}${place.members.every(isGuestMember) ? " member-map__dot--gast" : ""}" data-index="${index}" data-r="${dotRadius(place)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(dotRadius(place) / pxPerUnit()).toFixed(2)}"></circle>`;
       }).join("");
     };
     const apply = () => {
@@ -71,7 +71,7 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
 
     const showPlace = place => {
       const info = document.getElementById("memberMapInfo");
-      info.innerHTML = `<strong>${escapeHtml(place.strasse)}</strong> ${place.quality === "strasse" ? `<span class="text-muted">· Hausnummer unbekannt, Punkt auf der Straße</span>` : ""}<ul class="member-map__members">${place.members.map(member => `<li data-photo-for="${escapeHtml(member.id)}"><button type="button" class="btn btn-link p-0" data-member-id="${escapeHtml(member.id)}">${escapeHtml(formatMemberName(member))}</button></li>`).join("")}</ul>`;
+      info.innerHTML = `<strong>${escapeHtml(place.strasse)}</strong> ${place.quality === "strasse" ? `<span class="text-muted">· Hausnummer unbekannt, Punkt auf der Straße</span>` : ""}<ul class="member-map__members">${place.members.map(member => `<li data-photo-for="${escapeHtml(member.id)}"><button type="button" class="btn btn-link p-0" data-member-id="${escapeHtml(member.id)}">${escapeHtml(formatMemberName(member))}</button>${isGuestMember(member) ? ` <span class="text-muted">(Gast)</span>` : ""}</li>`).join("")}</ul>`;
       // Passfoto nur, wenn vorhanden; die Anzeige kann inzwischen durch einen anderen Punkt ersetzt sein
       place.members.filter(member => member.hasPassbildInDb).forEach(member => resolveMemberPhotoDataUrl(member).then(url => {
         const item = url && info.querySelector(`[data-photo-for="${CSS.escape(String(member.id))}"]`);
@@ -112,10 +112,10 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     });
 
     const updateSummary = () => {
-      const placed = places.reduce((sum, place) => sum + place.members.length, 0);
-      const exact = places.filter(place => place.quality === "genau").reduce((sum, place) => sum + place.members.length, 0);
+      const shown = members.filter(located);
+      const guests = members.filter(isGuestMember);
       const open = pending().length;
-      summary.textContent = `${placed} von ${members.length} aktiven Mitgliedern auf der Karte (${exact} hausnummerngenau)${open ? ` – Adressen werden einmalig gesucht (ca. 1 pro Sekunde), noch ${open} offen …` : ""}`;
+      summary.textContent = `${shown.filter(member => !isGuestMember(member)).length} von ${members.length - guests.length} Mitgliedern und ${shown.filter(isGuestMember).length} von ${guests.length} Gästen auf der Karte${open ? ` – Adressen werden einmalig gesucht (ca. 1 pro Sekunde), noch ${open} offen …` : ""}`;
       const missing = members.filter(member => !located(member) && (!member.strasse || keyOf(member) in cache));
       missingHost.innerHTML = missing.length
         ? `<details><summary>${missing.length} ohne Kartenposition</summary><ul>${missing.map(member => `<li><button type="button" class="btn btn-link p-0" data-member-id="${escapeHtml(member.id)}">${escapeHtml(formatMemberName(member))}</button> – ${escapeHtml(member.strasse || "keine Straße")} (${member.strasse ? "Adresse nicht gefunden" : "keine Anschrift"})</li>`).join("")}</ul></details>`

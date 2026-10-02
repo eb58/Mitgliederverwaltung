@@ -876,7 +876,8 @@ test("Karte zeigt aktive Mitglieder mit Adresse und öffnet das Mitglied", async
   await mockGeocoding(page, () => { nominatimRequests += 1; });
   await openAuthenticatedApp(page);
   await page.locator("#member-map-tab").click();
-  await expect(page.locator("#memberMapSummary")).toHaveText(/1 von 1 aktiven Mitgliedern auf der Karte \(1 hausnummerngenau\)/);
+  await expect(page.locator("#memberMapSummary")).toHaveText(/1 von 1 Mitgliedern und 0 von 1 Gästen auf der Karte/);
+  await expect(page.locator("#memberMapMissing summary")).toHaveText("1 ohne Kartenposition");
   await page.locator(".member-map__dot").hover();
   await expect(page.locator("#memberMapInfo")).toContainText("Alt-Lübars 8");
   await expect(page.locator("#memberMapInfo .member-map__photo")).toHaveCount(1);
