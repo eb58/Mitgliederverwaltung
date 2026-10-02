@@ -1,15 +1,16 @@
 import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
-import { addressKey, clampView, fitView, geocodeUrl, homeView, inBbox, lonLatToWorld, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "../../src/member-geo.js";
+import { addressKey, clampView, fitView, geocodeUrls, homeView, inBbox, lonLatToWorld, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "../../src/member-geo.js";
 
 describe("member-geo", () => {
   it("bildet Schluessel und Suchadresse", () => {
     expect(addressKey({ strasse: " AEG-Straße  12 ", plz: "13469", ort: "Berlin" })).toBe("aeg-straße 12|13469|berlin");
     expect(addressKey({ strasse: "X" })).toBe("x||");
-    const url = new URL(geocodeUrl({ strasse: "Pichelsdorfer Str. 5", plz: "13595", ort: "Berlin" }));
-    expect(url.hostname).toBe("nominatim.openstreetmap.org");
-    expect(url.searchParams.get("q")).toBe("Pichelsdorfer Str. 5, 13595 Berlin");
-    expect(new URL(geocodeUrl({ strasse: "Weg 1" })).searchParams.get("q")).toBe("Weg 1");
+    const queries = geocodeUrls({ strasse: "Stieleichenstr. 32", plz: "13469", ort: "Berlin" }).map(url => new URL(url));
+    expect(queries[0].hostname).toBe("nominatim.openstreetmap.org");
+    expect(queries.map(url => url.searchParams.get("q"))).toEqual(["Stieleichenstr. 32, 13469 Berlin", "Stieleichenstr. 32, Berlin", "Stieleichenstr. 32"]);
+    expect(geocodeUrls({ strasse: "Weg 1" }).map(url => new URL(url).searchParams.get("q"))).toEqual(["Weg 1"]);
+    expect(geocodeUrls({ strasse: "Weg 1", plz: "13469" }).length).toBe(2);
   });
 
   it("wertet Nominatim-Ergebnisse aus", () => {

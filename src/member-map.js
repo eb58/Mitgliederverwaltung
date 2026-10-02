@@ -1,5 +1,5 @@
 import { formatMemberName, isActiveMember, isGuestMember } from "./member-domain.js";
-import { addressKey, fitView, geocodeUrl, homeView, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "./member-geo.js";
+import { REGION_BBOX, addressKey, fitView, geocodeUrls, homeView, inBbox, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "./member-geo.js";
 import { state } from "./state.js";
 
 const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -7,7 +7,7 @@ const TILE_URL = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png
 
 // Nominatim-Nutzungsbedingungen: max. 1 Anfrage/Sekunde, Ergebnisse zwischenspeichern
 const REQUEST_GAP_MS = 1100;
-const BOUNDS = worldBounds([12.9, 52.2, 13.9, 52.8]);
+const BOUNDS = worldBounds(REGION_BBOX);
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -23,15 +23,17 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     // Koordinaten liegen zentral auf dem Server; ohne Server-Antwort suchen wir einfach neu
     const cache = await loadGeocodeCache().catch(() => ({}));
     if (run !== runId) return;
-    const keyOf = member => addressKey(member);
-    const located = member => member.strasse && cache[keyOf(member)];
-    const pending = () => members.filter(member => member.strasse && !(keyOf(member) in cache));
+    // "2|": seit den Ausweichsuchen werden alte "nicht gefunden" neu gesucht, alte Treffer bleiben gueltig
+    const keyOf = member => `2|${addressKey(member)}`;
+    const hitOf = member => cache[keyOf(member)] ?? cache[addressKey(member)] ?? null;
+    const located = member => member.strasse && hitOf(member);
+    const pending = () => members.filter(member => member.strasse && !(keyOf(member) in cache) && !cache[addressKey(member)]);
 
     let places = [];
     const buildPlaces = () => {
       const byPosition = new Map();
       members.filter(located).forEach(member => {
-        const hit = cache[keyOf(member)];
+        const hit = hitOf(member);
         const key = `${hit.lon},${hit.lat}`;
         (byPosition.get(key) ?? byPosition.set(key, { ...hit, strasse: member.strasse, members: [] }).get(key)).members.push(member);
       });
@@ -126,22 +128,28 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
 
     // Fehlende Adressen nacheinander bei Nominatim erfragen; der Treffer (auch "nicht gefunden") wird gemerkt
     const queue = [...new Map(pending().map(member => [keyOf(member), member])).values()];
-    for (const [index, member] of queue.entries()) {
-      if (run !== runId) return;
+    let requests = 0;
+    for (const member of queue) {
+      let hit = null;
       try {
-        const response = await fetch(geocodeUrl(member));
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        cache[keyOf(member)] = parseGeocodeResult(await response.json());
-        saveGeocode(keyOf(member), cache[keyOf(member)]).catch(() => {});
+        for (const url of geocodeUrls(member)) {
+          if (requests++) await sleep(REQUEST_GAP_MS);
+          if (run !== runId) return;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const result = parseGeocodeResult(await response.json());
+          if (result && inBbox(result, REGION_BBOX)) { hit = result; break; }
+        }
       } catch (error) {
         summary.textContent = `Adresssuche unterbrochen (${error.message}). Beim nächsten Öffnen geht es weiter.`;
         return;
       }
+      cache[keyOf(member)] = hit;
+      saveGeocode(keyOf(member), hit).catch(() => {});
       if (run !== runId) return;
       buildPlaces();
       drawDots();
       updateSummary();
-      if (index < queue.length - 1) await sleep(REQUEST_GAP_MS);
     }
   };
 

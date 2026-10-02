@@ -2,10 +2,17 @@
 // Adresse -> Nominatim-Suche (OSM-Geocoding); Ergebnisse werden pro Anschrift im Browser gemerkt
 export const addressKey = ({ strasse, plz, ort }) => [strasse, plz, ort].map(part => String(part ?? "").trim().toLowerCase().replace(/\s+/g, " ")).join("|");
 
-export const geocodeUrl = ({ strasse, plz, ort }) => {
-  const params = new URLSearchParams({ q: [strasse, [plz, ort].filter(Boolean).join(" ")].filter(Boolean).join(", "), format: "jsonv2", addressdetails: "1", limit: "1", countrycodes: "de", "accept-language": "de" });
-  return `https://nominatim.openstreetmap.org/search?${params}`;
-};
+// Grossraum Berlin; Treffer ausserhalb (z.B. "Hauptstr. 5" in Hessen) verwerfen wir
+export const REGION_BBOX = [12.9, 52.2, 13.9, 52.8];
+
+const nominatimUrl = q => `https://nominatim.openstreetmap.org/search?${new URLSearchParams({ q, format: "jsonv2", addressdetails: "1", limit: "1", countrycodes: "de", "accept-language": "de" })}`;
+
+// Suchvarianten von genau nach grob: eine falsche PLZ oder "Berlin" fuer Schoenfliess verhindert sonst jeden Treffer
+export const geocodeUrls = ({ strasse, plz, ort }) => [...new Set([
+  [strasse, [plz, ort].filter(Boolean).join(" ")],
+  [strasse, ort],
+  [strasse]
+].map(parts => parts.filter(Boolean).join(", ")))].filter(Boolean).map(nominatimUrl);
 
 // genau: Hausnummer gefunden; strasse: nur die Strasse (Mitte der Strasse)
 export const parseGeocodeResult = results => {

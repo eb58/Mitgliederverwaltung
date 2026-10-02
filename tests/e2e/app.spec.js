@@ -186,12 +186,14 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
   });
 };
 
+// Wie bei Adressen im Umland: mit "Berlin" findet Nominatim nichts, erst die Ausweichsuche ohne Ort trifft
 const mockGeocoding = (page, onRequest = () => {}) => page.route("https://nominatim.openstreetmap.org/search*", route => {
   onRequest();
+  const found = !new URL(route.request().url()).searchParams.get("q").includes("Berlin");
   return route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify([{ lon: "13.3423", lat: "52.6137", address: { house_number: "8" } }])
+    body: JSON.stringify(found ? [{ lon: "13.3423", lat: "52.6137", address: { house_number: "8" } }] : [])
   });
 });
 
@@ -897,5 +899,5 @@ test("Karte zeigt aktive Mitglieder mit Adresse und öffnet das Mitglied", async
   await page.locator("#dashboard-tab").click();
   await page.locator("#member-map-tab").click();
   await expect(page.locator(".member-map__dot")).toHaveCount(1);
-  expect(nominatimRequests).toBe(1);
+  expect(nominatimRequests).toBe(2);
 });
