@@ -79,3 +79,9 @@ export const visibleTiles = (view, zoom) => {
   const [x0, x1, y0, y1] = [Math.floor(view.x / size), Math.floor((view.x + view.w) / size), Math.floor(view.y / size), Math.floor((view.y + view.h) / size)];
   return Array.from({ length: x1 - x0 + 1 }, (_, i) => x0 + i).flatMap(x => Array.from({ length: y1 - y0 + 1 }, (_, j) => ({ zoom, x, y: y0 + j, px: x * size, py: (y0 + j) * size, size })));
 };
+
+// Index des naechsten Punkts innerhalb von maxDist (Bildschirmpixel), sonst -1
+export const nearestIndex = (points, [x, y], maxDist) => points.reduce((best, [px, py], index) => {
+  const dist = Math.hypot(px - x, py - y);
+  return dist <= maxDist && dist < best.dist ? { index, dist } : best;
+}, { index: -1, dist: Infinity }).index;

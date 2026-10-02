@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
-import { addressKey, clampView, fitView, geocodeUrls, homeView, inBbox, lonLatToWorld, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "../../src/member-geo.js";
+import { addressKey, clampView, fitView, geocodeUrls, homeView, inBbox, lonLatToWorld, nearestIndex, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "../../src/member-geo.js";
 
 describe("member-geo", () => {
   it("bildet Schluessel und Suchadresse", () => {
@@ -39,6 +39,14 @@ describe("member-geo", () => {
     const tiles = visibleTiles({ x: 200, y: 10, w: 100, h: 62 }, 14);
     expect(tiles).toEqual([{ zoom: 14, x: 0, y: 0, px: 0, py: 0, size: 256 }, { zoom: 14, x: 1, y: 0, px: 256, py: 0, size: 256 }]);
     expect(visibleTiles({ x: 0, y: 0, w: 100, h: 62 }, 15)[0].size).toBe(128);
+  });
+
+  it("findet den naechsten Punkt im Umkreis", () => {
+    const points = [[0, 0], [10, 0], [30, 0]];
+    expect(nearestIndex(points, [8, 1], 15)).toBe(1);
+    expect(nearestIndex(points, [22, 0], 15)).toBe(2);
+    expect(nearestIndex(points, [100, 100], 15)).toBe(-1);
+    expect(nearestIndex([], [0, 0], 15)).toBe(-1);
   });
 
   it("projiziert und passt die Ansicht an die Punkte an", () => {

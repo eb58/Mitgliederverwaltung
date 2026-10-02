@@ -333,13 +333,13 @@
           <section class="member-map">
             <header class="member-map__header">
               <h2>Wohnorte der aktiven Mitglieder und Gäste</h2>
-              <p class="member-map__legend mb-1"><span class="member-map__swatch"></span>Mitglied <span class="member-map__swatch member-map__swatch--gast"></span>Gast</p>
+              <div class="member-map__legend"><span class="member-map__chip"><span class="member-map__swatch"></span>Mitglieder</span><button id="memberMapShowGuests" type="button" class="member-map__chip member-map__chip--toggle" aria-pressed="true" title="Gäste ein- oder ausblenden"><span class="member-map__swatch member-map__swatch--gast"></span>Gäste</button></div>
               <p id="memberMapSummary" class="text-muted mb-0"></p>
             </header>
             <div class="member-map__layout">
               <div id="memberMapHost" class="member-map__host"></div>
               <aside class="member-map__side">
-                <div id="memberMapInfo" class="member-map__info">Punkt auf der Karte anklicken, um die Mitglieder zu sehen.</div>
+                <div id="memberMapInfo" class="member-map__info"></div>
                 <div id="memberMapMissing"></div>
               </aside>
             </div>

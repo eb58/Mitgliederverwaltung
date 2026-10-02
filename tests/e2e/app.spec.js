@@ -878,8 +878,17 @@ test("Karte zeigt aktive Mitglieder mit Adresse und öffnet das Mitglied", async
   await page.locator("#member-map-tab").click();
   await expect(page.locator("#memberMapSummary")).toHaveText(/1 von 1 Mitgliedern und 0 von 1 Gästen auf der Karte/);
   await expect(page.locator("#memberMapMissing summary")).toHaveText("1 ohne Kartenposition");
-  await page.locator(".member-map__dot").hover();
+  await page.locator("#memberMapShowGuests").click();
+  await expect(page.locator("#memberMapShowGuests")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#memberMapSummary")).toHaveText(/1 von 1 Mitgliedern auf der Karte \(Gäste ausgeblendet\)/);
+  await expect(page.locator("#memberMapMissing summary")).toHaveCount(0);
+  await page.locator("#memberMapShowGuests").click();
+  // Hover reagiert schon neben dem Punkt und zeigt dann die Zeigehand
+  const dotBox = await page.locator(".member-map__dot").boundingBox();
+  await page.mouse.move(dotBox.x + dotBox.width / 2 + 10, dotBox.y + dotBox.height / 2);
   await expect(page.locator("#memberMapInfo")).toContainText("Alt-Lübars 8");
+  await expect(page.locator(".member-map__svg")).toHaveClass(/member-map__svg--on-dot/);
+  await expect(page.locator(".member-map__dot")).toHaveClass(/member-map__dot--active/);
   await expect(page.locator("#memberMapInfo .member-map__photo")).toHaveCount(1);
   const viewWidth = async () => Number((await page.locator(".member-map__svg").getAttribute("viewBox")).split(" ")[2]);
   const before = await viewWidth();
@@ -901,4 +910,36 @@ test("Karte zeigt aktive Mitglieder mit Adresse und öffnet das Mitglied", async
   await page.locator("#member-map-tab").click();
   await expect(page.locator(".member-map__dot")).toHaveCount(1);
   expect(nominatimRequests).toBe(2);
+});
+
+test("ausgeblendete Gäste verschwinden auch aus der Anzeige rechts", async ({ page }) => {
+  await mockMemberApi(page);
+  // Nur hier: der Gast wohnt nebenan bzw. mit im Haus von Anna Müller
+  const withGuests = [...members, { ...members[1], id: 6, vorname: "Gerd", name: "Nachbar", strasse: "Alt-Lübars 20" }]
+    .map(member => member.id === 2 ? { ...member, strasse: "Alt-Lübars 8" } : member);
+  await page.route("**/mitgliederverwaltung/php-api/index.php/api/members?*", route => json(route, { members: withGuests }));
+  await page.route("https://nominatim.openstreetmap.org/search*", route => {
+    const nextDoor = new URL(route.request().url()).searchParams.get("q").includes("Lübars 20");
+    return json(route, [{ lon: nextDoor ? "13.3453" : "13.3423", lat: "52.6137", address: { house_number: "8" } }]);
+  });
+  await page.goto("./");
+  await page.locator("#loginUsername").fill("admin");
+  await page.locator("#loginPassword").fill("passwd");
+  await page.locator('#loginForm button[type="submit"]').click();
+  await page.locator("#member-map-tab").click();
+  await expect(page.locator("#memberMapSummary")).toHaveText(/1 von 1 Mitgliedern und 2 von 2 Gästen auf der Karte/);
+
+  const info = page.locator("#memberMapInfo");
+  await page.locator(".member-map__dot--gast").hover();
+  await expect(info).toContainText("Gerd Nachbar");
+  await page.locator("#memberMapShowGuests").click();
+  await expect(info).not.toContainText("Gerd Nachbar");
+  await expect(info).toContainText("Mit der Maus");
+
+  await page.locator("#memberMapShowGuests").click();
+  await page.locator(".member-map__dot:not(.member-map__dot--gast)").hover();
+  await expect(info).toContainText("Bert Gästefreund");
+  await page.locator("#memberMapShowGuests").click();
+  await expect(info).toContainText("Anna Müller");
+  await expect(info).not.toContainText("Bert Gästefreund");
 });
