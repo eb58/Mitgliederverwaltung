@@ -971,3 +971,43 @@ test("Bearbeiten-Dialog springt zum Wohnort auf der Karte", async ({ page }) => 
   await expect(page.locator("#memberModal")).toBeVisible();
   await expect(page.locator("#memberShowOnMapBtn")).toBeHidden();
 });
+
+test("Mitgliedsmaske fragt vor dem Verwerfen ungespeicherter Änderungen nach", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#overview-tab").click();
+  const modal = page.locator("#memberModal");
+  const openAnna = async () => {
+    await page.locator('#overviewGrid [row-id="1"] .edit-icon-btn').click();
+    await expect(modal).toBeVisible();
+  };
+  const dialogs = [];
+  page.on("dialog", dialog => dialogs.push(dialog));
+
+  // Ohne Aenderung schliesst der Dialog ohne Rueckfrage
+  await openAnna();
+  await page.locator("#memberModal .btn-close").click();
+  await expect(modal).toBeHidden();
+  expect(dialogs).toHaveLength(0);
+
+  // Mit Aenderung: Abbrechen der Rueckfrage laesst den Dialog offen
+  await openAnna();
+  await page.locator("#field-vorname").fill("Annette");
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.locator("#memberModal .btn-close").click();
+  await expect.poll(() => dialogs.length).toBe(1);
+  await expect(modal).toBeVisible();
+  await expect(page.locator("#field-vorname")).toHaveValue("Annette");
+
+  // Bestaetigen verwirft die Aenderung; der Kartenknopf fragt ebenfalls nach
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator("#memberModal .modal-footer .btn-outline-secondary").click();
+  await expect(modal).toBeHidden();
+  expect(dialogs[1].message()).toContain("noch nicht gespeichert");
+  await openAnna();
+  await expect(page.locator("#field-vorname")).toHaveValue("Anna");
+  await page.locator("#field-vorname").fill("Annette");
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.locator("#memberShowOnMapBtn").click();
+  await expect(modal).toBeVisible();
+  await expect(page.locator("#overview-tab")).toHaveClass(/active/);
+});

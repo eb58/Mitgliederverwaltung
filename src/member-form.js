@@ -21,6 +21,8 @@ export const createMemberForm = ({
   uploadMemberPhoto
 }) => {
   let modal = null;
+  // Ungespeicherte Eingaben: Schliessen nur nach Rueckfrage
+  let dirty = false;
   let selectedPhotoFile = null;
   let selectedPhotoObjectUrl = null;
 
@@ -406,7 +408,8 @@ export const createMemberForm = ({
     mapItem.querySelector("button").addEventListener("click", () => {
       const memberId = state.editingId;
       modal.hide();
-      showOnMap(memberId);
+      // Bei ungespeicherten Aenderungen kann das Schliessen abgelehnt worden sein
+      if (!dirty) showOnMap(memberId);
     });
     tabs.appendChild(mapItem);
     container.append(hiddenIdInput, tabs, tabContent);
@@ -523,6 +526,7 @@ export const createMemberForm = ({
     warnAboutMinimumAge(formData);
     state.members.sort((a, b) => a.name.localeCompare(b.name, "de") || a.vorname.localeCompare(b.vorname, "de"));
     clearSelectedPhoto();
+    dirty = false;
     modal.hide();
     refreshAllViews();
     if (document.getElementById("changes-pane")?.classList.contains("active")) refreshRecentChanges({ force: true });
@@ -536,6 +540,7 @@ export const createMemberForm = ({
     state.editingId = isNew ? null : member.id;
     clearSelectedPhoto();
     fill(member, isNew);
+    dirty = false;
     renderMemberHistory([], {
       message: isNew
         ? "Änderungen werden nach dem ersten Speichern protokolliert."
@@ -553,6 +558,13 @@ export const createMemberForm = ({
     const form = document.getElementById("memberForm");
     if (!form.dataset.memberFormWired) {
       form.addEventListener("submit", handleSubmit);
+      ["input", "change"].forEach(type => form.addEventListener(type, () => { dirty = true; }));
+      // Gilt fuer Kreuz, Abbrechen, Esc, Klick neben den Dialog und den Kartenknopf
+      document.getElementById("memberModal").addEventListener("hide.bs.modal", event => {
+        if (dirty && !confirm("Die Änderungen sind noch nicht gespeichert. Trotzdem schließen und die Änderungen verwerfen?")) event.preventDefault();
+        else dirty = false;
+      });
+      window.addEventListener("beforeunload", event => { if (dirty) event.preventDefault(); });
       form.dataset.memberFormWired = "true";
     }
   };
