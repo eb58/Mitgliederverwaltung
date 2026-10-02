@@ -910,6 +910,14 @@ test("Karte zeigt aktive Mitglieder mit Adresse und öffnet das Mitglied", async
   await page.locator("#member-map-tab").click();
   await expect(page.locator(".member-map__dot")).toHaveCount(1);
   expect(nominatimRequests).toBe(2);
+
+  // Klick auf den Punkt oeffnet direkt den Bearbeiten-Dialog
+  await page.locator(".member-map__dot").click();
+  await expect(page.locator("#memberModal")).toBeVisible();
+  await expect(page.locator("#field-name")).toHaveValue("Müller");
+  // Chrome soll die Anschrift nicht als eigene Adresse speichern wollen
+  await expect(page.locator("#memberForm")).toHaveAttribute("autocomplete", "off");
+  expect(await page.locator("#memberForm").evaluate(form => [...form.querySelectorAll("input:not([type=hidden]), select, textarea")].every(element => element.autocomplete === "off"))).toBe(true);
 });
 
 test("ausgeblendete Gäste verschwinden auch aus der Anzeige rechts", async ({ page }) => {
@@ -942,4 +950,24 @@ test("ausgeblendete Gäste verschwinden auch aus der Anzeige rechts", async ({ p
   await page.locator("#memberMapShowGuests").click();
   await expect(info).toContainText("Anna Müller");
   await expect(info).not.toContainText("Bert Gästefreund");
+});
+
+test("Bearbeiten-Dialog springt zum Wohnort auf der Karte", async ({ page }) => {
+  await mockGeocoding(page);
+  await openAuthenticatedApp(page);
+  await page.locator("#overview-tab").click();
+  await page.locator('#overviewGrid [row-id="1"] .edit-icon-btn').click();
+  await expect(page.locator("#memberModal")).toBeVisible();
+  await page.locator("#memberShowOnMapBtn").click();
+
+  await expect(page.locator("#memberModal")).toBeHidden();
+  await expect(page.locator("#member-map-tab")).toHaveClass(/active/);
+  await expect(page.locator("#memberMapInfo")).toContainText("Anna Müller");
+  await expect(page.locator(".member-map__dot")).toHaveClass(/member-map__dot--active/);
+  expect((await page.locator(".member-map__svg").getAttribute("viewBox")).split(" ")[2]).toBe("400");
+
+  // Neue Mitglieder haben noch keine gespeicherte Anschrift, daher kein Kartenknopf
+  await page.locator("#addMemberBtn").click();
+  await expect(page.locator("#memberModal")).toBeVisible();
+  await expect(page.locator("#memberShowOnMapBtn")).toBeHidden();
 });

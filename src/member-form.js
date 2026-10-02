@@ -16,6 +16,7 @@ export const createMemberForm = ({
   renderMemberHistory,
   resolveMemberPhotoDataUrl,
   setFallbackPhoto,
+  showOnMap,
   updateMember,
   uploadMemberPhoto
 }) => {
@@ -397,7 +398,20 @@ export const createMemberForm = ({
     changesTabItem.appendChild(changesTabButton);
     tabs.appendChild(changesTabItem);
     tabContent.appendChild(changesPane);
+
+    // Kein Reiter, sondern ein Sprung zur Karte (gezeigt wird die gespeicherte Anschrift)
+    const mapItem = document.createElement("li");
+    mapItem.className = "nav-item member-form-tabs__map";
+    mapItem.innerHTML = `<button type="button" id="memberShowOnMapBtn" class="btn member-form-map-btn" title="Wohnort auf der Karte zeigen"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Auf Karte zeigen</button>`;
+    mapItem.querySelector("button").addEventListener("click", () => {
+      const memberId = state.editingId;
+      modal.hide();
+      showOnMap(memberId);
+    });
+    tabs.appendChild(mapItem);
     container.append(hiddenIdInput, tabs, tabContent);
+    // Mitgliederdaten sind keine eigenen Adressen: Chrome soll sie weder vorschlagen noch im Google-Konto speichern wollen
+    container.querySelectorAll("input, select, textarea").forEach(element => { element.autocomplete = "off"; });
   };
 
   const fill = (member, isNew) => {
@@ -527,6 +541,7 @@ export const createMemberForm = ({
         ? "Änderungen werden nach dem ersten Speichern protokolliert."
         : "Änderungsverlauf wird beim Öffnen des Tabs geladen..."
     });
+    document.getElementById("memberShowOnMapBtn").hidden = isNew;
     const firstTab = document.querySelector("#memberFormTabs .nav-link");
     if (firstTab) Tab.getOrCreateInstance(firstTab).show();
     modal.show();

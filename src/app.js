@@ -152,6 +152,7 @@ const memberForm = createMemberForm({
   renderMemberHistory,
   resolveMemberPhotoDataUrl: member => resolveMemberPhotoDataUrl(member),
   setFallbackPhoto: wrapper => setFallbackPhoto(wrapper),
+  showOnMap: memberId => showMemberOnMap(memberId),
   updateMember: updateMemberViaApi,
   uploadMemberPhoto: uploadMemberPhotoViaApi
 });
@@ -169,6 +170,11 @@ const {
   showHistoricalForExitYear: year => showHistoricalForExitYear(year)
 });
 
+const showMemberOnMap = memberId => {
+  memberMap.focus(memberId);
+  const mapTab = document.getElementById("member-map-tab");
+  if (mapTab.classList.contains("active")) memberMap.render(); else Tab.getOrCreateInstance(mapTab).show();
+};
 const memberMap = createMemberMap({ openMemberModal: memberId => memberForm.open(memberId), loadGeocodeCache: () => loadGeocodeCache(), saveGeocode: (key, result) => saveGeocode(key, result), resolveMemberPhotoDataUrl: member => resolveMemberPhotoDataUrl(member) });
 
 let uiInitialized = false;

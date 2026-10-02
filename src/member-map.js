@@ -1,5 +1,5 @@
 import { formatMemberName, isActiveMember, isGuestMember } from "./member-domain.js";
-import { REGION_BBOX, addressKey, fitView, geocodeUrls, homeView, inBbox, nearestIndex, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "./member-geo.js";
+import { REGION_BBOX, addressKey, clampView, fitView, geocodeUrls, homeView, inBbox, nearestIndex, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "./member-geo.js";
 import { state } from "./state.js";
 
 const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -16,6 +16,8 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
   let runId = 0;
   let showGuests = true;
   let redraw = () => {};
+  let focusId = null;
+  const guestToggle = () => document.getElementById("memberMapShowGuests");
 
   const render = async () => {
     const run = ++runId;
@@ -24,6 +26,11 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     const missingHost = document.getElementById("memberMapMissing");
     // Gesucht werden alle, angezeigt je nach Schalter mit oder ohne Gaeste
     const members = state.members.filter(isActiveMember);
+    // Sprung aus dem Bearbeiten-Dialog auf einen Gast: Gaeste dafuer einblenden
+    if (focusId !== null && !showGuests && isGuestMember(members.find(member => member.id === focusId))) {
+      showGuests = true;
+      guestToggle().setAttribute("aria-pressed", "true");
+    }
     const visible = () => showGuests ? members : members.filter(member => !isGuestMember(member));
     // Koordinaten liegen zentral auf dem Server; ohne Server-Antwort suchen wir einfach neu
     const cache = await loadGeocodeCache().catch(() => ({}));
@@ -55,7 +62,7 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     let tileKey = "";
     let activeIndex = -1;
     const pxPerUnit = () => (svg.clientWidth || 1000) / view.w;
-    const dotRadius = place => Math.min(4 + place.members.length * 1.2, 9);
+    const dotRadius = place => Math.min(5 + place.members.length * 1.2, 10);
 
     // Punkte bleiben unabhaengig vom Zoom gleich gross
     const drawDots = () => {
@@ -91,7 +98,6 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
         item.prepend(image);
       }).catch(() => {}));
     };
-    // Hover zeigt die Mitglieder sofort; die Anzeige bleibt stehen, damit man die Namen anklicken kann. Klick fuer Touch.
 
     const zoomBy = (factor, anchor = [0.5, 0.5]) => { view = zoomView(view, factor, anchor, BOUNDS); apply(); };
     svg.addEventListener("wheel", event => {
@@ -162,7 +168,15 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
         highlight(index);
       });
     });
-    svg.addEventListener("click", event => { if (!dragged) highlight(placeAt(event, 20)); });
+    // Klick oeffnet den ersten Bewohner; weitere (z.B. Ehepartner) ueber die Namensliste rechts
+    svg.addEventListener("click", event => {
+      if (dragged) return;
+      const under = event.target.closest?.(".member-map__dot");
+      const index = under ? Number(under.dataset.index) : placeAt(event, 20);
+      if (index < 0) return;
+      highlight(index);
+      openMemberModal(places[index].members[0].id);
+    });
     host.querySelector(".member-map__zoom").addEventListener("click", event => {
       const mode = event.target.closest("[data-zoom]")?.dataset.zoom;
       if (mode === "home") { view = homeView(BOUNDS); apply(); } else if (mode === "all") { view = fitView(places.map(projectWorld), BOUNDS); apply(); } else if (mode) zoomBy(mode === "in" ? 0.5 : 2);
@@ -180,10 +194,30 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
         : "";
     };
 
-    redraw = () => { buildPlaces(); drawDots(); updateSummary(); refreshInfo(); };
+    // Auf das Mitglied aus dem Bearbeiten-Dialog zoomen; fehlt die Position noch, nach dem Suchtreffer erneut
+    const tryFocus = () => {
+      if (focusId === null) return;
+      const member = state.members.find(item => item.id === focusId);
+      const index = places.findIndex(place => place.members.some(item => item.id === focusId));
+      if (index >= 0) {
+        const [x, y] = places[index].world;
+        view = clampView({ x: x - 200, y: y - 124, w: 400 }, BOUNDS);
+        apply();
+        markActive(index);
+        showPlace(places[index]);
+        focusId = null;
+      } else if (!member || !members.includes(member) || !pending().includes(member)) {
+        const reason = !member || !members.includes(member) ? "ist nicht aktiv und erscheint daher nicht auf der Karte" : member.strasse ? "hat keine auffindbare Adresse" : "hat keine Anschrift";
+        document.getElementById("memberMapInfo").textContent = `${member ? formatMemberName(member) : "Das Mitglied"} ${reason}.`;
+        focusId = null;
+      }
+    };
+
+    redraw = () => { buildPlaces(); drawDots(); updateSummary(); refreshInfo(); tryFocus(); };
     drawDots();
     apply();
     updateSummary();
+    tryFocus();
 
     // Fehlende Adressen nacheinander bei Nominatim erfragen; der Treffer (auch "nicht gefunden") wird gemerkt
     const queue = [...new Map(pending().map(member => [keyOf(member), member])).values()];
@@ -210,7 +244,7 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     }
   };
 
-  document.getElementById("memberMapShowGuests").addEventListener("click", event => {
+  guestToggle().addEventListener("click", event => {
     showGuests = !showGuests;
     event.currentTarget.setAttribute("aria-pressed", String(showGuests));
     redraw();
@@ -219,5 +253,5 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     const button = event.target.closest("[data-member-id]");
     if (button) openMemberModal(Number(button.dataset.memberId));
   });
-  return { render };
+  return { render, focus: memberId => { focusId = memberId; } };
 };
