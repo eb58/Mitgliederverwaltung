@@ -20,7 +20,7 @@ import { createMemberForm } from "./member-form.js";
 import { createMemberHistory } from "./member-history.js";
 import { createReferenceAdmin } from "./reference-admin.js";
 import { createDashboard } from "./dashboard.js";
-import { createMemberMap } from "./member-map.js";
+import { checkMemberAddress, createMemberMap } from "./member-map.js";
 import { GRID_COLUMN_STATE_PREFIX, createGridTheme, gridApiByTabTarget, gridLocaleText, searchableTabTargets } from "./grid-config.js";
 import {
   austrittsgrundMap,
@@ -144,6 +144,7 @@ const {
 });
 
 const memberForm = createMemberForm({
+  checkAddress: member => checkMemberAddress(member),
   createMember: createMemberViaApi,
   invalidateMemberPhotoCache,
   loadMemberChangeHistory,

@@ -916,8 +916,9 @@ test("Karte zeigt aktive Mitglieder mit Adresse und öffnet das Mitglied", async
   await expect(page.locator("#memberModal")).toBeVisible();
   await expect(page.locator("#field-name")).toHaveValue("Müller");
   // Chrome soll die Anschrift nicht als eigene Adresse speichern wollen
+  await expect(page.locator("#field-plz")).toHaveAttribute("autocomplete", "one-time-code");
   await expect(page.locator("#memberForm")).toHaveAttribute("autocomplete", "off");
-  expect(await page.locator("#memberForm").evaluate(form => [...form.querySelectorAll("input:not([type=hidden]), select, textarea")].every(element => element.autocomplete === "off"))).toBe(true);
+  expect(await page.locator("#memberForm").evaluate(form => [...form.querySelectorAll("input:not([type=hidden]), select, textarea")].every(element => /^(mitglied-|one-time-code$)/.test(element.getAttribute("autocomplete"))))).toBe(true);
 });
 
 test("ausgeblendete Gäste verschwinden auch aus der Anzeige rechts", async ({ page }) => {
@@ -1010,4 +1011,40 @@ test("Mitgliedsmaske fragt vor dem Verwerfen ungespeicherter Änderungen nach", 
   await page.locator("#memberShowOnMapBtn").click();
   await expect(modal).toBeVisible();
   await expect(page.locator("#overview-tab")).toHaveClass(/active/);
+});
+
+test("Plausibilitätsprüfung markiert Fehler und fragt bei abweichender Adresse nach", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  const saved = [];
+  await page.route("**/mitgliederverwaltung/php-api/index.php/api/members/1", route => {
+    saved.push(route.request().postDataJSON());
+    return json(route, { member: { ...members[0], ...route.request().postDataJSON(), id: 1 } });
+  });
+  // OSM kennt die Strasse nur in Schoenfliess
+  await page.route("https://nominatim.openstreetmap.org/search*", route => json(route, [{ lon: "13.318", lat: "52.644", address: { house_number: "32", postcode: "16567", village: "Schönfließ" } }]));
+  await page.locator("#overview-tab").click();
+  await page.locator('#overviewGrid [row-id="1"] .edit-icon-btn').click();
+
+  // Fehler: blockiert, markiert das Feld und springt zum Reiter
+  await page.locator("#member-form-kontakt-tab").click();
+  await page.locator("#field-plz").fill("1346");
+  await page.locator("#member-form-basis-tab").click();
+  await page.locator('#memberForm button[type="submit"]').click();
+  await expect(page.locator(".toast-item__message").last()).toHaveText("Bitte die markierten Felder prüfen.");
+  await expect(page.locator("#member-form-kontakt-tab")).toHaveClass(/active/);
+  await expect(page.locator('div[data-field-key="plz"] .member-form-feedback--error')).toHaveText("PLZ muss aus genau 5 Ziffern bestehen.");
+  await page.locator("#field-plz").fill("13469");
+  await expect(page.locator('div[data-field-key="plz"] .member-form-feedback')).toHaveCount(0);
+
+  // Warnung: abweichende PLZ laut OSM, Abbrechen markiert gelb, Bestaetigen speichert
+  let message = "";
+  page.once("dialog", dialog => { message = dialog.message(); dialog.dismiss(); });
+  await page.locator('#memberForm button[type="submit"]').click();
+  await expect(page.locator('div[data-field-key="strasse"] .member-form-feedback--warning')).toContainText("laut OpenStreetMap: 16567 Schönfließ");
+  expect(message).toContain("PLZ 13469 passt nicht zur Adresse");
+  expect(saved).toHaveLength(0);
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('#memberForm button[type="submit"]').click();
+  await expect(page.locator("#memberModal")).toBeHidden();
+  expect(saved[0]).toMatchObject({ plz: "13469" });
 });

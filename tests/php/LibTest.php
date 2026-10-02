@@ -252,4 +252,31 @@ final class LibTest extends TestCase
         $this->assertSame(['old' => 'Alt', 'new' => 'Neu'], ['old' => $byField['name']['old'], 'new' => $byField['name']['new']]);
         $this->assertSame(['old' => 'Nein', 'new' => 'Ja'], ['old' => $byField['weihnachtsessen']['old'], 'new' => $byField['weihnachtsessen']['new']]);
     }
+
+    public function testAssertPlausibleMemberRejectsImplausibleValues(): void
+    {
+        $cases = [
+            [['plz' => '1346'], ['plz'], 'PLZ'],
+            [['gezahlterBetragClub' => -30], ['gezahlterBetragClub'], 'negativ'],
+            [['geburtstag' => date('Y-m-d', strtotime('+1 day'))], ['geburtstag'], 'Zukunft'],
+            [['geburtstag' => '1950-02-03', 'eintrittsdatum' => '1949-12-31'], ['eintrittsdatum'], 'vor der Geburt'],
+            [['eintrittsdatum' => '2020-01-01', 'austrittsdatum' => '2019-12-31'], ['austrittsdatum'], 'vor dem Eintritt'],
+        ];
+        foreach ($cases as [$member, $changed, $message]) {
+            try {
+                assertPlausibleMember($member, $changed);
+                $this->fail("Erwarteter Fehler: $message");
+            } catch (ApiError $error) {
+                $this->assertStringContainsString($message, $error->getMessage());
+            }
+        }
+    }
+
+    public function testAssertPlausibleMemberChecksOnlyChangedFields(): void
+    {
+        $legacy = ['plz' => '1346', 'gezahlterBetragClub' => -1, 'eintrittsdatum' => '2020-01-01', 'austrittsdatum' => '2019-01-01', 'ort' => 'Berlin'];
+        assertPlausibleMember($legacy, ['ort']);
+        assertPlausibleMember(['plz' => '13469', 'geburtstag' => '1950-02-03', 'eintrittsdatum' => '2020-01-01'], ['plz', 'geburtstag', 'eintrittsdatum']);
+        $this->addToAssertionCount(1);
+    }
 }

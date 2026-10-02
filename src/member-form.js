@@ -1,13 +1,14 @@
 import { Modal, Tab } from "bootstrap";
 import { fieldDefinitions, formSections, paidAmountDefaults } from "./member-config.js";
-import { cloneMember, createEmptyMember, formatMemberName, istBeitragBezahlt, normalizeMember } from "./member-domain.js";
-import { asBoolean, calculateAge, formatIsoDate, roundCurrency } from "./member-utils.js";
+import { cloneMember, createEmptyMember, formatMemberName, istBeitragBezahlt, normalizeMember, validateMember } from "./member-domain.js";
+import { asBoolean, formatIsoDate, roundCurrency } from "./member-utils.js";
 import { state } from "./state.js";
 import { showToast } from "./ui.js";
 
-const MIN_MEMBER_AGE = 55;
+const ADDRESS_FIELDS = ["strasse", "plz", "ort"];
 
 export const createMemberForm = ({
+  checkAddress,
   createMember,
   invalidateMemberPhotoCache,
   loadMemberChangeHistory,
@@ -23,6 +24,8 @@ export const createMemberForm = ({
   let modal = null;
   // Ungespeicherte Eingaben: Schliessen nur nach Rueckfrage
   let dirty = false;
+  // Stand beim Oeffnen: Warnungen gelten nur fuer geaenderte Felder
+  let originalMember = null;
   let selectedPhotoFile = null;
   let selectedPhotoObjectUrl = null;
 
@@ -413,8 +416,12 @@ export const createMemberForm = ({
     });
     tabs.appendChild(mapItem);
     container.append(hiddenIdInput, tabs, tabContent);
-    // Mitgliederdaten sind keine eigenen Adressen: Chrome soll sie weder vorschlagen noch im Google-Konto speichern wollen
-    container.querySelectorAll("input, select, textarea").forEach(element => { element.autocomplete = "off"; });
+    // Mitgliederdaten sind keine eigenen Adressen: Chrome soll sie nicht im Google-Konto speichern wollen.
+    // "off" und unbekannte Werte uebergeht Chrome und erkennt die Felder an Beschriftung/ID. Ein bekannter
+    // Nicht-Adresstyp hat dagegen Vorrang; ohne Strasse, PLZ und Ort bietet Chrome keine Adresse zum Speichern an.
+    container.querySelectorAll("input, select, textarea").forEach(element => {
+      element.setAttribute("autocomplete", ADDRESS_FIELDS.includes(element.dataset.fieldKey) ? "one-time-code" : `mitglied-${element.dataset.fieldKey || element.name || "feld"}`);
+    });
   };
 
   const fill = (member, isNew) => {
@@ -480,19 +487,46 @@ export const createMemberForm = ({
     }
   };
 
-  // Nur ein Hinweis, keine Sperre: Gaeste koennen juenger sein, ein vertipptes Jahr faellt trotzdem auf.
-  const warnAboutMinimumAge = member => {
-    const age = calculateAge(member.geburtstag);
-    if (age !== null && age < MIN_MEMBER_AGE) {
-      showToast(`Hinweis: Das Geburtsdatum ergibt ein Alter von ${age} Jahren.`);
-    }
+  // Markiert Felder mit Fehler (rot) oder Warnung (gelb) und zeigt den Reiter des ersten markierten Felds
+  const fieldContainer = field => document.querySelector(`#formFields div[data-field-key="${field}"]`);
+  const clearFieldMarks = (container = document.getElementById("formFields")) => {
+    container.querySelectorAll(".member-form-feedback").forEach(element => element.remove());
+    [container, ...container.querySelectorAll(".member-form-field--error, .member-form-field--warning")].forEach(element => element.classList.remove("member-form-field--error", "member-form-field--warning"));
+    container.querySelectorAll(".is-invalid").forEach(element => element.classList.remove("is-invalid"));
+  };
+  const markFields = (entries, kind) => {
+    entries.forEach(({ field, message }) => {
+      const container = fieldContainer(field);
+      if (!container) return;
+      container.classList.add(`member-form-field--${kind}`);
+      if (kind === "error") container.querySelectorAll("input, select, textarea").forEach(element => element.classList.add("is-invalid"));
+      container.insertAdjacentHTML("beforeend", `<div class="member-form-feedback member-form-feedback--${kind}"></div>`);
+      container.lastElementChild.textContent = message;
+    });
+    const pane = entries.map(({ field }) => fieldContainer(field)?.closest(".tab-pane")).find(Boolean);
+    const tab = pane && document.querySelector(`#memberFormTabs [data-bs-target="#${pane.id}"]`);
+    if (tab) Tab.getOrCreateInstance(tab).show();
   };
 
   const handleSubmit = async event => {
     event.preventDefault();
     let formData = read();
-    if (!formData.name || !formData.vorname) {
-      showToast("Name und Vorname sind Pflichtfelder.");
+    clearFieldMarks();
+    const { errors, warnings } = validateMember(formData, { original: originalMember, members: state.members });
+    if (errors.length) {
+      markFields(errors, "error");
+      showToast(!formData.name || !formData.vorname ? "Name und Vorname sind Pflichtfelder." : "Bitte die markierten Felder prüfen.");
+      return;
+    }
+    // Adresse nur bei Aenderung gegen OpenStreetMap pruefen (dauert bis zu drei Sekunden)
+    const addressChanged = formData.strasse && (!originalMember || ADDRESS_FIELDS.some(field => (formData[field] || "") !== (originalMember[field] || "")));
+    const submitButton = document.querySelector('#memberForm button[type="submit"]');
+    submitButton.disabled = true;
+    const addressHint = addressChanged ? await checkAddress(formData) : null;
+    submitButton.disabled = false;
+    const hints = [...warnings, ...(addressHint ? [{ field: "strasse", message: addressHint }] : [])];
+    if (hints.length && !confirm(`Bitte prüfen:\n\n• ${hints.map(hint => hint.message).join("\n• ")}\n\nTrotzdem speichern?`)) {
+      markFields(hints, "warning");
       return;
     }
     if (state.editingId === null) {
@@ -523,7 +557,6 @@ export const createMemberForm = ({
       formData = await uploadSelectedPhoto(formData);
       state.members[index] = formData;
     }
-    warnAboutMinimumAge(formData);
     state.members.sort((a, b) => a.name.localeCompare(b.name, "de") || a.vorname.localeCompare(b.vorname, "de"));
     clearSelectedPhoto();
     dirty = false;
@@ -540,6 +573,8 @@ export const createMemberForm = ({
     state.editingId = isNew ? null : member.id;
     clearSelectedPhoto();
     fill(member, isNew);
+    clearFieldMarks();
+    originalMember = isNew ? null : cloneMember(member);
     dirty = false;
     renderMemberHistory([], {
       message: isNew
@@ -558,7 +593,11 @@ export const createMemberForm = ({
     const form = document.getElementById("memberForm");
     if (!form.dataset.memberFormWired) {
       form.addEventListener("submit", handleSubmit);
-      ["input", "change"].forEach(type => form.addEventListener(type, () => { dirty = true; }));
+      ["input", "change"].forEach(type => form.addEventListener(type, event => {
+        dirty = true;
+        const container = event.target.closest?.("div[data-field-key]");
+        if (container && !event.target.matches("[type=file]")) clearFieldMarks(container);
+      }));
       // Gilt fuer Kreuz, Abbrechen, Esc, Klick neben den Dialog und den Kartenknopf
       document.getElementById("memberModal").addEventListener("hide.bs.modal", event => {
         if (dirty && !confirm("Die Änderungen sind noch nicht gespeichert. Trotzdem schließen und die Änderungen verwerfen?")) event.preventDefault();

@@ -1,5 +1,5 @@
 import { formatMemberName, isActiveMember, isGuestMember } from "./member-domain.js";
-import { REGION_BBOX, addressKey, clampView, fitView, geocodeUrls, homeView, inBbox, nearestIndex, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "./member-geo.js";
+import { REGION_BBOX, addressKey, addressWarning, clampView, fitView, geocodeUrls, homeView, inBbox, nearestIndex, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "./member-geo.js";
 import { state } from "./state.js";
 
 const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -11,6 +11,24 @@ const INFO_HINT = "Mit der Maus auf einen Punkt zeigen, um die Mitglieder zu seh
 const BOUNDS = worldBounds(REGION_BBOX);
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Plausibilitaetscheck beim Speichern: findet OSM die Anschrift, und passen PLZ/Ort? null = nichts zu beanstanden.
+// Netzwerkfehler sollen das Speichern nicht aufhalten und liefern ebenfalls null.
+export const checkMemberAddress = async member => {
+  try {
+    for (const [index, url] of geocodeUrls(member).entries()) {
+      if (index) await sleep(REQUEST_GAP_MS);
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const results = await response.json();
+      const result = parseGeocodeResult(results);
+      if (result && inBbox(result, REGION_BBOX)) return addressWarning(member, results[0]);
+    }
+    return `Die Adresse „${[member.strasse, [member.plz, member.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ")}“ wurde bei OpenStreetMap nicht gefunden.`;
+  } catch {
+    return null;
+  }
+};
 
 export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, loadGeocodeCache, saveGeocode }) => {
   let runId = 0;

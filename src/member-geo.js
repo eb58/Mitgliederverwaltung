@@ -85,3 +85,16 @@ export const nearestIndex = (points, [x, y], maxDist) => points.reduce((best, [p
   const dist = Math.hypot(px - x, py - y);
   return dist <= maxDist && dist < best.dist ? { index, dist } : best;
 }, { index: -1, dist: Infinity }).index;
+
+const normalizePlace = value => String(value ?? "").trim().toLowerCase().replaceAll("ß", "ss");
+// Vergleicht die eingegebene PLZ/Ort mit dem, was OSM zu der Adresse kennt (z.B. "Berlin" statt Schoenfliess)
+export const addressWarning = (member, hit) => {
+  const address = hit?.address ?? {};
+  const places = [address.city, address.town, address.village, address.municipality, address.suburb, address.hamlet, address.city_district].filter(Boolean);
+  const where = [address.postcode, address.village || address.town || address.city || address.municipality].filter(Boolean).join(" ");
+  const plz = String(member.plz ?? "").trim();
+  const ort = normalizePlace(member.ort);
+  if (plz && address.postcode && plz !== address.postcode) return `PLZ ${plz} passt nicht zur Adresse – laut OpenStreetMap: ${where}.`;
+  if (ort && places.length && !places.some(place => normalizePlace(place).includes(ort) || ort.includes(normalizePlace(place)))) return `Ort „${member.ort}“ passt nicht zur Adresse – laut OpenStreetMap: ${where}.`;
+  return null;
+};

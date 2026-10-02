@@ -516,4 +516,14 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertSame('image/png', $response->payload['photo']['mimeType']);
         $this->assertSame(1, $this->countRows('mitglied_passbild', 'mitglied_id = 3 AND mime_type = ?', ['image/png']));
     }
+
+    public function testMemberUpdateRejectsImplausibleValuesButKeepsLegacyDataEditable(): void
+    {
+        TestDatabase::insertMemberRow(3, 'Müller', 'Anna', ['plz' => '1346']);
+        $this->request('PATCH', ['plz' => '134']);
+        $this->assertApiError(400, 'PLZ', static fn() => handleMemberResource(3, self::ADMIN));
+
+        $this->request('PATCH', ['ort' => 'Potsdam']);
+        $this->assertSame('Potsdam', $this->capture(static fn() => handleMemberResource(3, self::ADMIN))->payload['member']['ort']);
+    }
 }

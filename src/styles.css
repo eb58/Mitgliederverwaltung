@@ -2343,3 +2343,7 @@ body {
 .member-form-map-btn { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; color: var(--accent-dark); background: var(--accent-soft); border: 1.5px solid var(--accent); font-weight: 600; }
 .member-form-map-btn:hover, .member-form-map-btn:focus-visible { color: #fff; background: var(--accent); border-color: var(--accent); }
 .member-form-map-btn svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.member-form-feedback { font-size: 0.82rem; margin-top: 0.3rem; }
+.member-form-feedback--error { color: #b42318; }
+.member-form-feedback--warning { color: #8a5a00; }
+.member-form-field--warning input, .member-form-field--warning select, .member-form-field--warning textarea { border-color: #d99a00; box-shadow: 0 0 0 0.15rem rgba(217, 154, 0, 0.18); }

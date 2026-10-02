@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
-import { addressKey, clampView, fitView, geocodeUrls, homeView, inBbox, lonLatToWorld, nearestIndex, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "../../src/member-geo.js";
+import { addressKey, addressWarning, clampView, fitView, geocodeUrls, homeView, inBbox, lonLatToWorld, nearestIndex, parseGeocodeResult, projectWorld, tileZoomFor, visibleTiles, worldBounds, zoomView } from "../../src/member-geo.js";
 
 describe("member-geo", () => {
   it("bildet Schluessel und Suchadresse", () => {
@@ -39,6 +39,16 @@ describe("member-geo", () => {
     const tiles = visibleTiles({ x: 200, y: 10, w: 100, h: 62 }, 14);
     expect(tiles).toEqual([{ zoom: 14, x: 0, y: 0, px: 0, py: 0, size: 256 }, { zoom: 14, x: 1, y: 0, px: 256, py: 0, size: 256 }]);
     expect(visibleTiles({ x: 0, y: 0, w: 100, h: 62 }, 15)[0].size).toBe(128);
+  });
+
+  it("vergleicht PLZ und Ort mit OpenStreetMap", () => {
+    const schoenfliess = { address: { postcode: "16567", village: "Schönfließ", municipality: "Mühlenbecker Land" } };
+    expect(addressWarning({ plz: "16567", ort: "Schönfliess" }, schoenfliess)).toBe(null);
+    expect(addressWarning({ plz: "16567", ort: "Mühlenbecker Land" }, schoenfliess)).toBe(null);
+    expect(addressWarning({ plz: "13469", ort: "Berlin" }, schoenfliess)).toBe("PLZ 13469 passt nicht zur Adresse – laut OpenStreetMap: 16567 Schönfließ.");
+    expect(addressWarning({ plz: "16567", ort: "Berlin" }, schoenfliess)).toContain("Ort „Berlin“ passt nicht");
+    expect(addressWarning({ plz: "13469", ort: "Berlin" }, { address: { postcode: "13469", city: "Berlin", suburb: "Lübars" } })).toBe(null);
+    expect(addressWarning({}, {})).toBe(null);
   });
 
   it("findet den naechsten Punkt im Umkreis", () => {

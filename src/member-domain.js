@@ -10,8 +10,10 @@ import {
 } from "./member-config.js";
 import {
   asBoolean,
+  calculateAge,
   formatCurrency,
   formatDateDE,
+  formatIsoDate,
   normalizeGroupText,
   normalizePhotoFileName,
   parseIsoDate,
@@ -184,4 +186,70 @@ export const getRoundBirthdays = (members, today = new Date()) => {
     .map(member => getNextBirthday(member, today))
     .filter(item => item && item.birthday <= end && item.age >= 80 && item.age % 5 === 0)
     .sort((a, b) => a.daysUntil - b.daysUntil || germanCollator.compare(formatMemberName(a.member), formatMemberName(b.member)));
+};
+
+// --- Plausibilitaetspruefung der Mitgliedsmaske ---
+// errors blockieren das Speichern (der Server prueft dieselben Regeln), warnings lassen sich nach Rueckfrage uebergehen.
+// Warnungen nur fuer geaenderte Felder, sonst meldet jede Bearbeitung alter Datensaetze dieselben Hinweise erneut.
+export const MIN_MEMBER_AGE = 55;
+const MAX_MEMBER_AGE = 105;
+const DATE_FIELDS = { geburtstag: "Geburtstag", eintrittsdatum: "Eintrittsdatum", austrittsdatum: "Austrittsdatum", einzahlungClubAm: "Einzahlung Club", einzahlungComputerAm: "Einzahlung Computer" };
+const AMOUNT_FIELDS = ["gezahlterBetragClub", "gezahlterBetragComputer", "gezahlterBetragWeihnachten", "tischnummer"];
+const PAYMENT_DATE_FIELDS = ["einzahlungClubAm", "einzahlungComputerAm"];
+
+const isValidIsoDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && Boolean(parseIsoDate(value)) && Number(value.slice(0, 4)) >= 1900 && Number(value.slice(0, 4)) <= 2100;
+export const isValidPlz = value => /^\d{5}$/.test(String(value ?? "").trim());
+export const isValidEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value ?? "").trim());
+export const isValidPhone = value => /^\+?[\d\s/()-]+$/.test(String(value ?? "").trim()) && String(value).replace(/\D/g, "").length >= 5;
+const nameKey = member => `${(member.name || "").trim().toLowerCase()}|${(member.vorname || "").trim().toLowerCase()}`;
+
+export const validateMember = (member, { original = null, members = [], today = new Date() } = {}) => {
+  const errors = [];
+  const warnings = [];
+  const error = (field, message) => errors.push({ field, message });
+  const warn = (field, message) => warnings.push({ field, message });
+  const changed = (...fields) => !original || fields.some(field => String(member[field] ?? "") !== String(original[field] ?? ""));
+  const todayIso = formatIsoDate(today);
+
+  if (!member.name) error("name", "Name ist ein Pflichtfeld.");
+  if (!member.vorname) error("vorname", "Vorname ist ein Pflichtfeld.");
+
+  Object.entries(DATE_FIELDS).forEach(([field, label]) => {
+    if (member[field] && !isValidIsoDate(member[field])) error(field, `${label} ist kein gültiges Datum (Jahr 1900–2100).`);
+  });
+  const date = field => member[field] && isValidIsoDate(member[field]) ? member[field] : null;
+  if (date("geburtstag") && date("geburtstag") > todayIso) error("geburtstag", "Geburtstag liegt in der Zukunft.");
+  if (date("geburtstag") && date("eintrittsdatum") && date("eintrittsdatum") < date("geburtstag")) error("eintrittsdatum", "Eintritt liegt vor der Geburt.");
+  if (date("eintrittsdatum") && date("austrittsdatum") && date("austrittsdatum") < date("eintrittsdatum")) error("austrittsdatum", "Austritt liegt vor dem Eintritt.");
+
+  if (member.plz && !isValidPlz(member.plz)) error("plz", "PLZ muss aus genau 5 Ziffern bestehen.");
+  if (member.email && !isValidEmail(member.email)) error("email", "Keine gültige E-Mail-Adresse.");
+  AMOUNT_FIELDS.forEach(field => { if (Number(member[field]) < 0) error(field, "Darf nicht negativ sein."); });
+
+  const age = calculateAge(date("geburtstag"), today);
+  if (age !== null && changed("geburtstag")) {
+    if (age > MAX_MEMBER_AGE) warn("geburtstag", `Das Geburtsdatum ergibt ein Alter von ${age} Jahren.`);
+    else if (age < MIN_MEMBER_AGE) warn("geburtstag", `Das Geburtsdatum ergibt ein Alter von ${age} Jahren.`);
+  }
+  if (changed("austrittsdatum", "austrittsgrund")) {
+    if (member.austrittsdatum && !member.austrittsgrund) warn("austrittsgrund", "Austrittsdatum ohne Austrittsgrund.");
+    if (!member.austrittsdatum && member.austrittsgrund) warn("austrittsdatum", "Austrittsgrund ohne Austrittsdatum.");
+  }
+  PAYMENT_DATE_FIELDS.forEach(field => {
+    if (date(field) && date(field) > todayIso && changed(field)) warn(field, `${DATE_FIELDS[field]} liegt in der Zukunft.`);
+  });
+  ["telefon", "handy"].forEach(field => {
+    if (member[field] && changed(field) && !isValidPhone(member[field])) warn(field, `${field === "telefon" ? "Telefon" : "Handy"} sieht nicht wie eine Telefonnummer aus.`);
+  });
+  if (member.strasse && changed("strasse", "plz", "ort")) {
+    if (!member.plz) warn("plz", "PLZ fehlt.");
+    if (!member.ort) warn("ort", "Ort fehlt.");
+    if (!/\d/.test(member.strasse)) warn("strasse", "Hausnummer fehlt.");
+  }
+  if (member.name && member.vorname && changed("name", "vorname", "geburtstag")) {
+    const duplicate = members.find(other => other.id !== member.id && nameKey(other) === nameKey(member)
+      && (!member.geburtstag || !other.geburtstag || other.geburtstag === member.geburtstag));
+    if (duplicate) warn("name", `Es gibt bereits ${formatMemberName(duplicate)}${duplicate.geburtstag ? ` (geb. ${formatDateDE(duplicate.geburtstag)})` : ""}.`);
+  }
+  return { errors, warnings };
 };

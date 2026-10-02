@@ -930,6 +930,26 @@ function assertValidMember(array $member): void
     }
 }
 
+/**
+ * Plausibilitaet wie in validateMember() (src/member-domain.js). Geprueft werden nur die
+ * uebergebenen Felder: alte, unsaubere Datensaetze sollen andere Aenderungen nicht blockieren.
+ */
+function assertPlausibleMember(array $member, array $changed): void
+{
+    $touched = static fn(string ...$keys): bool => (bool) array_intersect($keys, $changed);
+    $plz = trim((string) ($member['plz'] ?? ''));
+    if ($touched('plz') && $plz !== '' && !preg_match('/^\d{5}$/', $plz)) {
+        throw new ApiError('PLZ muss aus genau 5 Ziffern bestehen.', 400);
+    }
+    foreach (['gezahlterBetragClub', 'gezahlterBetragComputer', 'gezahlterBetragWeihnachten', 'tischnummer'] as $key) {
+        if ($touched($key) && (float) ($member[$key] ?? 0) < 0) throw new ApiError("$key darf nicht negativ sein.", 400);
+    }
+    [$birth, $entry, $exit] = [$member['geburtstag'] ?? null, $member['eintrittsdatum'] ?? null, $member['austrittsdatum'] ?? null];
+    if ($touched('geburtstag') && $birth && $birth > date('Y-m-d')) throw new ApiError('Geburtstag liegt in der Zukunft.', 400);
+    if ($touched('geburtstag', 'eintrittsdatum') && $birth && $entry && $entry < $birth) throw new ApiError('Eintritt liegt vor der Geburt.', 400);
+    if ($touched('eintrittsdatum', 'austrittsdatum') && $entry && $exit && $exit < $entry) throw new ApiError('Austritt liegt vor dem Eintritt.', 400);
+}
+
 function baseSelect(): string
 {
     return "SELECT m.*,
@@ -1243,6 +1263,7 @@ function handleMembersCollection(array $currentUser): void
         assertKnownFields($payload);
         $member = normalizeMemberInput($payload);
         assertValidMember($member);
+        assertPlausibleMember($member, array_keys($member));
         jsonResponse(['member' => findMemberById(createMemberRecord($member, $currentUser))], 201);
     }
     unhandledMethod();
@@ -1266,6 +1287,7 @@ function handleMemberResource(int $id, array $currentUser): void
         $patch = normalizeMemberInput($payload, true);
         $member = array_replace($existing, $patch, ['id' => $id]);
         assertValidMember($member);
+        assertPlausibleMember($member, array_keys($patch));
         db()->beginTransaction();
         try {
             updateMemberColumns($id, $patch);
