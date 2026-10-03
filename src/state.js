@@ -1,10 +1,12 @@
 const AUTH_TOKEN_STORAGE_KEY = "mitgliederverwaltung:authToken";
+// Schalter der Zahlungsuebersicht, im Browser gemerkt (geschrieben in app.js)
+export const PAYMENT_TOGGLE_STORAGE_KEYS = { showOnlyPaymentComputerGroups: "payments-only-computer-groups", showOnlyOpenClubPayments: "payments-only-club-open" };
 
 export const state = {
   members: [],
   editingId: null,
-  showOnlyPaymentComputerGroups: false,
-  showOnlyOpenClubPayments: false,
+  showOnlyPaymentComputerGroups: localStorage.getItem(PAYMENT_TOGGLE_STORAGE_KEYS.showOnlyPaymentComputerGroups) === "true",
+  showOnlyOpenClubPayments: localStorage.getItem(PAYMENT_TOGGLE_STORAGE_KEYS.showOnlyOpenClubPayments) === "true",
   paymentMetricFilter: null,
   recentChanges: [],
   currentUser: null,

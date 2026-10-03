@@ -42,7 +42,7 @@ import {
   isOpenClubPaymentMember,
   matchesPaymentMetricFilter
 } from "./member-domain.js";
-import { gridApis, state } from "./state.js";
+import { PAYMENT_TOGGLE_STORAGE_KEYS, gridApis, state } from "./state.js";
 import { createUserAdmin } from "./user-admin.js";
 import { createEventAdmin } from "./event-admin.js";
 import { eventList } from "./event-config.js";
@@ -740,16 +740,15 @@ const showPayments = ({ computerGroupsOnly = false, clubOpenOnly = false, metric
 
 const showOpenClubPayments = () => showPayments({ clubOpenOnly: true });
 
-const updatePaymentComputerGroupToggle = () => {
-  const button = document.getElementById("togglePaymentComputerGroupsBtn");
-  button.setAttribute("aria-pressed", String(state.showOnlyPaymentComputerGroups));
-  button.classList.toggle("active", state.showOnlyPaymentComputerGroups);
+// Jede Aenderung der Schalter laeuft hier vorbei - daher wird auch hier gespeichert
+const updatePaymentToggle = (buttonId, stateKey) => {
+  const button = document.getElementById(buttonId);
+  button.setAttribute("aria-pressed", String(state[stateKey]));
+  button.classList.toggle("active", state[stateKey]);
+  localStorage.setItem(PAYMENT_TOGGLE_STORAGE_KEYS[stateKey], String(state[stateKey]));
 };
-const updatePaymentClubOpenToggle = () => {
-  const button = document.getElementById("togglePaymentClubOpenBtn");
-  button.setAttribute("aria-pressed", String(state.showOnlyOpenClubPayments));
-  button.classList.toggle("active", state.showOnlyOpenClubPayments);
-};
+const updatePaymentComputerGroupToggle = () => updatePaymentToggle("togglePaymentComputerGroupsBtn", "showOnlyPaymentComputerGroups");
+const updatePaymentClubOpenToggle = () => updatePaymentToggle("togglePaymentClubOpenBtn", "showOnlyOpenClubPayments");
 const filterPaymentMembers = members => {
   return members
     .filter(member => !state.showOnlyPaymentComputerGroups || isComputerGroupMember(member))

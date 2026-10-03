@@ -273,6 +273,14 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await clubOpenToggle.click();
   await expect(computerToggle).toHaveAttribute("aria-pressed", "true");
   await expect(clubOpenToggle).toHaveAttribute("aria-pressed", "true");
+
+  // Die Schalter merkt sich der Browser
+  await clubOpenToggle.click();
+  await page.reload();
+  await page.locator("#payments-tab").click();
+  await expect(computerToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(computerToggle).toHaveClass(/active/);
+  await expect(clubOpenToggle).toHaveAttribute("aria-pressed", "false");
 });
 
 test("Dashboard wird erst mit vollständig geladenen Startdaten angezeigt", async ({ page }) => {
