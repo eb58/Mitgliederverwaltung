@@ -298,7 +298,9 @@ export const createMemberForm = ({
     fields.className = "row g-3";
     group.fieldKeys.forEach(fieldKey => {
       const field = fieldByKey.get(fieldKey);
-      if (field) fields.appendChild(createField(field));
+      // Die Club-/Computer-Gruppen sind nur halb so breit wie die uebrigen Tabs - der
+      // Checkbox-Standardbreite (col-lg-4) wuerde das Label hier mehrzeilig umbrechen.
+      if (field) fields.appendChild(createField(field, field.type === "checkbox" ? "col-12 member-form-field" : ""));
     });
     wrapper.append(title, fields);
     return wrapper;
