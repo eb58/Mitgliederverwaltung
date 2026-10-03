@@ -75,7 +75,8 @@ final class TestDatabase
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
 
         $sql = (string) file_get_contents(__DIR__ . '/../../server/db/schema.mysql.sql');
-        $referencePattern = '/^INSERT INTO (' . implode('|', self::REFERENCE_TABLES) . ')\b/i';
+        // Auch Nachtraege, die Stammdaten wieder entfernen, gehoeren zum Ausgangsstand
+        $referencePattern = '/^(?:INSERT INTO|DELETE FROM) (' . implode('|', self::REFERENCE_TABLES) . ')\b/i';
         self::$referenceSeed = [];
         self::$expectedTables = [];
         foreach (explode(';', $sql) as $statement) {

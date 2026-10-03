@@ -356,3 +356,10 @@ CREATE TABLE adress_koordinate (
   ermittelt_am TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (adresse_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Austrittsgrund 1 hatte eine leere Bezeichnung (Alt-Import). Genutzt wurde er fuer ruhende
+-- Mitgliedschaften - die bekommen einen eigenen Grund "ruht", danach entfaellt die 1.
+-- Die IDs vergibt nicht die Datenbank: "ruht" nimmt die naechste freie.
+INSERT INTO austrittsgrund (id, bezeichnung) SELECT MAX(id) + 1, 'ruht' FROM austrittsgrund;
+UPDATE mitglied SET austrittsgrund_id = (SELECT id FROM austrittsgrund WHERE bezeichnung = 'ruht') WHERE austrittsgrund_id = 1;
+DELETE FROM austrittsgrund WHERE id = 1;

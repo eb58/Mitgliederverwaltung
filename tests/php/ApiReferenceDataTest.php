@@ -18,6 +18,17 @@ final class ApiReferenceDataTest extends DatabaseTestCase
         $this->assertArrayHasKey('name', $payload['seniorClubs'][0]);
     }
 
+    public function testExitReasonsHaveNoEmptyEntryButRuht(): void
+    {
+        $this->request('GET');
+
+        $reasons = array_column($this->capture(static fn() => handleReferenceDataOverview())->payload['exitReasons'], 'label', 'id');
+
+        $this->assertArrayNotHasKey(1, $reasons);
+        $this->assertNotContains('', $reasons);
+        $this->assertSame(9, array_search('ruht', $reasons, true));
+    }
+
     public function testOverviewHidesDeactivatedEntries(): void
     {
         db()->exec('UPDATE interessengruppe SET active = 0 WHERE id = 4');
