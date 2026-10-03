@@ -12,6 +12,7 @@ import {
 } from "../../src/member-config.js";
 import { formatIsoDate } from "../../src/member-utils.js";
 import {
+  beitragsjahrOptionen,
   christmasFormatter,
   cloneMember,
   compareIsoDateToFilterDate,
@@ -28,6 +29,7 @@ import {
   getMemberInterestGroupText,
   getNewestMembers,
   getNextBirthday,
+  zahlungenNachJahr,
   getRoundBirthdays,
   getUpcomingBirthday,
   interestGroupFormatter,
@@ -132,6 +134,34 @@ describe("normalizeMember", () => {
   });
 });
 
+describe("Zahlungen je Beitragsjahr", () => {
+  it("normalisiert die Jahresliste und sortiert das neueste Jahr nach vorn", () => {
+    const member = normalizeMember({ zahlungen: [
+      { beitragsjahr: "2026", gezahlterBetragClub: "30,00", einzahlungClubAm: null },
+      { beitragsjahr: 2027, gezahlterBetragComputer: 20, einzahlungComputerAm: "2027-01-10" }
+    ] });
+    expect(member.zahlungen.map(zahlung => zahlung.beitragsjahr)).toEqual([2027, 2026]);
+    expect(member.zahlungen[1]).toEqual({ beitragsjahr: 2026, gezahlterBetragClub: 30, einzahlungClubAm: "", gezahlterBetragComputer: 0, einzahlungComputerAm: "" });
+    expect(normalizeMember({}).zahlungen).toEqual([]);
+  });
+
+  it("nimmt das aktuelle Jahr aus den flachen Feldern statt aus der Liste", () => {
+    const jahre = zahlungenNachJahr({
+      gezahlterBetragClub: 30,
+      einzahlungClubAm: "2026-02-01",
+      zahlungen: [{ beitragsjahr: 2026, gezahlterBetragClub: 10 }, { beitragsjahr: 2027, gezahlterBetragClub: 25 }]
+    }, 2026);
+    expect(jahre.get(2026)).toMatchObject({ gezahlterBetragClub: 30, einzahlungClubAm: "2026-02-01" });
+    expect(jahre.get(2027).gezahlterBetragClub).toBe(25);
+  });
+
+  it("bietet ab dem ersten Beitragsjahr bis zum Folgejahr an, dazu Jahre mit Daten", () => {
+    expect(beitragsjahrOptionen([], 2026)).toEqual([2026, 2027]);
+    expect(beitragsjahrOptionen([], 2028)).toEqual([2026, 2027, 2028, 2029]);
+    expect(beitragsjahrOptionen([2031], 2026)).toEqual([2026, 2027, 2031]);
+  });
+});
+
 describe("createEmptyMember und cloneMember", () => {
   it("legt ein leeres Mitglied mit Vorgabewerten an", () => {
     expect(createEmptyMember()).toMatchObject({
@@ -143,7 +173,8 @@ describe("createEmptyMember und cloneMember", () => {
       interessengruppen: [],
       ausweisErteilt: false,
       austrittsgrund: null,
-      tischnummer: 0
+      tischnummer: 0,
+      zahlungen: []
     });
   });
 

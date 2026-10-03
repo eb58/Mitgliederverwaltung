@@ -1,6 +1,6 @@
 import { Modal, Tab } from "bootstrap";
-import { fieldDefinitions, formSections, paidAmountDefaults } from "./member-config.js";
-import { cloneMember, createEmptyMember, formatMemberName, istBeitragBezahlt, normalizeMember, validateMember } from "./member-domain.js";
+import { beitragsjahr, fieldDefinitions, formSections, paidAmountDefaults } from "./member-config.js";
+import { ZAHLUNG_FIELDS, beitragsjahrOptionen, cloneMember, createEmptyMember, formatMemberName, istBeitragBezahlt, normalizeMember, validateMember, zahlungenNachJahr } from "./member-domain.js";
 import { asBoolean, formatIsoDate, roundCurrency } from "./member-utils.js";
 import { state } from "./state.js";
 import { showToast } from "./ui.js";
@@ -41,6 +41,9 @@ export const createMemberForm = ({
   let addressCheck = { key: null, result: null };
   let selectedPhotoFile = null;
   let selectedPhotoObjectUrl = null;
+  // Zahlungen je Beitragsjahr; die Eingabefelder zeigen immer nur das gewaehlte Jahr
+  let zahlungsjahre = new Map();
+  let gewaehltesJahr = beitragsjahr;
 
   const updateSelectionChips = fieldKey => {
     const input = document.getElementById(`field-${fieldKey}`);
@@ -100,6 +103,44 @@ export const createMemberForm = ({
     const checkbox = checkboxKey ? document.getElementById(`field-${checkboxKey}`) : null;
     const amountInput = document.getElementById(`field-${amountField}`);
     if (checkbox && amountInput) checkbox.checked = istBeitragBezahlt(amountInput.value);
+  };
+
+  const storeYear = () => zahlungsjahre.set(gewaehltesJahr, {
+    beitragsjahr: gewaehltesJahr,
+    ...Object.fromEntries(ZAHLUNG_FIELDS.map(key => {
+      const value = document.getElementById(`field-${key}`).value;
+      return [key, key.startsWith("einzahlung") ? value : roundCurrency(Number(value) || 0)];
+    }))
+  });
+  const showYear = jahr => {
+    const zahlung = zahlungsjahre.get(jahr) || {};
+    gewaehltesJahr = jahr;
+    document.querySelectorAll("#memberPaymentYear button").forEach(chip => {
+      chip.classList.toggle("is-selected", Number(chip.dataset.year) === jahr);
+      chip.setAttribute("aria-pressed", String(Number(chip.dataset.year) === jahr));
+    });
+    ZAHLUNG_FIELDS.forEach(key => { document.getElementById(`field-${key}`).value = key.startsWith("einzahlung") ? zahlung[key] || "" : zahlung[key] ? String(zahlung[key]) : ""; });
+    ["gezahlterBetragClub", "gezahlterBetragComputer"].forEach(key => applyPaidCheckboxFromAmount(key));
+    const abgelaufen = jahr < beitragsjahr;
+    [...ZAHLUNG_FIELDS, "beitragClubBezahlt", "beitragComputerBezahlt"].forEach(key => { document.getElementById(`field-${key}`).disabled = abgelaufen; });
+    document.getElementById("memberPaymentYearClosed").hidden = !abgelaufen;
+  };
+  const switchYear = jahr => {
+    if (jahr === gewaehltesJahr) return;
+    storeYear();
+    clearFieldMarks(document.getElementById("member-form-zahlungen-pane"));
+    showYear(jahr);
+  };
+  const createYearSelect = () => {
+    const wrap = document.createElement("div");
+    wrap.className = "member-payment-year";
+    wrap.innerHTML = `<span class="form-label" id="memberPaymentYearLabel">Beitragsjahr</span><div id="memberPaymentYear" class="member-payment-year__chips" role="group" aria-labelledby="memberPaymentYearLabel"></div><span id="memberPaymentYearClosed" class="member-payment-year__closed" hidden>abgeschlossen – nur Ansicht</span>`;
+    // Knoepfe loesen kein input/change aus - der Jahreswechsel macht die Maske also nicht "ungespeichert"
+    wrap.querySelector("div").addEventListener("click", event => {
+      const chip = event.target.closest("button[data-year]");
+      if (chip) switchYear(Number(chip.dataset.year));
+    });
+    return wrap;
   };
 
   const createField = (field, className = "") => {
@@ -361,6 +402,7 @@ export const createMemberForm = ({
       pane.tabIndex = 0;
       row.className = section.groups ? "member-payment-groups" : "row g-3";
       if (section.id === "basis") pane.appendChild(createPhotoPreview());
+      if (section.id === "zahlungen") pane.appendChild(createYearSelect());
       if (section.groups) {
         section.groups.forEach(group => row.appendChild(createGroup(group, fieldByKey)));
       } else if (section.id === "verein") {
@@ -458,6 +500,10 @@ export const createMemberForm = ({
         input.value = raw === null || raw === undefined ? "" : String(raw);
       }
     });
+    zahlungsjahre = zahlungenNachJahr(member);
+    document.getElementById("memberPaymentYear").innerHTML = beitragsjahrOptionen([...zahlungsjahre.keys()])
+      .map(jahr => `<button type="button" class="member-form-selection-chip" data-year="${jahr}" aria-pressed="false">${jahr}${jahr === beitragsjahr ? " (aktuell)" : ""}</button>`).join("");
+    showYear(beitragsjahr);
     updatePhotoPreview(member);
     const idInput = document.getElementById("field-id");
     if (idInput) idInput.readOnly = !isNew;
@@ -483,6 +529,10 @@ export const createMemberForm = ({
         member[field.key] = document.querySelector(`input[name="field-${field.key}"]:checked`)?.value || "";
       } else member[field.key] = (input.value || "").trim();
     });
+    storeYear();
+    Object.assign(member, zahlungsjahre.get(beitragsjahr));
+    delete member.beitragsjahr;
+    member.zahlungen = [...zahlungsjahre.values()].filter(zahlung => zahlung.beitragsjahr !== beitragsjahr);
     return normalizeMember(member);
   };
 
@@ -509,6 +559,8 @@ export const createMemberForm = ({
     container.querySelectorAll(".is-invalid").forEach(element => element.classList.remove("is-invalid"));
   };
   const markFields = (entries, kind) => {
+    const paymentEntry = entries.find(({ field }) => ZAHLUNG_FIELDS.includes(field));
+    if (paymentEntry) switchYear(paymentEntry.beitragsjahr ?? beitragsjahr);
     entries.forEach(({ field, message }) => {
       const container = fieldContainer(field);
       if (!container) return;

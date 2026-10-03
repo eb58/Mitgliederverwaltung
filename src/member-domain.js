@@ -1,6 +1,8 @@
 import {
+  ERSTES_BEITRAGSJAHR,
   MEMBER_CLUB_ID,
   austrittsgrundMap,
+  beitragsjahr,
   christmasChoiceMap,
   computerGroupPatterns,
   fieldDefinitions,
@@ -22,6 +24,26 @@ import {
 } from "./member-utils.js";
 
 export const istBeitragBezahlt = betrag => parseLegacyCurrency(betrag) > 0;
+
+export const ZAHLUNG_FIELDS = ["gezahlterBetragClub", "einzahlungClubAm", "gezahlterBetragComputer", "einzahlungComputerAm"];
+const normalizeZahlung = raw => ({
+  beitragsjahr: Number(raw.beitragsjahr),
+  gezahlterBetragClub: parseLegacyCurrency(raw.gezahlterBetragClub),
+  einzahlungClubAm: parseLegacyDate(raw.einzahlungClubAm),
+  gezahlterBetragComputer: parseLegacyCurrency(raw.gezahlterBetragComputer),
+  einzahlungComputerAm: parseLegacyDate(raw.einzahlungComputerAm)
+});
+// Das aktuelle Jahr kommt aus den flachen Feldern - die zeigen Grid und Dashboard und gewinnen auch beim Speichern
+export const zahlungenNachJahr = (member, aktuellesJahr = beitragsjahr) => new Map([
+  ...(member.zahlungen || []).map(zahlung => [Number(zahlung.beitragsjahr), normalizeZahlung(zahlung)]),
+  [aktuellesJahr, normalizeZahlung({ ...member, beitragsjahr: aktuellesJahr })]
+]);
+// Ab dem ersten erfassten Jahr bis zum Folgejahr (Vorauszahlungen), dazu alle Jahre mit Daten
+export const beitragsjahrOptionen = (jahre = [], aktuellesJahr = beitragsjahr) => [...new Set([
+  ...jahre,
+  ...Array.from({ length: Math.max(aktuellesJahr + 2 - ERSTES_BEITRAGSJAHR, 1) }, (_, index) => ERSTES_BEITRAGSJAHR + index),
+  aktuellesJahr + 1
+])].sort((a, b) => a - b);
 
 export const normalizeMember = raw => {
   const member = { ...raw };
@@ -62,6 +84,7 @@ export const normalizeMember = raw => {
   member.gezahlterBetragWeihnachten = parseLegacyCurrency(member.gezahlterBetragWeihnachten);
   member.bemerkung = member.bemerkung || "";
   member.tischnummer = Number(member.tischnummer) || 0;
+  member.zahlungen = (Array.isArray(member.zahlungen) ? member.zahlungen : []).map(normalizeZahlung).sort((a, b) => b.beitragsjahr - a.beitragsjahr);
   return member;
 };
 
@@ -75,7 +98,7 @@ export const createEmptyMember = () => {
     if (field.type === "select" || field.type === "radio") return [field.key, field.key === "geschlecht" ? "w" : null];
     return [field.key, ""];
   }));
-  return { ...member, ort: "Berlin", clubzugehoerigkeit: MEMBER_CLUB_ID };
+  return { ...member, ort: "Berlin", clubzugehoerigkeit: MEMBER_CLUB_ID, zahlungen: [] };
 };
 
 const hasExitReason = member => Boolean(austrittsgrundMap[Number(member.austrittsgrund)]);
@@ -231,6 +254,14 @@ export const validateMember = (member, { original = null, members = [], today = 
   if (member.plz && !isValidPlz(member.plz)) error("plz", "PLZ muss aus genau 5 Ziffern bestehen.");
   if (member.email && !isValidEmail(member.email)) error("email", "Keine gültige E-Mail-Adresse.");
   AMOUNT_FIELDS.forEach(field => { if (Number(member[field]) < 0) error(field, "Darf nicht negativ sein."); });
+  // Andere Beitragsjahre: Die Maske springt ueber "beitragsjahr" zum betroffenen Jahr
+  (member.zahlungen || []).forEach(zahlung => ZAHLUNG_FIELDS.forEach(field => {
+    const value = zahlung[field];
+    const message = field in DATE_FIELDS
+      ? value && !isValidIsoDate(value) && `${DATE_FIELDS[field]} ${zahlung.beitragsjahr} ist kein gültiges Datum (Jahr 1900–2100).`
+      : Number(value) < 0 && `Darf für ${zahlung.beitragsjahr} nicht negativ sein.`;
+    if (message) errors.push({ field, message, beitragsjahr: zahlung.beitragsjahr });
+  }));
 
   const age = calculateAge(date("geburtstag"), today);
   if (age !== null && changed("geburtstag")) {

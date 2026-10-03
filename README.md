@@ -158,6 +158,7 @@ Vor dem Upload leert das Skript das Zielverzeichnis bis auf `php-api/` und darin
 - Die Oberfläche ist bewusst als kompakte Single-Page-App gehalten.
 - Stammdaten und Mitgliederfelder werden zentral in `src/member-config.js` definiert; `src/app.js` verbindet die eigenständigen Module.
 - Zahlungen und Computerclub-Filter hängen an denselben normalisierten Mitgliedsdaten wie Dashboard und Tabellen.
+- Beitragszahlungen liegen je Beitragsjahr in `mitglied_zahlung`. Die flachen Felder (`gezahlterBetragClub` usw.) zeigen das aktuelle Beitragsjahr, und das ist das Kalenderjahr (`beitragsjahr` in `src/member-config.js`, `aktuellesBeitragsjahr()` in `server/lib.php`, Zeitzone Europe/Berlin); alle Jahre stehen in `zahlungen`. Beim Speichern gewinnen fürs aktuelle Jahr die flachen Felder, nicht mitgeschickte Jahre bleiben unverändert. Abgelaufene Jahre (vor dem aktuellen Beitragsjahr) sind abgeschlossen: Die Maske zeigt sie nur an und schickt sie nicht mit, die API lehnt sie in `zahlungen` ab.
 - Änderungen an Mitgliedern werden über die API auditierbar protokolliert.
 
 ## Tests

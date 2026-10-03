@@ -67,4 +67,14 @@ describe("validateMember", () => {
     expect(result.warnings).toEqual([]);
     expect(fields(result.errors)).toEqual(["plz"]);
   });
+
+  it("prueft Zahlungen anderer Beitragsjahre und nennt das Jahr", () => {
+    const { errors } = validateMember({ name: "A", vorname: "B", zahlungen: [
+      { beitragsjahr: 2027, gezahlterBetragClub: -5, einzahlungClubAm: "", gezahlterBetragComputer: 0, einzahlungComputerAm: "2027-13-01" }
+    ] });
+    expect(errors).toEqual([
+      { field: "gezahlterBetragClub", message: "Darf für 2027 nicht negativ sein.", beitragsjahr: 2027 },
+      { field: "einzahlungComputerAm", message: "Einzahlung Computer 2027 ist kein gültiges Datum (Jahr 1900–2100).", beitragsjahr: 2027 }
+    ]);
+  });
 });

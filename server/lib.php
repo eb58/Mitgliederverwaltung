@@ -796,10 +796,73 @@ function abgeleiteteZahlungsFields(): array
     ];
 }
 
-/** Das Beitragsjahr wird bewusst fachlich umgestellt und nicht aus dem Datum abgeleitet. */
+/** Das Beitragsjahr ist das Kalenderjahr: Am 1. Januar beginnt das neue, das alte ist dann abgeschlossen. */
 function aktuellesBeitragsjahr(): int
 {
-    return 2026;
+    return (int) (new DateTimeImmutable('now', new DateTimeZone('Europe/Berlin')))->format('Y');
+}
+
+/** Ein Jahr ohne Datensatz in mitglied_zahlung: nichts gezahlt. */
+function leereZahlung(int $beitragsjahr): array
+{
+    return ['beitragsjahr' => $beitragsjahr, 'gezahlterBetragClub' => 0.0, 'einzahlungClubAm' => null, 'gezahlterBetragComputer' => 0.0, 'einzahlungComputerAm' => null];
+}
+
+/** Ein Eintrag aus "zahlungen" ersetzt das ganze Jahr: fehlende Felder gelten als leer. */
+function normalizeZahlungen(mixed $value): array
+{
+    if (!is_array($value)) throw new ApiError('zahlungen muss eine Liste sein.', 400);
+    $result = [];
+    foreach ($value as $entry) {
+        $jahr = is_array($entry) ? filter_var($entry['beitragsjahr'] ?? null, FILTER_VALIDATE_INT) : false;
+        if ($jahr === false || $jahr < 1900 || $jahr > 2100) throw new ApiError('Jeder Eintrag in zahlungen braucht ein beitragsjahr (1900-2100).', 400);
+        $unknown = array_diff(array_keys($entry), ['beitragsjahr', ...array_keys(zahlungsFields())]);
+        if ($unknown) throw new ApiError('Unbekannte Felder in zahlungen: ' . implode(', ', $unknown), 400);
+        $zahlung = leereZahlung($jahr);
+        foreach (['gezahlterBetragClub', 'gezahlterBetragComputer'] as $key) {
+            $amount = (float) ($entry[$key] ?? 0);
+            if ($amount < 0) throw new ApiError("$key ($jahr) darf nicht negativ sein.", 400);
+            $zahlung[$key] = $amount;
+        }
+        foreach (['einzahlungClubAm', 'einzahlungComputerAm'] as $key) {
+            $zahlung[$key] = normalizeDateValue($key, $entry[$key] ?? null);
+        }
+        $result[$jahr] = $zahlung;
+    }
+    krsort($result);
+    return array_values($result);
+}
+
+/** Abgelaufene Beitragsjahre sind abgeschlossen - "zahlungen" darf nur offene Jahre enthalten. */
+function assertKeineAbgelaufenenJahre(array $zahlungen): void
+{
+    foreach ($zahlungen as ['beitragsjahr' => $jahr]) {
+        if ($jahr < aktuellesBeitragsjahr()) {
+            throw new ApiError("Das Beitragsjahr $jahr ist abgeschlossen und kann nicht mehr geaendert werden.", 400);
+        }
+    }
+}
+
+/** Haengt jedem Mitglied alle Beitragsjahre an - eine Abfrage fuer die ganze Seite. */
+function attachZahlungen(array $members): array
+{
+    if (!$members) return $members;
+    $ids = array_column($members, 'id');
+    $statement = db()->prepare(
+        'SELECT * FROM mitglied_zahlung WHERE mitglied_id IN (' . implode(', ', array_fill(0, count($ids), '?')) . ') ORDER BY beitragsjahr DESC'
+    );
+    $statement->execute(array_map('intval', $ids));
+    $byMember = [];
+    foreach ($statement->fetchAll() as $row) {
+        $byMember[(int) $row['mitglied_id']][] = [
+            'beitragsjahr' => (int) $row['beitragsjahr'],
+            'gezahlterBetragClub' => (float) $row['gezahlter_betrag_club'],
+            'einzahlungClubAm' => $row['einzahlung_club_am'] ? substr((string) $row['einzahlung_club_am'], 0, 10) : null,
+            'gezahlterBetragComputer' => (float) $row['gezahlter_betrag_computer'],
+            'einzahlungComputerAm' => $row['einzahlung_computer_am'] ? substr((string) $row['einzahlung_computer_am'], 0, 10) : null,
+        ];
+    }
+    return array_map(static fn(array $member): array => $member + ['zahlungen' => $byMember[(int) $member['id']] ?? []], $members);
 }
 
 function weihnachtsessenFields(): array
@@ -900,6 +963,9 @@ function normalizeMemberInput(array $payload, bool $partial = false): array
         }
     }
 
+    if (!$partial || array_key_exists('zahlungen', $payload)) {
+        $member['zahlungen'] = normalizeZahlungen($payload['zahlungen'] ?? []);
+    }
     if (!$partial || array_key_exists('interessengruppen', $payload)) {
         $member['interessengruppen'] = normalizeIds($payload['interessengruppen'] ?? []);
     }
@@ -913,7 +979,7 @@ function normalizeMemberInput(array $payload, bool $partial = false): array
 
 function assertKnownFields(array $payload): void
 {
-    $allowed = array_fill_keys(array_merge(array_keys(memberApiFields()), ['interessengruppen', 'funktionen']), true);
+    $allowed = array_fill_keys(array_merge(array_keys(memberApiFields()), ['interessengruppen', 'funktionen', 'zahlungen']), true);
     $unknown = array_values(array_filter(array_keys($payload), static fn(string $key): bool => !isset($allowed[$key])));
     if ($unknown) {
         throw new ApiError('Unbekannte Felder: ' . implode(', ', $unknown), 400);
@@ -1000,7 +1066,7 @@ function findMemberById(int $id): ?array
     $statement = db()->prepare(baseSelect() . ' WHERE m.id = ?');
     $statement->execute([$id]);
     $row = $statement->fetch();
-    return $row ? rowToMember($row) : null;
+    return $row ? attachZahlungen([rowToMember($row)])[0] : null;
 }
 
 function memberAuditLabels(): array
@@ -1117,6 +1183,26 @@ function buildMemberAuditChanges(array $before, array $after): array
             'old' => $old,
             'new' => $new,
         ];
+    }
+    return [...$changes, ...buildZahlungAuditChanges($before['zahlungen'] ?? [], $after['zahlungen'] ?? [])];
+}
+
+/** Das aktuelle Beitragsjahr steht schon ueber die flachen Felder im Protokoll. */
+function buildZahlungAuditChanges(array $before, array $after): array
+{
+    $byYear = static fn(array $zahlungen): array => array_column($zahlungen, null, 'beitragsjahr');
+    [$before, $after] = [$byYear($before), $byYear($after)];
+    $years = array_diff(array_unique([...array_keys($before), ...array_keys($after)]), [aktuellesBeitragsjahr()]);
+    rsort($years);
+    $labels = memberAuditLabels();
+    $changes = [];
+    foreach ($years as $year) {
+        foreach (array_keys(zahlungsFields()) as $field) {
+            $oldRaw = ($before[$year] ?? leereZahlung($year))[$field];
+            $newRaw = ($after[$year] ?? leereZahlung($year))[$field];
+            if (normalizedAuditValue($field, $oldRaw) === normalizedAuditValue($field, $newRaw)) continue;
+            $changes[] = ['field' => $field, 'label' => "{$labels[$field]} $year", 'old' => formatAuditValue($field, $oldRaw), 'new' => formatAuditValue($field, $newRaw)];
+        }
     }
     return $changes;
 }
@@ -1255,7 +1341,7 @@ function handleMembersCollection(array $currentUser): void
         ['where' => $where, 'params' => $params] = buildMemberSearchFilter($_GET['search'] ?? '');
         $statement = db()->prepare(baseSelect() . $where . ' ORDER BY m.name, m.vorname, m.id LIMIT ? OFFSET ?');
         $statement->execute([...$params, $limit, $offset]);
-        jsonResponse(['members' => array_map('rowToMember', $statement->fetchAll())]);
+        jsonResponse(['members' => attachZahlungen(array_map('rowToMember', $statement->fetchAll()))]);
     }
 
     if ($method === 'POST') {
@@ -1264,6 +1350,7 @@ function handleMembersCollection(array $currentUser): void
         $member = normalizeMemberInput($payload);
         assertValidMember($member);
         assertPlausibleMember($member, array_keys($member));
+        assertKeineAbgelaufenenJahre($member['zahlungen']);
         jsonResponse(['member' => findMemberById(createMemberRecord($member, $currentUser))], 201);
     }
     unhandledMethod();
@@ -1288,6 +1375,7 @@ function handleMemberResource(int $id, array $currentUser): void
         $member = array_replace($existing, $patch, ['id' => $id]);
         assertValidMember($member);
         assertPlausibleMember($member, array_keys($patch));
+        assertKeineAbgelaufenenJahre($patch['zahlungen'] ?? []);
         db()->beginTransaction();
         try {
             updateMemberColumns($id, $patch);
@@ -1344,6 +1432,7 @@ function insertMember(array $member): int
     $statement = db()->prepare('INSERT INTO mitglied (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')');
     $statement->execute(array_map(static fn(string $key): mixed => $member[$key] ?? null, $keys));
     $id = $chosenId > 0 ? $chosenId : (int) db()->lastInsertId();
+    updateMemberZahlungsjahre($id, $member);
     updateMemberZahlungen($id, $member);
     updateMemberWeihnachtsessen($id, $member);
     return $id;
@@ -1363,12 +1452,26 @@ function updateMemberColumns(int $id, array $patch): void
         $values[] = $id;
         db()->prepare('UPDATE mitglied SET ' . implode(', ', $assignments) . ' WHERE id = ?')->execute($values);
     }
+    updateMemberZahlungsjahre($id, $patch);
     updateMemberZahlungen($id, $patch);
     updateMemberWeihnachtsessen($id, $patch);
 }
 
-function updateMemberZahlungen(int $memberId, array $values): void
+/**
+ * Jahre, die nicht in "zahlungen" stehen, bleiben unangetastet. Die flachen Felder laufen
+ * danach und gewinnen fuers aktuelle Jahr - so ueberschreibt eine mitgeschickte, aeltere
+ * Liste keine Grid-Aenderung am aktuellen Jahr.
+ */
+function updateMemberZahlungsjahre(int $memberId, array $values): void
 {
+    foreach ($values['zahlungen'] ?? [] as $zahlung) {
+        updateMemberZahlungen($memberId, $zahlung, $zahlung['beitragsjahr']);
+    }
+}
+
+function updateMemberZahlungen(int $memberId, array $values, ?int $beitragsjahr = null): void
+{
+    $beitragsjahr ??= aktuellesBeitragsjahr();
     $fields = array_intersect_key(zahlungsFields(), $values);
     if (!$fields) return;
     $columns = array_values($fields);
@@ -1377,13 +1480,13 @@ function updateMemberZahlungen(int $memberId, array $values): void
     db()->prepare(
         'INSERT INTO mitglied_zahlung (mitglied_id, beitragsjahr, ' . implode(', ', $columns) . ') '
         . 'VALUES (' . $placeholders . ') ON DUPLICATE KEY UPDATE ' . $updates
-    )->execute([$memberId, aktuellesBeitragsjahr(), ...array_map(static fn(string $key): mixed => $values[$key], array_keys($fields))]);
+    )->execute([$memberId, $beitragsjahr, ...array_map(static fn(string $key): mixed => $values[$key], array_keys($fields))]);
     db()->prepare(
         'DELETE FROM mitglied_zahlung
          WHERE mitglied_id = ? AND beitragsjahr = ?
            AND gezahlter_betrag_club = 0 AND einzahlung_club_am IS NULL
            AND gezahlter_betrag_computer = 0 AND einzahlung_computer_am IS NULL'
-    )->execute([$memberId, aktuellesBeitragsjahr()]);
+    )->execute([$memberId, $beitragsjahr]);
 }
 
 function updateMemberWeihnachtsessen(int $memberId, array $values): void

@@ -2359,3 +2359,26 @@ body {
 .member-form-discard { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-right: auto; padding: 0.35rem 0.5rem 0.35rem 0.85rem; background: #fdecea; border: 1px solid #f3c3bd; border-radius: 8px; }
 .member-form-discard[hidden] { display: none; }
 .member-form-discard__text { font-weight: 600; color: #8a1c12; margin-right: 0.25rem; }
+
+.member-payment-year {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.member-payment-year .form-label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.member-payment-year__closed {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.member-payment-year__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

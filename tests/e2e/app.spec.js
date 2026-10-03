@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// Das Beitragsjahr ist das Kalenderjahr - die Tests rechnen relativ dazu
+const beitragsjahr = new Date().getFullYear();
+
 const referenceData = {
   interestGroups: [
     { id: 16, label: "Excel" },
@@ -228,12 +231,12 @@ test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
 
   await expect(page.locator("#metricTotal")).toHaveText("1");
   await expect(page.locator("#metricGuestCount")).toHaveText("1");
-  await expect(page.locator("#metricClubPaidBtn .metric-label")).toHaveText("Club bezahlt 2026");
-  await expect(page.locator("#metricClubOpenBtn .metric-label")).toHaveText("Club offen 2026");
-  await expect(page.locator("#metricComputerPaidBtn .metric-label")).toHaveText("Computergruppe bezahlt 2026");
-  await expect(page.locator("#metricComputerOpenBtn .metric-label")).toHaveText("Computergruppe offen 2026");
-  await expect(page.locator("#metricClubPaymentsLabel")).toHaveText("Einzahlungen Club 2026");
-  await expect(page.locator("#metricComputerPaymentsLabel")).toHaveText("Einzahlungen Computerclub 2026");
+  await expect(page.locator("#metricClubPaidBtn .metric-label")).toHaveText(`Club bezahlt ${beitragsjahr}`);
+  await expect(page.locator("#metricClubOpenBtn .metric-label")).toHaveText(`Club offen ${beitragsjahr}`);
+  await expect(page.locator("#metricComputerPaidBtn .metric-label")).toHaveText(`Computergruppe bezahlt ${beitragsjahr}`);
+  await expect(page.locator("#metricComputerOpenBtn .metric-label")).toHaveText(`Computergruppe offen ${beitragsjahr}`);
+  await expect(page.locator("#metricClubPaymentsLabel")).toHaveText(`Einzahlungen Club ${beitragsjahr}`);
+  await expect(page.locator("#metricComputerPaymentsLabel")).toHaveText(`Einzahlungen Computerclub ${beitragsjahr}`);
   await expect(page.locator("#payments-tab .sidebar__nav-label")).toHaveText("Clubbeitrag");
   const paymentsPosition = await page.locator("#payments-tab").boundingBox();
   const guestsPosition = await page.locator("#guests-tab").boundingBox();
@@ -589,6 +592,61 @@ test("Beitragshaken folgt Club- und Computerbetrag", async ({ page }) => {
   await expect(page.locator("#field-beitragComputerBezahlt")).toBeChecked();
   await page.locator("#field-gezahlterBetragComputer").fill("0");
   await expect(page.locator("#field-beitragComputerBezahlt")).not.toBeChecked();
+});
+
+test("Zahlungen-Tab erfasst Beiträge je Beitragsjahr", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#addMemberBtn").click();
+  await page.locator("#field-name").fill("Schäfer");
+  await page.locator("#field-vorname").fill("Erika");
+  await page.locator("#member-form-zahlungen-tab").click();
+
+  const yearChip = jahr => page.locator(`#memberPaymentYear [data-year="${jahr}"]`);
+  await expect(yearChip(beitragsjahr)).toHaveAttribute("aria-pressed", "true");
+  await expect(yearChip(beitragsjahr)).toHaveText(`${beitragsjahr} (aktuell)`);
+  await page.locator("#field-gezahlterBetragClub").fill("30");
+  await yearChip(beitragsjahr + 1).click();
+  await expect(yearChip(beitragsjahr + 1)).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#field-gezahlterBetragClub")).toHaveValue("");
+  await expect(page.locator("#field-beitragClubBezahlt")).not.toBeChecked();
+  await page.locator("#field-gezahlterBetragComputer").fill("20");
+  await yearChip(beitragsjahr).click();
+  await expect(page.locator("#field-gezahlterBetragClub")).toHaveValue("30");
+  await expect(page.locator("#field-gezahlterBetragComputer")).toHaveValue("");
+
+  const requestPromise = page.waitForRequest(request => request.method() === "POST" && new URL(request.url()).pathname.endsWith("/index.php/api/members"));
+  await page.locator('#memberForm button[type="submit"]').click();
+  const body = (await requestPromise).postDataJSON();
+
+  expect(body).toMatchObject({ gezahlterBetragClub: 30, gezahlterBetragComputer: 0 });
+  expect(body.zahlungen).toEqual([{ beitragsjahr: beitragsjahr + 1, gezahlterBetragClub: 0, einzahlungClubAm: "", gezahlterBetragComputer: 20, einzahlungComputerAm: "" }]);
+});
+
+test("abgelaufene Beitragsjahre sind in der Maske nur zur Ansicht", async ({ page }) => {
+  members[0].zahlungen = [{ beitragsjahr: beitragsjahr - 1, gezahlterBetragClub: 25, einzahlungClubAm: "2025-02-01" }];
+  try {
+    await openAuthenticatedApp(page);
+    await page.locator("#overview-tab").click();
+    await page.locator('#overviewGrid [row-id="1"] .edit-icon-btn').click();
+    await page.locator("#member-form-zahlungen-tab").click();
+
+    await expect(page.locator("#field-gezahlterBetragClub")).toBeEnabled();
+    await expect(page.locator("#memberPaymentYearClosed")).toBeHidden();
+    await page.locator(`#memberPaymentYear [data-year="${beitragsjahr - 1}"]`).click();
+    await expect(page.locator("#field-gezahlterBetragClub")).toHaveValue("25");
+    await expect(page.locator("#field-gezahlterBetragClub")).toBeDisabled();
+    await expect(page.locator("#field-beitragClubBezahlt")).toBeDisabled();
+    await expect(page.locator("#memberPaymentYearClosed")).toBeVisible();
+
+    // Abgeschlossene Jahre gehen beim Speichern gar nicht erst mit
+    await page.locator("#member-form-notizen-tab").click();
+    await page.locator("#field-bemerkung").fill("geprüft");
+    const requestPromise = page.waitForRequest(request => request.method() === "PUT");
+    await page.locator('#memberForm button[type="submit"]').click();
+    expect((await requestPromise).postDataJSON().zahlungen).toEqual([]);
+  } finally {
+    delete members[0].zahlungen;
+  }
 });
 
 test("Events-Gruppe klappt Weihnachtsessen, Warnemünde und Eisbeinessen auf und markiert den aktiven Punkt", async ({ page }) => {

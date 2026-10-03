@@ -3,7 +3,10 @@ export const interestGroupMap = {};
 export const seniorenclubsMap = [];
 export const austrittsgrundMap = {};
 export const funktionsMap = {};
-export const beitragsjahr = 2026;
+// Kalenderjahr wie aktuellesBeitragsjahr() in server/lib.php
+export const beitragsjahr = new Date().getFullYear();
+// Aeltere Zahlungsdaten gibt es nicht - die Jahr-Auswahl der Maske beginnt hier
+export const ERSTES_BEITRAGSJAHR = 2026;
 
 export const christmasChoiceMap = {
   0: "Nein",

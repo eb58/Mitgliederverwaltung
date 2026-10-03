@@ -1,4 +1,4 @@
-import { fieldDefinitions } from "./member-config.js";
+import { beitragsjahr, fieldDefinitions } from "./member-config.js";
 import { normalizeMember } from "./member-domain.js";
 import { createMemberApiUrlForBase } from "./member-utils.js";
 
@@ -90,7 +90,7 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
 
   const toPayload = member => !member || typeof member !== "object"
     ? member
-    : Object.fromEntries(fieldDefinitions.map(field => [field.key, member[field.key]]));
+    : { ...Object.fromEntries(fieldDefinitions.map(field => [field.key, member[field.key]])), zahlungen: (member.zahlungen || []).filter(zahlung => zahlung.beitragsjahr >= beitragsjahr) };
   const createMember = async member => normalizeMember((await request("/api/members", { method: "POST", body: toPayload(member) })).member);
   const updateMember = async member => normalizeMember((await request(`/api/members/${member.id}`, { method: "PUT", body: toPayload(member) })).member);
   const loadMemberChanges = async memberId => {
