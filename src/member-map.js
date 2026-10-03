@@ -32,10 +32,18 @@ export const checkMemberAddress = async member => {
 
 export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, loadGeocodeCache, saveGeocode }) => {
   let runId = 0;
-  let showGuests = true;
   let redraw = () => {};
   let focusId = null;
-  const guestToggle = () => document.getElementById("memberMapShowGuests");
+  // Sichtbarkeit je Gruppe, im Browser gemerkt
+  const toggles = { members: "memberMapShowMembers", guests: "memberMapShowGuests" };
+  const storageKey = kind => `member-map-show-${kind}`;
+  const show = Object.fromEntries(Object.keys(toggles).map(kind => [kind, localStorage.getItem(storageKey(kind)) !== "false"]));
+  const setShow = (kind, value) => {
+    show[kind] = value;
+    localStorage.setItem(storageKey(kind), String(value));
+    document.getElementById(toggles[kind]).setAttribute("aria-pressed", String(value));
+  };
+  const kindOf = member => isGuestMember(member) ? "guests" : "members";
 
   const render = async () => {
     const run = ++runId;
@@ -44,12 +52,10 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     const missingHost = document.getElementById("memberMapMissing");
     // Gesucht werden alle, angezeigt je nach Schalter mit oder ohne Gaeste
     const members = state.members.filter(isActiveMember);
-    // Sprung aus dem Bearbeiten-Dialog auf einen Gast: Gaeste dafuer einblenden
-    if (focusId !== null && !showGuests && isGuestMember(members.find(member => member.id === focusId))) {
-      showGuests = true;
-      guestToggle().setAttribute("aria-pressed", "true");
-    }
-    const visible = () => showGuests ? members : members.filter(member => !isGuestMember(member));
+    // Sprung aus dem Bearbeiten-Dialog: die Gruppe des Ziels dafuer einblenden
+    const focused = focusId !== null && members.find(member => member.id === focusId);
+    if (focused && !show[kindOf(focused)]) setShow(kindOf(focused), true);
+    const visible = () => members.filter(member => show[kindOf(member)]);
     // Koordinaten liegen zentral auf dem Server; ohne Server-Antwort suchen wir einfach neu
     const cache = await loadGeocodeCache().catch(() => ({}));
     if (run !== runId) return;
@@ -72,7 +78,7 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     buildPlaces();
 
     let view = homeView(BOUNDS);
-    host.innerHTML = `<svg class="member-map__svg" role="img" aria-label="Wohnorte der aktiven Mitglieder und Gäste"><g class="member-map__tiles"></g><g class="member-map__dots"></g></svg>
+    host.innerHTML = `<svg class="member-map__svg" role="img" aria-label="Wohnorte der Mitglieder und Gäste"><g class="member-map__tiles"></g><g class="member-map__dots"></g></svg>
       <div class="member-map__zoom"><button type="button" data-zoom="in" title="Hineinzoomen" aria-label="Hineinzoomen">+</button><button type="button" data-zoom="out" title="Herauszoomen" aria-label="Herauszoomen">−</button><button type="button" data-zoom="home" title="Zurück nach Lübars" aria-label="Zurück nach Lübars">⌂</button><button type="button" data-zoom="all" title="Alle Mitglieder zeigen" aria-label="Alle Mitglieder zeigen">⤢</button></div>`;
     const svg = host.querySelector("svg");
     const tilesLayer = svg.querySelector(".member-map__tiles");
@@ -204,8 +210,12 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
       const shown = members.filter(located);
       const guests = members.filter(isGuestMember);
       const open = pending().length;
-      const guestText = showGuests ? ` und ${shown.filter(isGuestMember).length} von ${guests.length} Gästen auf der Karte` : " auf der Karte (Gäste ausgeblendet)";
-      summary.textContent = `${shown.filter(member => !isGuestMember(member)).length} von ${members.length - guests.length} Mitgliedern${guestText}${open ? ` – Adressen werden einmalig gesucht (ca. 1 pro Sekunde), noch ${open} offen …` : ""}`;
+      const parts = [
+        show.members && `${shown.filter(member => !isGuestMember(member)).length} von ${members.length - guests.length} Mitgliedern`,
+        show.guests && `${shown.filter(isGuestMember).length} von ${guests.length} Gästen`
+      ].filter(Boolean);
+      const hidden = [!show.members && "Mitglieder", !show.guests && "Gäste"].filter(Boolean);
+      summary.textContent = `${parts.join(" und ") || "Niemand"} auf der Karte${hidden.length ? ` (${hidden.join(" und ")} ausgeblendet)` : ""}${open ? ` – Adressen werden einmalig gesucht (ca. 1 pro Sekunde), noch ${open} offen …` : ""}`;
       const missing = visible().filter(member => !located(member) && (!member.strasse || keyOf(member) in cache));
       missingHost.innerHTML = missing.length
         ? `<details><summary>${missing.length} ohne Kartenposition</summary><ul>${missing.map(member => `<li><button type="button" class="btn btn-link p-0" data-member-id="${escapeHtml(member.id)}">${escapeHtml(formatMemberName(member))}</button> – ${escapeHtml(member.strasse || "keine Straße")} (${member.strasse ? "Adresse nicht gefunden" : "keine Anschrift"})</li>`).join("")}</ul></details>`
@@ -262,10 +272,12 @@ export const createMemberMap = ({ openMemberModal, resolveMemberPhotoDataUrl, lo
     }
   };
 
-  guestToggle().addEventListener("click", event => {
-    showGuests = !showGuests;
-    event.currentTarget.setAttribute("aria-pressed", String(showGuests));
-    redraw();
+  Object.keys(toggles).forEach(kind => {
+    setShow(kind, show[kind]);
+    document.getElementById(toggles[kind]).addEventListener("click", () => {
+      setShow(kind, !show[kind]);
+      redraw();
+    });
   });
   document.getElementById("member-map-pane").addEventListener("click", event => {
     const button = event.target.closest("[data-member-id]");

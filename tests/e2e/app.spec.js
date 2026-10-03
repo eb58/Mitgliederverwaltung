@@ -622,6 +622,20 @@ test("Zahlungen-Tab erfasst Beiträge je Beitragsjahr", async ({ page }) => {
   expect(body.zahlungen).toEqual([{ beitragsjahr: beitragsjahr + 1, gezahlterBetragClub: 0, einzahlungClubAm: "", gezahlterBetragComputer: 20, einzahlungComputerAm: "" }]);
 });
 
+test("Gäste heißen in der Maske Gast und haben keinen Zahlungen-Reiter", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#guests-tab").click();
+  await page.locator('#guestsGrid [row-id="2"] .edit-icon-btn').click();
+
+  await expect(page.locator("#memberModalLabel")).toHaveText("Gast bearbeiten");
+  await expect(page.locator("#member-form-zahlungen-tab")).toBeHidden();
+
+  await page.locator("#member-form-verein-tab").click();
+  await page.locator("#field-clubzugehoerigkeit").selectOption("9");
+  await expect(page.locator("#memberModalLabel")).toHaveText("Mitglied bearbeiten");
+  await expect(page.locator("#member-form-zahlungen-tab")).toBeVisible();
+});
+
 test("abgelaufene Beitragsjahre sind in der Maske nur zur Ansicht", async ({ page }) => {
   members[0].zahlungen = [{ beitragsjahr: beitragsjahr - 1, gezahlterBetragClub: 25, einzahlungClubAm: "2025-02-01" }];
   try {
@@ -977,6 +991,25 @@ test("Karte zeigt aktive Mitglieder mit Adresse und öffnet das Mitglied", async
   await expect(page.locator("#field-plz")).toHaveAttribute("autocomplete", "one-time-code");
   await expect(page.locator("#memberForm")).toHaveAttribute("autocomplete", "off");
   expect(await page.locator("#memberForm").evaluate(form => [...form.querySelectorAll("input:not([type=hidden]), select, textarea")].every(element => /^(mitglied-|one-time-code$)/.test(element.getAttribute("autocomplete"))))).toBe(true);
+});
+
+test("Karte blendet Mitglieder aus und merkt sich das im Browser", async ({ page }) => {
+  await mockGeocoding(page);
+  await openAuthenticatedApp(page);
+  await page.locator("#member-map-tab").click();
+  await expect(page.locator(".member-map__dot")).toHaveCount(1);
+
+  await page.locator("#memberMapShowMembers").click();
+  await expect(page.locator("#memberMapShowMembers")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#memberMapSummary")).toHaveText(/^0 von 1 Gästen auf der Karte \(Mitglieder ausgeblendet\)/);
+  await expect(page.locator(".member-map__dot")).toHaveCount(0);
+  await page.locator("#memberMapShowGuests").click();
+  await expect(page.locator("#memberMapSummary")).toHaveText(/^Niemand auf der Karte \(Mitglieder und Gäste ausgeblendet\)/);
+
+  await page.reload();
+  await page.locator("#member-map-tab").click();
+  await expect(page.locator("#memberMapShowMembers")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#memberMapShowGuests")).toHaveAttribute("aria-pressed", "false");
 });
 
 test("ausgeblendete Gäste verschwinden auch aus der Anzeige rechts", async ({ page }) => {

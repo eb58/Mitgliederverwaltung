@@ -1,6 +1,6 @@
 import { Modal, Tab } from "bootstrap";
 import { beitragsjahr, fieldDefinitions, formSections, paidAmountDefaults } from "./member-config.js";
-import { ZAHLUNG_FIELDS, beitragsjahrOptionen, cloneMember, createEmptyMember, formatMemberName, istBeitragBezahlt, normalizeMember, validateMember, zahlungenNachJahr } from "./member-domain.js";
+import { ZAHLUNG_FIELDS, beitragsjahrOptionen, cloneMember, createEmptyMember, formatMemberName, isGuestMember, istBeitragBezahlt, normalizeMember, validateMember, zahlungenNachJahr } from "./member-domain.js";
 import { asBoolean, formatIsoDate, roundCurrency } from "./member-utils.js";
 import { state } from "./state.js";
 import { showToast } from "./ui.js";
@@ -472,6 +472,7 @@ export const createMemberForm = ({
     });
     tabs.appendChild(mapItem);
     container.append(hiddenIdInput, tabs, tabContent);
+    document.getElementById("field-clubzugehoerigkeit").addEventListener("change", updateGuestView);
     // Mitgliederdaten sind keine eigenen Adressen: Chrome soll sie nicht im Google-Konto speichern wollen.
     // "off" und unbekannte Werte uebergeht Chrome und erkennt die Felder an Beschriftung/ID. Ein bekannter
     // Nicht-Adresstyp hat dagegen Vorrang; ohne Strasse, PLZ und Ort bietet Chrome keine Adresse zum Speichern an.
@@ -703,14 +704,26 @@ export const createMemberForm = ({
     if (document.getElementById("changes-pane")?.classList.contains("active")) refreshRecentChanges({ force: true });
   };
 
+  // Gaeste zahlen keinen Beitrag: eigene Ueberschrift und kein Zahlungen-Reiter
+  const updateGuestView = () => {
+    const guest = isGuestMember({ clubzugehoerigkeit: document.getElementById("field-clubzugehoerigkeit").value });
+    const isNew = state.editingId === null;
+    document.getElementById("memberModalLabel").textContent = guest
+      ? (isNew ? "Neuen Gast anlegen" : "Gast bearbeiten")
+      : (isNew ? "Neues Mitglied anlegen" : "Mitglied bearbeiten");
+    const paymentTab = document.getElementById("member-form-zahlungen-tab");
+    paymentTab.closest("li").hidden = guest;
+    if (guest && paymentTab.classList.contains("active")) Tab.getOrCreateInstance(document.querySelector("#memberFormTabs .nav-link")).show();
+  };
+
   const open = memberId => {
     const isNew = memberId === null || memberId === undefined;
     const member = isNew ? createEmptyMember() : cloneMember(state.members.find(item => item.id === memberId));
     if (!member) return;
-    document.getElementById("memberModalLabel").textContent = isNew ? "Neues Mitglied anlegen" : "Mitglied bearbeiten";
     state.editingId = isNew ? null : member.id;
     clearSelectedPhoto();
     fill(member, isNew);
+    updateGuestView();
     clearFieldMarks();
     hideReview();
     addressCheck = { key: null, result: null };
