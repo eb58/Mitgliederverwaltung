@@ -172,6 +172,41 @@ export const createMemberForm = ({
       return col;
     }
 
+    // Einfachauswahl als Chips statt Dropdown, z.B. Weihnachtsessen
+    if (field.type === "chips") {
+      const chipsLabel = document.createElement("label");
+      const hidden = document.createElement("input");
+      const chipsWrap = document.createElement("div");
+      chipsLabel.className = "form-label";
+      chipsLabel.textContent = field.label;
+      hidden.type = "hidden";
+      hidden.id = `field-${field.key}`;
+      hidden.dataset.fieldKey = field.key;
+      chipsWrap.id = `field-${field.key}-chips`;
+      chipsWrap.className = "member-form-selection-chips member-form-selection-chips--single";
+      chipsWrap.setAttribute("role", "radiogroup");
+      chipsWrap.setAttribute("aria-label", field.label);
+      field.options.forEach(option => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "member-form-selection-chip";
+        chip.dataset.value = String(option.value);
+        chip.textContent = option.label;
+        chip.setAttribute("aria-pressed", "false");
+        chip.addEventListener("click", () => {
+          hidden.value = String(option.value);
+          Array.from(chipsWrap.children).forEach(other => {
+            other.classList.toggle("is-selected", other === chip);
+            other.setAttribute("aria-pressed", String(other === chip));
+          });
+          hidden.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        chipsWrap.appendChild(chip);
+      });
+      col.append(chipsLabel, hidden, chipsWrap);
+      return col;
+    }
+
     const label = document.createElement("label");
     label.className = "form-label";
     label.setAttribute("for", `field-${field.key}`);
@@ -497,6 +532,14 @@ export const createMemberForm = ({
         const value = raw === null || raw === undefined ? "" : String(raw);
         const radio = document.querySelector(`input[name="field-${field.key}"][value="${value}"]`);
         if (radio) radio.checked = true;
+      } else if (field.type === "chips") {
+        const value = raw === null || raw === undefined ? "" : String(raw);
+        input.value = value;
+        document.querySelectorAll(`#field-${field.key}-chips button`).forEach(chip => {
+          const selected = chip.dataset.value === value;
+          chip.classList.toggle("is-selected", selected);
+          chip.setAttribute("aria-pressed", String(selected));
+        });
       } else {
         input.value = raw === null || raw === undefined ? "" : String(raw);
       }

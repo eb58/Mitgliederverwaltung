@@ -630,6 +630,25 @@ test("Zahlungen-Tab erfasst Beiträge je Beitragsjahr", async ({ page }) => {
   expect(body.zahlungen).toEqual([{ beitragsjahr: beitragsjahr + 1, gezahlterBetragClub: 0, einzahlungClubAm: "", gezahlterBetragComputer: 20, einzahlungComputerAm: "" }]);
 });
 
+test("Weihnachtsessen wird per Chips statt Dropdown ausgewählt", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#addMemberBtn").click();
+  await page.locator("#field-name").fill("Schäfer");
+  await page.locator("#field-vorname").fill("Erika");
+  await page.locator("#member-form-weihnachten-tab").click();
+
+  const chip = value => page.locator(`#field-weihnachtsessen-chips [data-value="${value}"]`);
+  await expect(chip("0")).toHaveAttribute("aria-pressed", "false");
+  await chip("2").click();
+  await expect(chip("2")).toHaveAttribute("aria-pressed", "true");
+  await expect(chip("2")).toHaveClass(/is-selected/);
+  await expect(chip("0")).toHaveAttribute("aria-pressed", "false");
+
+  const requestPromise = page.waitForRequest(request => request.method() === "POST" && new URL(request.url()).pathname.endsWith("/index.php/api/members"));
+  await page.locator('#memberForm button[type="submit"]').click();
+  expect((await requestPromise).postDataJSON()).toMatchObject({ weihnachtsessen: 2 });
+});
+
 test("Gäste heißen in der Maske Gast und haben keinen Zahlungen-Reiter", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#guests-tab").click();

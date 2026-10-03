@@ -95,7 +95,7 @@ export const createEmptyMember = () => {
     if (field.type === "checkbox") return [field.key, false];
     if (field.type === "multiselect") return [field.key, []];
     if (field.type === "number" || field.type === "currency") return [field.key, 0];
-    if (field.type === "select" || field.type === "radio") return [field.key, field.key === "geschlecht" ? "w" : null];
+    if (field.type === "select" || field.type === "radio" || field.type === "chips") return [field.key, field.key === "geschlecht" ? "w" : null];
     return [field.key, ""];
   }));
   return { ...member, ort: "Berlin", clubzugehoerigkeit: MEMBER_CLUB_ID, zahlungen: [] };

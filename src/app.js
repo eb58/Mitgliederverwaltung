@@ -188,6 +188,7 @@ const initUiOnce = () => {
   referenceAdmin.init();
   initGrids();
   wireUi();
+  restoreLastView();
 };
 
 // Gemeinsamer Pfad fuer den Erststart und jede erneute Anmeldung, damit nach einem
@@ -268,6 +269,7 @@ const wireUi = () => {
 
   document.querySelectorAll('#mainTabs button[data-bs-toggle="tab"]').forEach(tabButton => {
     tabButton.addEventListener("shown.bs.tab", event => {
+      localStorage.setItem(LAST_VIEW_STORAGE_KEY, event.target.id);
       updateGlobalSearchVisibility(event.target.dataset.bsTarget);
       syncSidebarGroups(event.target);
       if (event.target.dataset.bsTarget === "#member-map-pane") memberMap.render();
@@ -323,6 +325,14 @@ const wireUi = () => {
 };
 
 const SIDEBAR_GROUP_STORAGE_PREFIX = "mitgliederverwaltung:sidebarGroup:";
+const LAST_VIEW_STORAGE_KEY = "mitgliederverwaltung:lastView";
+
+// Oeffnet beim Start wieder den zuletzt gezeigten Hauptpunkt der Navigation (nicht Dialoge
+// wie die Mitgliedsmaske). Passt die ID nicht mehr zu einem Tab, bleibt es beim Dashboard.
+const restoreLastView = () => {
+  const tabButton = document.getElementById(localStorage.getItem(LAST_VIEW_STORAGE_KEY) || "");
+  if (tabButton?.dataset.bsToggle === "tab" && tabButton.closest("#mainTabs")) Tab.getOrCreateInstance(tabButton).show();
+};
 
 // Die Navigation scrollt bei kleinen Fenstern; ein frisch geoeffneter Punkt
 // darf nicht unterhalb des sichtbaren Bereichs liegen.

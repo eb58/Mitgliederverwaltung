@@ -40,7 +40,7 @@ export const fieldDefinitions = [
   { key: "funktion", label: "Funktion", type: "multiselect", options: funktionsOptions, valueType: "textList" },
   { key: "ausweisErteilt", label: "Ausweis erteilt", type: "checkbox" },
   { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", type: "select", options: seniorenclubOptions, allowEmpty: true, valueType: "number" },
-  { key: "weihnachtsessen", label: "Weihnachtsessen", type: "select", options: [{ value: 0, label: "Nein" }, { value: 1, label: "Ja" }, { value: 2, label: "Ja + Gast" }] },
+  { key: "weihnachtsessen", label: "Weihnachtsessen", type: "chips", options: [{ value: 0, label: "Nein" }, { value: 1, label: "Ja" }, { value: 2, label: "Ja + Gast" }] },
   { key: "wnEssenBezahlt", label: "bezahlt", type: "checkbox" },
   { key: "beitragClubBezahlt", label: "Beitrag bezahlt", type: "checkbox" },
   { key: "beitragComputerBezahlt", label: "Beitrag Computer bezahlt", type: "checkbox" },
