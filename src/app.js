@@ -653,11 +653,16 @@ const getPaymentColumns = () => [
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
-  { headerName: "Gruppen", field: "interessengruppen", valueFormatter: interestGroupFormatter, filterValueGetter: params => formatInterestGroups(params.data?.interessengruppen), minWidth: 220 },
-  { headerName: "Beitrag bezahlt", field: "beitragClubBezahlt", minWidth: 170, filter: false, cellRenderer: paidStatusCellRenderer },
-  { headerName: "gezahlter Betrag Club", field: "gezahlterBetragClub", valueFormatter: currencyFormatter, minWidth: 190 },
-  { headerName: "Beitrag Computer bezahlt", field: "beitragComputerBezahlt", minWidth: 190, filter: false, cellRenderer: paidStatusCellRenderer },
-  { headerName: "gezahlter Betrag Computer", field: "gezahlterBetragComputer", valueFormatter: currencyFormatter, minWidth: 220 },
+  { headerName: "Clubbeitrag", field: "gezahlterBetragClub", valueFormatter: currencyFormatter, minWidth: 150, cellRenderer: params => paidAmountCellRenderer(params, "beitragClubBezahlt") },
+  {
+    headerName: "Computerbeitrag",
+    colId: "gezahlterBetragComputer",
+    // Nur fuer Mitglieder einer Computergruppe relevant, sonst bleibt die Zelle leer.
+    valueGetter: params => (isComputerGroupMember(params.data) ? params.data.gezahlterBetragComputer : null),
+    valueFormatter: currencyFormatter,
+    minWidth: 170,
+    cellRenderer: params => (isComputerGroupMember(params.data) ? paidAmountCellRenderer(params, "beitragComputerBezahlt") : "")
+  },
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
 
@@ -711,6 +716,17 @@ const paidStatusCellRenderer = params => {
   checkbox.title = checkbox.checked ? "Bezahlt" : "Nicht bezahlt";
   checkbox.setAttribute("aria-label", checkbox.title);
   return checkbox;
+};
+
+// Haekchen und gezahlter Betrag in einer Zelle; sortiert und gefiltert wird nach dem Betrag.
+const paidAmountCellRenderer = (params, paidField) => {
+  const wrapper = document.createElement("span");
+  wrapper.className = "paid-amount-cell";
+  wrapper.append(paidStatusCellRenderer({ value: params.data?.[paidField] }));
+  const amount = document.createElement("span");
+  amount.textContent = params.valueFormatted ?? "";
+  wrapper.append(amount);
+  return wrapper;
 };
 
 const togglePaymentComputerGroups = () => {

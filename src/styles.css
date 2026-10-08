@@ -1473,6 +1473,16 @@ body {
   cursor: pointer;
 }
 
+.paid-amount-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.paid-amount-cell .table-toggle {
+  margin-top: 0;
+}
+
 .edit-icon-btn {
   appearance: none;
   width: 32px;

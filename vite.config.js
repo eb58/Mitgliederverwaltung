@@ -31,6 +31,8 @@ export default defineConfig({
   build: {
     outDir: '../Gratulationsdienst/docker/src/mitgliederverwaltung',
     emptyOutDir: false,
+    // Ein Bundle (v. a. AG Grid) reicht fuer die wenigen Nutzer; Aufteilen lohnt nicht.
+    chunkSizeWarningLimit: 2000,
   },
   server: {
     proxy: {
