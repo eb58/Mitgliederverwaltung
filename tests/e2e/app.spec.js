@@ -1261,7 +1261,7 @@ const legeDoppelAn = async (page, n = 8) => {
   await page.locator('#turnierForm button[type="submit"]').click();
   await expect(page.locator('#turnierDetails h2')).toHaveText('Tischtennis Herbst'); return api;
 };
-test('Doppelturnier: Entwicklungshilfe füllt acht reine Gastpaare ohne sofortiges Speichern', async ({ page }) => {
+test('Doppelturnier: Testhilfe füllt acht reine Gastpaare ohne sofortiges Speichern', async ({ page }) => {
   await openAuthenticatedApp(page);
   await mockDoppelApi(page);
   await page.locator('#turniere-tab').click();
@@ -1273,10 +1273,11 @@ test('Doppelturnier: Entwicklungshilfe füllt acht reine Gastpaare ohne sofortig
   page.on('request', request => {
     if (request.method() === 'POST' && request.url().endsWith('/api/turniere')) erstellt.push(request.postDataJSON());
   });
-  await page.getByRole('button', { name: 'Beispielturnier anlegen', exact: true }).click();
+  await page.getByRole('button', { name: 'Beispielturnier anlegen (Testhilfe)', exact: true }).click();
   await expect(page.locator('#turnierPaare fieldset')).toHaveCount(8);
   await expect(page.locator('#turnierModus')).toHaveValue('jeder-gegen-jeden');
   await expect(page.locator('#turnierForm')).toContainText('keine Vereinsmitgliedschaft nötig');
+  await expect(page.locator('#turnierForm')).toContainText('Temporäre Testhilfe');
   const personen = await page.locator('#turnierPaare .turnier-person').evaluateAll(boxes => boxes.map(box => ({
     id: box.querySelector('select').value, name: box.querySelector('input').value,
     disabled: box.querySelector('input').disabled, required: box.querySelector('input').required,

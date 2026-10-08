@@ -138,8 +138,9 @@ export const createTurnierAdmin = ({ request, getMembers }) => {
     catch (e) { if (aktuell === generation) meldung(e.message); } finally { if (aktuell === generation) setBusy(false); }
   };
   const init = () => {
-    if (import.meta.env.DEV) {
-      const beispiel = el('button', 'Beispielturnier anlegen', 'btn btn-outline-secondary');
+    // Temporärer Testzustand für den lokalen Docker-Build; vor dem Merge wieder auf DEV begrenzen.
+    {
+      const beispiel = el('button', 'Beispielturnier anlegen (Testhilfe)', 'btn btn-outline-secondary');
       beispiel.type = 'button';
       beispiel.id = 'turnierBeispielBtn';
       beispiel.addEventListener('click', () => {
@@ -158,7 +159,7 @@ export const createTurnierAdmin = ({ request, getMembers }) => {
         form.elements.titel.focus();
       });
       document.getElementById('turnierPaarHinzufuegen').parentElement.append(beispiel,
-        el('span', 'Lokale Testhilfe: 16 erfundene Gastnamen, keine Vereinsmitgliedschaft nötig. Erst „Turnier anlegen“ speichert das Beispiel.', 'small text-muted'));
+        el('span', 'Temporäre Testhilfe: 16 erfundene Gastnamen, keine Vereinsmitgliedschaft nötig. Erst „Turnier anlegen“ speichert das Beispiel.', 'small text-muted'));
     }
     document.getElementById('turnierNeuLaden').addEventListener('click', () => { void load(); });
     document.getElementById('turnierPaarHinzufuegen').addEventListener('click', addPaar);

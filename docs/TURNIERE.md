@@ -10,7 +10,7 @@ Der Sidebar-Bereich **Turniere** nutzt Anmeldung, Mitgliederliste, Gestaltung un
 4. Ergebnisse satzweise erfassen. Nicht benötigte vierte und fünfte Sätze leer lassen.
 5. Vorhandene Turniere über die Turnierauswahl öffnen. „Neu laden“ holt den aktuellen gespeicherten Stand.
 
-Beim Start mit `npm run dev` erscheint unter den Doppelpaaren zusätzlich **Beispielturnier anlegen**. Die lokale Testhilfe füllt acht Paare mit 16 erfundenen Gastnamen und wählt „Jeder gegen jeden“. Sie speichert noch nichts; dafür anschließend **Turnier anlegen** wählen. Vereinsmitgliedschaft ist für Teilnehmer nicht erforderlich. Im Produktionsbuild ist diese Testhilfe ausgeschlossen.
+**Temporärer Testzustand – nicht mergen:** Unter den Doppelpaaren erscheint **Beispielturnier anlegen (Testhilfe)** derzeit auch im normalen Build (`npm run build` beziehungsweise `npm run watch`), damit an der gewohnten lokalen Docker-/Webserver-Adresse getestet werden kann. Die Testhilfe füllt acht Paare mit 16 erfundenen Gastnamen und wählt „Jeder gegen jeden“. Sie speichert noch nichts; dafür anschließend **Turnier anlegen** wählen. Vereinsmitgliedschaft ist für Teilnehmer nicht erforderlich. Nach Erichs Test muss die Testhilfe wieder aus dem normalen Build entfernt und auf den Entwicklungsbetrieb begrenzt werden, bevor der Pull Request gemergt werden darf.
 
 ## Regeln
 
