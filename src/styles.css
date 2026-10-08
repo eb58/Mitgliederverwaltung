@@ -21,6 +21,26 @@
   --sidebar-transition: 220ms ease;
 }
 
+/* Turniere verwenden die gemeinsamen Farben, Formulare und Buttons. */
+.turnier-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-bottom: 1rem; }
+.turnier-toolbar .form-select { width: auto; flex: 1; min-width: 180px; }
+.turnier-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); }
+.turnier-panel summary { color: var(--accent-dark); font-weight: 600; cursor: pointer; }
+.turnier-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+.turnier-form-wide { grid-column: 1 / -1; min-width: 0; }
+.turnier-members { max-height: 240px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .4rem; }
+.turnier-member { display: flex; align-items: center; gap: .6rem; padding: .5rem; background: var(--surface-2); border-radius: 6px; cursor: pointer; }
+.turnier-member[hidden] { display: none; }
+.turnier-member input { flex-shrink: 0; accent-color: var(--accent); }
+.turnier-runden { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; align-items: start; }
+.turnier-runden--ko { display: flex; overflow-x: auto; padding-bottom: .5rem; }
+.turnier-runden--ko .turnier-runde { flex: 0 0 320px; }
+.turnier-spiel { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: .75rem; margin-bottom: .6rem; }
+.turnier-paarung { font-weight: 600; margin-bottom: .5rem; overflow-wrap: anywhere; }
+.turnier-ergebnis { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.turnier-ergebnis input { width: 76px; }
+@media (max-width: 600px) { .turnier-form { grid-template-columns: minmax(0, 1fr); } .turnier-panel { padding: .85rem; } }
+
 body {
   margin: 0;
   color: var(--ink);
@@ -2421,3 +2441,9 @@ body {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+.turnier-paare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1rem; }
+.turnier-paar { border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: .8rem; }
+.turnier-person { display: grid; gap: .4rem; margin-bottom: .6rem; }
+.turnier-satz { display: flex; align-items: center; gap: .5rem; width: 100%; }
+.turnier-satz span { min-width: 50px; }

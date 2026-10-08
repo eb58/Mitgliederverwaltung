@@ -23,6 +23,7 @@ Das Frontend kann lokal mit Vite entwickelt werden. Im Hosting-Betrieb werden di
 - Passbild-Upload pro Mitglied
 - Stammdatenverwaltung für berechtigte Benutzer
 - Benutzerverwaltung und Passwortänderung
+- Tischtennis-Doppelturniere als integriertes Add-on: feste Paare aus Mitgliedern und Gästen, jeder gegen jeden oder K.-o., drei Gewinnsätze, automatische Tabelle, Freilose, Ergebniskorrekturen und später ergänzbare Tischanzahl (siehe [Turnieranleitung](docs/TURNIERE.md))
 - Änderungsprotokoll pro Mitglied und globale Liste der letzten Änderungen
 
 ## Voraussetzungen

@@ -207,7 +207,9 @@ const openAuthenticatedApp = async page => {
   await page.locator("#loginUsername").fill("admin");
   await page.locator("#loginPassword").fill("passwd");
   await page.locator('#loginForm button[type="submit"]').click();
-  await expect(page.locator("#appShell")).toBeVisible();
+  // Vite und die Grids brauchen beim kalten Start länger als die Dialoganimation.
+  await expect(page.locator("#appShell")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("#loginModal")).toBeHidden();
   await expect(page.locator("#currentUserName")).toHaveText("admin");
 };
 
@@ -1118,7 +1120,11 @@ test("Mitgliedsmaske fragt vor dem Verwerfen ungespeicherter Änderungen nach", 
   const modal = page.locator("#memberModal");
   const discardBar = page.locator("#memberFormDiscard");
   const openAnna = async () => {
+    const shown = modal.evaluate(element => new Promise(resolve => {
+      element.addEventListener("shown.bs.modal", () => resolve(), { once: true });
+    }));
     await page.locator('#overviewGrid [row-id="1"] .edit-icon-btn').click();
+    await shown;
     await expect(modal).toBeVisible();
   };
   let browserDialog = false;
@@ -1228,4 +1234,138 @@ test("Plausibilitätsprüfung zeigt Fehler und Warnungen im Hinweisbereich der M
   await submit.click();
   await expect(page.locator("#memberModal")).toBeHidden();
   expect(saved[1]).toMatchObject({ telefon: "abends" });
+});
+
+
+const mockDoppelApi = async page => {
+  let turniere = [];
+  let konflikt = false;
+  await page.route('**/index.php/api/turniere**', async route => {
+    const req = route.request();
+    if (req.method() === 'GET') return json(route, { turniere });
+    const body = req.postDataJSON();
+    if (req.method() === 'POST') {
+      const t = { ...body, id: turniere.length + 1, version: 1, teilnehmer: body.teilnehmer.map((p, i) => ({ ...p, id: i + 1, name: p.spieler.map(s => s.name).join(' / ') })) };
+      const ids = t.teilnehmer.map(p => p.id); if (ids.length % 2) ids.push(null);
+      t.runden = [];
+      for (let r = 0; r < ids.length - 1; r++) {
+        const runde = [];
+        for (let i = 0; i < ids.length / 2; i++) if (ids[i] && ids[ids.length - 1 - i]) runde.push({ id: `r${r + 1}-s${runde.length + 1}`, a: ids[i], b: ids[ids.length - 1 - i], punkteA: null, punkteB: null, saetze: [], status: 'offen', sieger: null });
+        t.runden.push(runde); ids.splice(1, 0, ids.pop());
+      }
+      turniere.unshift(t); return json(route, { turnier: t }, 201);
+    }
+    const t = turniere[0];
+    if (konflikt || body.version !== t.version) return json(route, { error: 'Das Turnier wurde inzwischen geändert. Bitte neu laden.' }, 409);
+    if (req.url().endsWith('/tische')) t.anzahlTische = body.anzahlTische;
+    else {
+      const s = t.runden.flat().find(s => s.id === new URL(req.url()).pathname.split('/').at(-1));
+      const saetze = body.saetze;
+      if (saetze.some(s => Math.max(s.a, s.b) < 11 || (Math.max(s.a, s.b) === 11 ? Math.min(s.a, s.b) > 9 : Math.abs(s.a - s.b) !== 2))) return json(route, { error: 'Ein Satz benötigt zwei Punkte Vorsprung.' }, 400);
+      s.saetze = saetze; s.punkteA = saetze.length ? saetze.filter(s => s.a > s.b).length : null; s.punkteB = saetze.length ? saetze.filter(s => s.b > s.a).length : null;
+      s.status = saetze.length ? 'fertig' : 'offen'; s.sieger = saetze.length ? (s.punkteA > s.punkteB ? s.a : s.b) : null;
+    }
+    t.version++; return json(route, { turnier: t });
+  });
+  return { konflikt: () => { konflikt = true; } };
+};
+const legeDoppelAn = async (page, n = 8) => {
+  await openAuthenticatedApp(page); const api = await mockDoppelApi(page);
+  await page.locator('#turniere-tab').click(); await expect(page.locator('#turnierNeuLaden')).toBeEnabled();
+  await page.locator('#turnierTitel').fill('Tischtennis Herbst');
+  if (n === 7) await page.locator('#turnierPaarEntfernen').click();
+  const personen = page.locator('#turnierPaare .turnier-person');
+  await personen.nth(0).locator('select').selectOption('1');
+  for (let i = 1; i < n * 2; i++) await personen.nth(i).locator('input').fill(`Gast ${i}`);
+  await page.locator('#turnierForm button[type="submit"]').click();
+  await expect(page.locator('#turnierDetails h2')).toHaveText('Tischtennis Herbst'); return api;
+};
+test('Doppelturnier: Testhilfe füllt acht reine Gastpaare ohne sofortiges Speichern', async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await mockDoppelApi(page);
+  await page.locator('#turniere-tab').click();
+  await expect(page.locator('#turnierNeuLaden')).toBeEnabled();
+  await page.locator('#turnierPaare select').first().selectOption('1');
+  await page.locator('#turnierPaarEntfernen').click();
+  await page.locator('#turnierModus').selectOption('ko');
+  const erstellt = [];
+  page.on('request', request => {
+    if (request.method() === 'POST' && request.url().endsWith('/api/turniere')) erstellt.push(request.postDataJSON());
+  });
+  await page.getByRole('button', { name: 'Beispielturnier anlegen (Testhilfe)', exact: true }).click();
+  await expect(page.locator('#turnierPaare fieldset')).toHaveCount(8);
+  await expect(page.locator('#turnierModus')).toHaveValue('jeder-gegen-jeden');
+  await expect(page.locator('#turnierForm')).toContainText('keine Vereinsmitgliedschaft nötig');
+  await expect(page.locator('#turnierForm')).toContainText('Temporäre Testhilfe');
+  const personen = await page.locator('#turnierPaare .turnier-person').evaluateAll(boxes => boxes.map(box => ({
+    id: box.querySelector('select').value, name: box.querySelector('input').value,
+    disabled: box.querySelector('input').disabled, required: box.querySelector('input').required,
+  })));
+  expect(personen).toHaveLength(16);
+  expect(new Set(personen.map(p => p.name)).size).toBe(16);
+  expect(personen.every(p => p.id === '' && p.name.trim() && !p.disabled && p.required)).toBe(true);
+  expect(erstellt).toHaveLength(0);
+  await page.locator('#turnierForm button[type="submit"]').click();
+  await expect(page.locator('#turnierDetails h2')).toHaveText('Beispielturnier – Tischtennis-Doppel');
+  await expect(page.locator('#turnierDetails .turnier-spiel')).toHaveCount(28);
+  expect(erstellt).toHaveLength(1);
+  expect(erstellt[0].teilnehmer.flatMap(p => p.spieler)).toEqual(personen.map(p => ({ name: p.name, mitgliedId: null })));
+});
+
+test('Doppelturnier: acht Paare, 28 Spiele, Sätze und Tischanzahl speichern', async ({ page }) => {
+  await legeDoppelAn(page);
+  await expect(page.locator('#turnierDetails')).toContainText('8 Doppelpaare');
+  await expect(page.locator('#turnierDetails .turnier-spiel')).toHaveCount(28);
+  const form = page.locator('#turnierDetails .turnier-ergebnis').first();
+  for (let i = 0; i < 3; i++) { await form.locator(`[name="satz${i}a"]`).fill('11'); await form.locator(`[name="satz${i}b"]`).fill('8'); }
+  await form.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page.locator('#turnierDetails')).toContainText('Sätze 3:0');
+  await expect(page.locator('#turnierDetails tbody tr').first()).toContainText('Anna Müller');
+  await page.locator('#turnierNeuLaden').click();
+  await expect(page.locator('#turnierDetails .turnier-ergebnis').first().locator('[name="satz0a"]')).toHaveValue('11');
+  await page.getByRole('spinbutton', { name: 'Verfügbare Tische' }).fill('2');
+  await page.getByRole('button', { name: 'Tischanzahl speichern' }).click();
+  await expect(page.locator('#turnierDetails')).toContainText('Durchgang 2 · Tisch 1');
+  await page.locator('#turnierDetails .turnier-ergebnis').first().getByRole('button', { name: 'Zurücksetzen' }).click();
+  await expect(page.locator('#turnierDetails .turnier-ergebnis').first().locator('[name="satz0a"]')).toHaveValue('');
+});
+test('Doppelturnier: sieben Paare, Pausen und ungültige Satzpunkte', async ({ page }) => {
+  await legeDoppelAn(page, 7);
+  await expect(page.locator('#turnierDetails .turnier-spiel')).toHaveCount(21);
+  await expect(page.locator('#turnierDetails')).toContainText('Pause:');
+  const form = page.locator('#turnierDetails .turnier-ergebnis').first();
+  for (let i = 0; i < 3; i++) { await form.locator(`[name="satz${i}a"]`).fill('11'); await form.locator(`[name="satz${i}b"]`).fill('10'); }
+  await form.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page.locator('#turnierError')).toContainText('zwei Punkte Vorsprung');
+});
+test('Doppelturnier: Versionskonflikt überschreibt kein Ergebnis', async ({ page }) => {
+  const api = await legeDoppelAn(page); api.konflikt();
+  const form = page.locator('#turnierDetails .turnier-ergebnis').first();
+  for (let i = 0; i < 3; i++) { await form.locator(`[name="satz${i}a"]`).fill('11'); await form.locator(`[name="satz${i}b"]`).fill('0'); }
+  await form.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page.locator('#turnierError')).toContainText('Bitte neu laden');
+});
+
+
+test('Schnelle Anmeldung während der Öffnungsanimation schließt den Dialog', async ({ page }) => {
+  await page.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      const style = document.createElement('style');
+      style.textContent = '#loginModal .modal-dialog { transition-duration: 2s !important; }';
+      document.head.append(style);
+    }, { once: true });
+    // Ohne actionability-Wartezeit absenden, solange Bootstrap noch öffnet.
+    document.addEventListener('show.bs.modal', event => {
+      if (event.target.id !== 'loginModal') return;
+      document.getElementById('loginUsername').value = 'admin';
+      document.getElementById('loginPassword').value = 'passwd';
+      document.getElementById('loginForm').requestSubmit();
+    }, { once: true });
+  });
+  await mockMemberApi(page);
+  await page.goto('./');
+  await expect(page.locator('#appShell')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('#loginModal')).toBeHidden();
+  await page.locator('#addMemberBtn').click();
+  await expect(page.locator('#memberModal')).toBeVisible();
 });

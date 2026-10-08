@@ -50,6 +50,7 @@ import { createUserAdmin } from "./user-admin.js";
 import { createEventAdmin } from "./event-admin.js";
 import { eventList } from "./event-config.js";
 import { createEventMemberMatchDialog } from "./event-member-match.js";
+import { createTurnierAdmin } from "./turnier-admin.js";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -107,6 +108,8 @@ const referenceAdmin = createReferenceAdmin({
 });
 
 const eventMemberMatchDialog = createEventMemberMatchDialog();
+
+const turnierAdmin = createTurnierAdmin({ request: requestMemberApi, getMembers: () => state.members });
 
 const eventAdmins = eventList.map(event => createEventAdmin({
   confirmMemberMatch: options => eventMemberMatchDialog.choose(options),
@@ -189,6 +192,7 @@ const initUiOnce = () => {
   memberForm.init();
   userAdmin.init();
   referenceAdmin.init();
+  turnierAdmin.init();
   initGrids();
   wireUi();
   restoreLastView();
@@ -203,7 +207,9 @@ const loadAppData = async () => {
     ...eventAdmins.map(admin => admin.load())
   ]);
   state.members = loadedMembers;
+  turnierAdmin.renderMitglieder();
   initUiOnce();
+  if (document.getElementById("turniere-tab").classList.contains("active")) void turnierAdmin.load();
   refreshAllViews();
   setAppShellVisible(true);
 };
@@ -236,6 +242,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 const setAppShellVisible = visible => {
+  if (!visible) turnierAdmin.reset();
   const shell = document.getElementById("appShell");
   if (shell) {
     shell.hidden = !visible;
@@ -275,6 +282,10 @@ const wireUi = () => {
       localStorage.setItem(LAST_VIEW_STORAGE_KEY, event.target.id);
       updateGlobalSearchVisibility(event.target.dataset.bsTarget);
       syncSidebarGroups(event.target);
+      if (event.target.dataset.bsTarget === "#turniere-pane") {
+        turnierAdmin.renderMitglieder();
+        void turnierAdmin.load();
+      }
       if (event.target.dataset.bsTarget === "#member-map-pane") memberMap.render();
       if (event.target.dataset.bsTarget === "#changes-pane") {
         refreshRecentChanges({ force: true });

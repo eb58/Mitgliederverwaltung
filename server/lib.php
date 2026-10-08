@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/turnier.php';
+
 final class ApiError extends RuntimeException
 {
     public function __construct(string $message, public int $statusCode = 400)

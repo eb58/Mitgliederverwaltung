@@ -14,6 +14,7 @@ export const createAuth = ({
 }) => {
   const passwordVisibilityTimers = new Map();
   let loginModal = null;
+  let loginModalOpening = false;
   let loginWaitResolve = null;
   let passwordChangeRequiredFlow = true;
   let sessionExpiredNoticeShown = false;
@@ -88,8 +89,18 @@ export const createAuth = ({
     clearMemberPhotoCache();
   };
 
+  // Bootstrap ignoriert hide() während der Öffnungsanimation. Erst nach
+  // "shown" schließen und die Anwendung erst nach "hidden" freigeben.
+  const closeLoginModal = () => new Promise(resolve => {
+    const element = document.getElementById("loginModal");
+    if (!element.classList.contains("show") && !loginModalOpening) { resolve(); return; }
+    element.addEventListener("hidden.bs.modal", resolve, { once: true });
+    if (loginModalOpening) element.addEventListener("shown.bs.modal", () => loginModal.hide(), { once: true });
+    else loginModal.hide();
+  });
+
   const finishLogin = async () => {
-    loginModal.hide();
+    await closeLoginModal();
     showLoginForm();
     if (loginWaitResolve) {
       loginWaitResolve(true);
@@ -147,7 +158,7 @@ export const createAuth = ({
 
   const handlePasswordChangeCancel = async () => {
     if (passwordChangeRequiredFlow) return abortRequiredPasswordChange();
-    loginModal.hide();
+    await closeLoginModal();
     showLoginForm();
     setAppShellVisible(true);
   };
@@ -186,6 +197,9 @@ export const createAuth = ({
     const loginForm = document.getElementById("loginForm");
     if (loginForm.dataset.wired === "true") return;
     loginForm.dataset.wired = "true";
+    const modalElement = document.getElementById("loginModal");
+    modalElement.addEventListener("show.bs.modal", () => { loginModalOpening = true; });
+    modalElement.addEventListener("shown.bs.modal", () => { loginModalOpening = false; });
     loginForm.addEventListener("submit", handleLoginSubmit);
     document.getElementById("passwordChangeForm").addEventListener("submit", handlePasswordChangeSubmit);
     document.getElementById("passwordChangeCancelBtn").addEventListener("click", handlePasswordChangeCancel);
