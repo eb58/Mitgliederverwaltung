@@ -301,6 +301,25 @@ test("Dashboard wird erst mit vollständig geladenen Startdaten angezeigt", asyn
   await expect(page.locator("#groupChart")).toBeVisible();
 });
 
+test("Dashboard-Listen passen sich schmalen Spalten ohne Überlauf an", async ({ page }) => {
+  await page.setViewportSize({ width: 1520, height: 900 });
+  await openAuthenticatedApp(page);
+
+  const newestMemberList = page.locator("#newestMemberList");
+  await expect.poll(() => newestMemberList.evaluate(element =>
+    getComputedStyle(element).gridTemplateColumns.split(" ").length
+  )).toBe(1);
+
+  const newestMemberRow = newestMemberList.locator(".newest-member-row").first();
+  await newestMemberRow.locator(".newest-member-row__text strong").evaluate(element => {
+    element.textContent = "Onya-Djamba Mitglied mit besonders langem Namen";
+  });
+  await newestMemberRow.locator(".newest-member-row__text > span").evaluate(element => {
+    element.textContent = "83 Jahre · Eintritt 11.09.2026";
+  });
+  expect(await newestMemberRow.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
+
 test("Jahresdiagramme öffnen die passend gefilterten Mitgliederlisten", async ({ page }) => {
   await openAuthenticatedApp(page);
 
