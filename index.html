@@ -70,6 +70,10 @@
           </button>
           </div>
         </div>
+        <button class="nav-link sidebar__nav-item" id="turniere-tab" data-bs-toggle="tab" data-bs-target="#turniere-pane" type="button" role="tab" aria-controls="turniere-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 3h8v6a4 4 0 0 1-8 0z"/><path d="M8 5H4v2a4 4 0 0 0 4 4M16 5h4v2a4 4 0 0 1-4 4M12 13v6M8 21h8M9 19h6"/></svg>
+          <span class="sidebar__nav-label">Turniere</span>
+        </button>
         <button class="nav-link sidebar__nav-item" id="historical-tab" data-bs-toggle="tab" data-bs-target="#historical-pane" type="button" role="tab" aria-controls="historical-pane" aria-selected="false">
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span class="sidebar__nav-label">Ehemalige</span>
@@ -435,6 +439,45 @@
           <div id="eisbeinessenGrid" class="grid-host grid-host--with-toolbar"></div>
         </div>
 
+        <div class="tab-pane fade" id="turniere-pane" role="tabpanel" aria-labelledby="turniere-tab" tabindex="0">
+          <div class="turnier-toolbar">
+            <h1 class="h4 mb-0">Tischtennis-Doppelturniere</h1>
+            <label for="turnierAuswahl">Turnier</label>
+            <select id="turnierAuswahl" class="form-select" aria-label="Turnier auswählen"></select>
+            <button id="turnierNeuLaden" class="btn btn-outline-primary" type="button">Neu laden</button>
+          </div>
+          <div id="turnierError" class="alert alert-danger" role="alert" hidden></div>
+          <details id="turnierAnlegen" class="turnier-panel" open>
+            <summary>Neues Turnier anlegen</summary>
+            <form id="turnierForm" class="turnier-form">
+              <div>
+                <label for="turnierTitel" class="form-label">Turniername</label>
+                <input id="turnierTitel" name="titel" class="form-control" required maxlength="100" placeholder="z. B. Herbstturnier">
+              </div>
+              <div>
+                <label for="turnierModus" class="form-label">Modus</label>
+                <select id="turnierModus" name="modus" class="form-select">
+                  <option value="jeder-gegen-jeden">Jeder gegen jeden</option>
+                  <option value="ko">K.-o.-Modus – nur der Sieger kommt weiter</option>
+                </select>
+              </div>
+              <div class="turnier-form-wide">
+                <h2 class="h6">Feste Doppelpaare</h2>
+                <p class="small text-muted">Je Paar zwei Mitglieder auswählen oder Gastnamen eingeben. Drei Gewinnsätze, jeweils bis 11 Punkte mit zwei Punkten Vorsprung. Paarreihenfolge bestimmt die K.-o.-Freilose.</p>
+                <div id="turnierPaare" class="turnier-paare"></div>
+                <div class="turnier-toolbar mt-3">
+                  <button id="turnierPaarHinzufuegen" type="button" class="btn btn-outline-primary">Paar hinzufügen</button>
+                  <button id="turnierPaarEntfernen" type="button" class="btn btn-outline-secondary">Letztes Paar entfernen</button>
+                </div>
+              </div>
+              <div class="turnier-form-wide turnier-toolbar">
+                <span id="turnierAnzahl" aria-live="polite">8 Doppelpaare · erlaubt: 5 bis 32</span>
+                <button type="submit" class="btn btn-primary">Turnier anlegen</button>
+              </div>
+            </form>
+          </details>
+          <section id="turnierDetails" class="turnier-panel" aria-label="Spielplan und Ergebnisse"></section>
+        </div>
         <div class="tab-pane fade" id="historical-pane" role="tabpanel" aria-labelledby="historical-tab" tabindex="0">
           <div id="historicalGrid" class="grid-host"></div>
         </div>

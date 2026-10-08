@@ -20,6 +20,7 @@ $apiFiles = @(
     "create-user.php",
     "index.php",
     "lib.php",
+    "turnier.php",
     "README.md"
 )
 $sshOpt = "-o UpdateHostKeys=no"

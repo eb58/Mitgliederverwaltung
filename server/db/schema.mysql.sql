@@ -363,3 +363,11 @@ CREATE TABLE adress_koordinate (
 INSERT INTO austrittsgrund (id, bezeichnung) SELECT MAX(id) + 1, 'ruht' FROM austrittsgrund;
 UPDATE mitglied SET austrittsgrund_id = (SELECT id FROM austrittsgrund WHERE bezeichnung = 'ruht') WHERE austrittsgrund_id = 1;
 DELETE FROM austrittsgrund WHERE id = 1;
+-- Turnierverwaltung
+CREATE TABLE turnier (
+  id INT NOT NULL AUTO_INCREMENT,
+  daten LONGTEXT NOT NULL,
+  version INT NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

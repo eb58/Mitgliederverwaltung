@@ -57,6 +57,18 @@ try {
         handleEventParticipantResource($matches[1], (int) $matches[2]);
     }
 
+    if (preg_match('#^/api/turniere/(\d+)/tische$#', $path, $matches)) {
+        handleTurnierTische((int) $matches[1]);
+    }
+
+    if ($path === '/api/turniere') {
+        handleTurniere();
+    }
+
+    if (preg_match('#^/api/turniere/(\d+)/ergebnisse/(r\d+-s\d+)$#', $path, $matches)) {
+        handleTurnierErgebnis((int) $matches[1], $matches[2]);
+    }
+
     if ($path === '/api/members') {
         handleMembersCollection($user);
     }
