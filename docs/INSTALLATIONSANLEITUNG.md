@@ -141,6 +141,27 @@ Das Passwort der lokalen gemeinsamen MySQL-Instanz ist aktuell:
 changeme!!
 ```
 
+## phpMyAdmin
+
+Die Compose-Datei des Gratulationsdienstes bringt phpMyAdmin mit. Starten:
+
+```powershell
+docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\server\docker-compose.local.yml up -d --no-deps phpmyadmin
+```
+
+Erreichbar unter:
+
+```text
+http://localhost:8081/
+```
+
+Das Feld "Server" bleibt leer, phpMyAdmin verbindet sich selbst mit `gradi-db`. Anmelden mit:
+
+- `mitglieder` / `mitglieder-local` - sieht nur die Datenbank `mitgliederverwaltung`
+- `root` / `changeme!!` - sieht alle Datenbanken
+
+Ueber "Importieren" laesst sich auch ein Datenbank-Dump (`.sql` oder `.sql.gz`, bis 300 MB) einspielen.
+
 ## Admin-Benutzer
 
 `server/db/schema.mysql.sql` enthaelt einen lokalen Entwicklungsbenutzer:
