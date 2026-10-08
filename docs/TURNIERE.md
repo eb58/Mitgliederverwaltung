@@ -10,6 +10,8 @@ Der Sidebar-Bereich **Turniere** nutzt Anmeldung, Mitgliederliste, Gestaltung un
 4. Ergebnisse satzweise erfassen. Nicht benötigte vierte und fünfte Sätze leer lassen.
 5. Vorhandene Turniere über die Turnierauswahl öffnen. „Neu laden“ holt den aktuellen gespeicherten Stand.
 
+Beim Start mit `npm run dev` erscheint unter den Doppelpaaren zusätzlich **Beispielturnier anlegen**. Die lokale Testhilfe füllt acht Paare mit 16 erfundenen Gastnamen und wählt „Jeder gegen jeden“. Sie speichert noch nichts; dafür anschließend **Turnier anlegen** wählen. Vereinsmitgliedschaft ist für Teilnehmer nicht erforderlich. Im Produktionsbuild ist diese Testhilfe ausgeschlossen.
+
 ## Regeln
 
 - **Drei Gewinnsätze**, maximal fünf Sätze; ein Satz endet bei 11 Punkten mit mindestens zwei Punkten Vorsprung, bei Verlängerung genau zwei Punkten Vorsprung. Unentschieden sind ausgeschlossen.

@@ -138,6 +138,28 @@ export const createTurnierAdmin = ({ request, getMembers }) => {
     catch (e) { if (aktuell === generation) meldung(e.message); } finally { if (aktuell === generation) setBusy(false); }
   };
   const init = () => {
+    if (import.meta.env.DEV) {
+      const beispiel = el('button', 'Beispielturnier anlegen', 'btn btn-outline-secondary');
+      beispiel.type = 'button';
+      beispiel.id = 'turnierBeispielBtn';
+      beispiel.addEventListener('click', () => {
+        if (busy) return;
+        const namen = ['Lena Kiesel', 'Jonas Wolkenbach', 'Mira Sonnenfels', 'Felix Birkenau',
+          'Nora Wiesenberg', 'Emil Fichtenhain', 'Clara Morgenwald', 'Theo Lindenfels',
+          'Alina Bachwiese', 'Paul Sternfeld', 'Jule Regenhain', 'Leon Sommerfels',
+          'Maja Winterbach', 'Finn Rosenwald', 'Ella Abendhain', 'Ben Lichtwiese'];
+        form.elements.titel.value = 'Beispielturnier – Tischtennis-Doppel';
+        form.elements.modus.value = 'jeder-gegen-jeden';
+        paare.replaceChildren();
+        for (let i = 0; i < 8; i++) addPaar();
+        paare.querySelectorAll('.turnier-person input').forEach((input, i) => { input.value = namen[i]; });
+        document.getElementById('turnierAnlegen').open = true;
+        meldung('');
+        form.elements.titel.focus();
+      });
+      document.getElementById('turnierPaarHinzufuegen').parentElement.append(beispiel,
+        el('span', 'Lokale Testhilfe: 16 erfundene Gastnamen, keine Vereinsmitgliedschaft nötig. Erst „Turnier anlegen“ speichert das Beispiel.', 'small text-muted'));
+    }
     document.getElementById('turnierNeuLaden').addEventListener('click', () => { void load(); });
     document.getElementById('turnierPaarHinzufuegen').addEventListener('click', addPaar);
     document.getElementById('turnierPaarEntfernen').addEventListener('click', () => { if (paare.children.length > 5) { paare.lastElementChild.remove(); zaehlen(); } });
