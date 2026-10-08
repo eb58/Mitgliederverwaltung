@@ -12,6 +12,8 @@ import {
 } from "../../src/member-config.js";
 import { formatIsoDate } from "../../src/member-utils.js";
 import {
+  angezeigteBeitragsjahre,
+  beitragImJahr,
   beitragsjahrOptionen,
   christmasFormatter,
   cloneMember,
@@ -159,6 +161,21 @@ describe("Zahlungen je Beitragsjahr", () => {
     expect(beitragsjahrOptionen([], 2026)).toEqual([2026, 2027]);
     expect(beitragsjahrOptionen([], 2028)).toEqual([2026, 2027, 2028, 2029]);
     expect(beitragsjahrOptionen([2031], 2026)).toEqual([2026, 2027, 2031]);
+  });
+
+  it("zeigt in der Uebersicht alle Jahre ab dem ersten Beitragsjahr bis heute", () => {
+    expect(angezeigteBeitragsjahre(2026)).toEqual([2026]);
+    expect(angezeigteBeitragsjahre(2027)).toEqual([2026, 2027]);
+    expect(angezeigteBeitragsjahre(2025)).toEqual([2025]);
+  });
+
+  it("liest den Beitrag eines Jahres aus flachen Feldern oder der Jahresliste", () => {
+    const member = { gezahlterBetragClub: 30, gezahlterBetragComputer: "", zahlungen: [{ beitragsjahr: 2026, gezahlterBetragClub: 25, gezahlterBetragComputer: 20 }] };
+    expect(beitragImJahr(member, 2027, "Club", 2027)).toBe(30);
+    expect(beitragImJahr(member, 2027, "Computer", 2027)).toBe(0);
+    expect(beitragImJahr(member, 2026, "Club", 2027)).toBe(25);
+    expect(beitragImJahr(member, 2026, "Computer", 2027)).toBe(20);
+    expect(beitragImJahr({ gezahlterBetragClub: 30 }, 2026, "Club", 2027)).toBe(0);
   });
 });
 

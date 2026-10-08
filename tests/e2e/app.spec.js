@@ -339,8 +339,9 @@ test("neun Dashboard-Kacheln öffnen die passenden Detailansichten", async ({ pa
   };
 
   await openMetric("#metricClubPaidBtn", "#payments-tab");
-  await expect(page.locator("#paymentsGrid")).toContainText("Clubbeitrag");
-  await expect(page.locator("#paymentsGrid")).toContainText("Computerbeitrag");
+  const beitragsjahr = new Date().getFullYear();
+  await expect(page.locator("#paymentsGrid")).toContainText(`Clubbeitrag ${beitragsjahr}`);
+  await expect(page.locator("#paymentsGrid")).toContainText(`Computerbeitrag ${beitragsjahr}`);
   await expect(page.locator("#paymentsGrid")).not.toContainText("Gruppen");
   await expect(page.locator("#paymentsGrid")).toContainText("Müller");
   await openMetric("#metricClubOpenBtn", "#payments-tab");

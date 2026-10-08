@@ -28,6 +28,8 @@ import {
   germanCollator
 } from "./member-config.js";
 import {
+  angezeigteBeitragsjahre,
+  beitragImJahr,
   christmasFormatter,
   compareIsoDateToFilterDate,
   currencyFormatter,
@@ -40,6 +42,7 @@ import {
   isComputerGroupMember,
   isGuestMember,
   isOpenClubPaymentMember,
+  istBeitragBezahlt,
   matchesPaymentMetricFilter
 } from "./member-domain.js";
 import { PAYMENT_TOGGLE_STORAGE_KEYS, gridApis, state } from "./state.js";
@@ -653,18 +656,23 @@ const getPaymentColumns = () => [
   getEditColumn(),
   { headerName: "Name", field: "name", minWidth: 130 },
   { headerName: "Vorname", field: "vorname", minWidth: 130 },
-  { headerName: "Clubbeitrag", field: "gezahlterBetragClub", valueFormatter: currencyFormatter, minWidth: 150, cellRenderer: params => paidAmountCellRenderer(params, "beitragClubBezahlt") },
-  {
-    headerName: "Computerbeitrag",
-    colId: "gezahlterBetragComputer",
-    // Nur fuer Mitglieder einer Computergruppe relevant, sonst bleibt die Zelle leer.
-    valueGetter: params => (isComputerGroupMember(params.data) ? params.data.gezahlterBetragComputer : null),
-    valueFormatter: currencyFormatter,
-    minWidth: 170,
-    cellRenderer: params => (isComputerGroupMember(params.data) ? paidAmountCellRenderer(params, "beitragComputerBezahlt") : "")
-  },
+  ...angezeigteBeitragsjahre().map(jahr => getPaymentYearColumn("Club", jahr)),
+  ...angezeigteBeitragsjahre().map(jahr => getPaymentYearColumn("Computer", jahr)),
   { headerName: "Bemerkung", field: "bemerkung", minWidth: 220, flex: 1 }
 ];
+
+// Eine Spalte je Beitragsart und Jahr; der Computerbeitrag gilt nur fuer Mitglieder einer Computergruppe.
+const getPaymentYearColumn = (art, jahr) => {
+  const relevant = member => art === "Club" || isComputerGroupMember(member);
+  return {
+    headerName: `${art}beitrag ${jahr}`,
+    colId: `beitrag${art}${jahr}`,
+    valueGetter: params => (params.data && relevant(params.data) ? beitragImJahr(params.data, jahr, art) : null),
+    valueFormatter: currencyFormatter,
+    minWidth: 160,
+    cellRenderer: params => (params.data && relevant(params.data) ? paidAmountCellRenderer(params) : "")
+  };
+};
 
 const getChristmasColumns = () => [
   getPhotoColumn(),
@@ -719,10 +727,10 @@ const paidStatusCellRenderer = params => {
 };
 
 // Haekchen und gezahlter Betrag in einer Zelle; sortiert und gefiltert wird nach dem Betrag.
-const paidAmountCellRenderer = (params, paidField) => {
+const paidAmountCellRenderer = params => {
   const wrapper = document.createElement("span");
   wrapper.className = "paid-amount-cell";
-  wrapper.append(paidStatusCellRenderer({ value: params.data?.[paidField] }));
+  wrapper.append(paidStatusCellRenderer({ value: istBeitragBezahlt(params.value) }));
   const amount = document.createElement("span");
   amount.textContent = params.valueFormatted ?? "";
   wrapper.append(amount);
