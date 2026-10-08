@@ -13,9 +13,11 @@ C:\Users\erich\Projects\Gratulationsdienst\docker\src
 Die Anwendungen liegen darin unter getrennten Pfaden:
 
 ```text
-http://localhost/gratulationsdienst/
-http://localhost/mitgliederverwaltung/
+http://localhost:8080/                       (Gratulationsdienst)
+http://localhost:8080/mitgliederverwaltung/
 ```
+
+Port 8080 statt 80, weil der Dev-Container des Gratulationsdienstes (`docker-compose.dev.yml`) Port 80 belegt.
 
 Die Mitgliederverwaltung liefert nur ihre App-Artefakte und ihr Datenbankschema:
 
@@ -50,7 +52,15 @@ Der Build landet in:
 C:\Users\erich\Projects\Gratulationsdienst\docker\src\mitgliederverwaltung
 ```
 
-Gemeinsamen Webcontainer mit der lokalen Ergaenzung starten oder neu erstellen:
+Beim allerersten Start (frisches Docker, noch kein Image und keine Datenbank) Image bauen und Datenbank mitstarten:
+
+```powershell
+docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\server\docker-compose.local.yml up -d --build --wait db web
+```
+
+Danach die Datenbank einrichten (siehe "Datenbank einrichten").
+
+Spaeter reicht es, den Webcontainer mit der lokalen Ergaenzung neu zu erstellen:
 
 ```powershell
 docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\server\docker-compose.local.yml up -d --no-deps --force-recreate web
@@ -59,7 +69,7 @@ docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\server\do
 Die Anwendung ist danach erreichbar unter:
 
 ```text
-http://localhost/mitgliederverwaltung/
+http://localhost:8080/mitgliederverwaltung/
 ```
 
 ## API einbinden
@@ -108,11 +118,13 @@ Es erstellt:
 - Aenderungsprotokoll
 - initiale Stammdaten
 
-Falls die Datenbank noch nicht existiert, einmal anlegen:
+Falls die Datenbank noch nicht existiert, einmal anlegen, zusammen mit dem Datenbankbenutzer, den `server/docker-compose.local.yml` erwartet (`MEMBER_DB_USER`/`MEMBER_DB_PASSWORD`):
 
 ```powershell
-docker exec gradi-db mariadb -uroot -pchangeme!! -e "CREATE DATABASE IF NOT EXISTS mitgliederverwaltung CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+docker exec gradi-db mariadb -uroot -pchangeme!! -e "CREATE DATABASE IF NOT EXISTS mitgliederverwaltung CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS 'mitglieder'@'%' IDENTIFIED BY 'mitglieder-local'; GRANT ALL PRIVILEGES ON mitgliederverwaltung.* TO 'mitglieder'@'%';"
 ```
+
+Ohne diesen Benutzer kann die API sich nicht mit der Datenbank verbinden.
 
 Danach das Schema zuerst unveraendert in den Container kopieren und dort importieren:
 
@@ -146,7 +158,7 @@ php server/create-user.php admin dein-passwort admin
 Im Container entsprechend:
 
 ```powershell
-docker exec -it php_webserver php /var/www/html/mitgliederverwaltung/php-api/create-user.php admin dein-passwort admin
+docker exec -it gradi-web php /var/www/html/mitgliederverwaltung/php-api/create-user.php admin dein-passwort admin
 ```
 
 ## Pruefen
@@ -154,7 +166,7 @@ docker exec -it php_webserver php /var/www/html/mitgliederverwaltung/php-api/cre
 Healthcheck:
 
 ```text
-http://localhost/mitgliederverwaltung/php-api/index.php/health
+http://localhost:8080/mitgliederverwaltung/php-api/index.php/health
 ```
 
 Erwartete Antwort:
@@ -166,7 +178,7 @@ Erwartete Antwort:
 App:
 
 ```text
-http://localhost/mitgliederverwaltung/
+http://localhost:8080/mitgliederverwaltung/
 ```
 
 ## Hinweise
@@ -175,4 +187,4 @@ http://localhost/mitgliederverwaltung/
 - Der lokale Webserver ist der gemeinsame Docker-Container.
 - Das SQL-Schema bleibt im Projekt, damit Neuinstallationen reproduzierbar sind.
 - Nach Frontend-Aenderungen reicht `npm.cmd run build`.
-- Nach PHP-Aenderungen muss je nach Mount/Kopie der gemeinsame Webroot aktualisiert werden.
+- Nach PHP-Aenderungen ist nichts zu tun: `server/` ist direkt in den Container eingebunden.

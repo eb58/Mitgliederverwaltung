@@ -16,7 +16,7 @@
   ```powershell
   docker compose -f ..\Gratulationsdienst\docker\docker-compose.yml -f .\server\docker-compose.local.yml up -d --no-deps --force-recreate web
   ```
-  Danach erreichbar unter `http://localhost/mitgliederverwaltung/`. `vite.config.js` schreibt den Build direkt in den gemeinsamen Docker-Webroot (`../Gratulationsdienst/docker/src/mitgliederverwaltung`).
+  Danach erreichbar unter `http://localhost:8080/mitgliederverwaltung/` (Port 8080, weil der Gratulationsdienst-Dev-Container Port 80 belegt). Auf einem frischen Docker muss zuerst Image, Datenbank und DB-Benutzer eingerichtet werden - siehe `docs/INSTALLATIONSANLEITUNG.md`. `vite.config.js` schreibt den Build direkt in den gemeinsamen Docker-Webroot (`../Gratulationsdienst/docker/src/mitgliederverwaltung`).
 - Testabdeckung ist ungleich verteilt: `member-utils.js` und `member-domain.js` sind zu 100 % (Zeilen) unit-getestet. `member-api.js` und `app.js` haben keine Unit-Tests und hängen nur an den wenigen Playwright-E2E-Szenarien in `tests/e2e/app.spec.js`. Bei neuer fachlicher Logik dort zuerst Unit-Tests ergänzen statt sich auf E2E zu verlassen.
 - `server/lib.php` ist zweistufig getestet: reine Logik in `LibTest.php`/`HandlerLogicTest.php` (laufen immer), die `handle*`-Funktionen in `ApiAuthTest.php`/`ApiMemberTest.php`/`ApiReferenceDataTest.php` gegen eine echte MariaDB.
 - Diese Integrationstests brauchen die Wegwerf-DB aus `tests/docker-compose.test.yml` (Port 3307, tmpfs, Schema aus `server/db/schema.mysql.sql`). `npm.cmd run test:php` fährt sie selbst hoch - kein manueller Schritt nötig. Nur wenn Docker ganz fehlt, überspringen sich die Tests, und zwar mit einer auffälligen Warnung. Container stoppen: `npm.cmd run test:php:db:down`.
