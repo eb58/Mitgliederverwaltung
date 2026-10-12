@@ -283,8 +283,9 @@ export const createDashboard = ({
     setText("metricComputerPaid", `${computerPaid} (${percent(computerPaid, computerTotal)}%)`);
     setText("metricClubOpen", `${openClubPayments.length} (${percent(openClubPayments.length, total)}%)`);
     setText("metricComputerOpen", `${computerTotal - computerPaid} (${percent(computerTotal - computerPaid, computerTotal)}%)`);
-    setText("metricClubBeitragsjahrSum", formatCurrency(sumPayments(clubMembers, "gezahlterBetragClub")));
-    setText("metricComputerBeitragsjahrSum", formatCurrency(sumPayments(computerMembers, "gezahlterBetragComputer")));
+    // Die Quoten zaehlen nur Mitglieder, die Einzahlungen auch freiwillige Beitraege von Gaesten
+    setText("metricClubBeitragsjahrSum", formatCurrency(sumPayments(activeMembers, "gezahlterBetragClub")));
+    setText("metricComputerBeitragsjahrSum", formatCurrency(sumPayments(activeMembers, "gezahlterBetragComputer")));
 
     const genderCounts = { m: 0, w: 0, unknown: 0 };
     const ages = [];

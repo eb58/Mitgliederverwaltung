@@ -73,6 +73,10 @@ try {
         handleMemberChanges((int) $matches[1]);
     }
 
+    if (preg_match('#^/api/members/(\d+)/merge$#', $path, $matches)) {
+        handleMemberMerge((int) $matches[1], $user);
+    }
+
     if (preg_match('#^/api/members/(\d+)/photo$#', $path, $matches)) {
         handleMemberPhoto((int) $matches[1], $user);
     }

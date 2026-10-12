@@ -19,6 +19,7 @@ import { createMemberApi } from "./member-api.js";
 import { createMemberForm } from "./member-form.js";
 import { createMemberHistory } from "./member-history.js";
 import { createMemberIssuesView } from "./member-issues.js";
+import { createMemberMergeDialog } from "./member-merge.js";
 import { createReferenceAdmin } from "./reference-admin.js";
 import { createDashboard } from "./dashboard.js";
 import { checkMemberAddress, createMemberMap } from "./member-map.js";
@@ -72,6 +73,7 @@ const {
   invalidateMemberPhotoCache,
   loadMemberChanges: loadMemberChangesViaApi,
   loadMembers: loadMembersFromApi,
+  mergeMembers: mergeMembersViaApi,
   loadGeocodeCache,
   loadRecentMemberChanges: loadRecentMemberChangesViaApi,
   saveGeocode,
@@ -182,7 +184,18 @@ const showMemberOnMap = memberId => {
   const mapTab = document.getElementById("member-map-tab");
   if (mapTab.classList.contains("active")) memberMap.render(); else Tab.getOrCreateInstance(mapTab).show();
 };
-const memberIssuesView = createMemberIssuesView({ openMemberModal: memberId => memberForm.open(memberId) });
+const memberMergeDialog = createMemberMergeDialog({
+  mergeMembers: mergeMembersViaApi,
+  onMerged: (merged, removedId) => {
+    state.members = state.members.filter(member => member.id !== removedId).map(member => member.id === merged.id ? merged : member);
+    invalidateMemberPhotoCache(merged.id);
+    refreshAllViews();
+  }
+});
+const memberIssuesView = createMemberIssuesView({
+  openMemberModal: memberId => memberForm.open(memberId),
+  openMerge: members => memberMergeDialog.open(members)
+});
 const memberMap = createMemberMap({ openMemberModal: memberId => memberForm.open(memberId), loadGeocodeCache: () => loadGeocodeCache(), saveGeocode: (key, result) => saveGeocode(key, result), resolveMemberPhotoDataUrl: member => resolveMemberPhotoDataUrl(member) });
 
 let uiInitialized = false;

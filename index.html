@@ -544,6 +544,32 @@
     </div>
   </div>
 
+  <div class="modal fade" id="memberMergeModal" tabindex="-1" aria-labelledby="memberMergeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="memberMergeModalLabel">Doppelte zusammenf&uuml;hren</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schlie&szlig;en"></button>
+        </div>
+        <div class="modal-body">
+          <div id="memberMergeChoice" class="member-merge__choice"></div>
+          <p class="member-merge__hint">Pro Zeile ausw&auml;hlen, welcher Wert bleiben soll:</p>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle member-merge__table">
+              <thead><tr><th scope="col">Feld</th><th scope="col" id="memberMergeTargetHead"></th><th scope="col" id="memberMergeSourceHead"></th></tr></thead>
+              <tbody id="memberMergeRows"></tbody>
+            </table>
+          </div>
+          <p class="text-muted small mb-0">Zahlungen aus Jahren, die beim behaltenen Datensatz fehlen, Event-Anmeldungen und der &Auml;nderungsverlauf ziehen mit um. Die Weihnachtsessen-Angaben bleiben beim behaltenen Datensatz. Der andere Datensatz wird danach gel&ouml;scht.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Abbrechen</button>
+          <button id="memberMergeConfirmBtn" class="btn btn-danger" type="button">Zusammenf&uuml;hren</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="functionEmailModal" tabindex="-1" aria-labelledby="functionEmailModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">

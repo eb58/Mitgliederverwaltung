@@ -9,7 +9,8 @@ import {
   funktionsMap,
   germanCollator,
   interestGroupMap,
-  paidAmountDefaults
+  paidAmountDefaults,
+  seniorenclubsMap
 } from "./member-config.js";
 import {
   asBoolean,
@@ -326,14 +327,16 @@ export const findMemberIssues = (members, { today = new Date() } = {}) => {
   const add = (member, level, message) => issuesById.get(member.id).push({ level, message });
 
   members.forEach(member => {
+    const active = isActiveMember(member);
     const { errors, warnings } = validateMember(member, { members, today });
     errors.forEach(({ message }) => add(member, "fehler", message));
-    warnings.forEach(({ message }) => add(member, "warnung", message));
+    // Doppelte zeigt die Ansicht gesammelt (findDuplicateGroups) samt Zusammenfuehren.
+    // Die Hausnummer Ehemaliger ist egal - an die Anschrift geht nichts mehr.
+    warnings
+      .filter(({ field }) => field !== "name" && (active || field !== "strasse"))
+      .forEach(({ message }) => add(member, "warnung", message));
 
-    const active = isActiveMember(member);
     const guest = isGuestMember(member);
-    const functionIds = getMemberFunctionIds(member);
-    if (!active && functionIds.length) add(member, "warnung", `Ausgetreten, hat aber noch die Funktion ${formatFunctions(functionIds)}.`);
     if (member.eintrittsdatum && member.eintrittsdatum > todayIso) add(member, "warnung", `Eintrittsdatum ${formatDateDE(member.eintrittsdatum)} liegt in der Zukunft.`);
     if (/^berlin$/i.test(String(member.ort || "").trim()) && isValidPlz(member.plz)
       && (Number(member.plz) < BERLIN_PLZ.min || Number(member.plz) > BERLIN_PLZ.max)) add(member, "warnung", `PLZ ${member.plz} liegt nicht in Berlin.`);
@@ -345,7 +348,6 @@ export const findMemberIssues = (members, { today = new Date() } = {}) => {
       const datum = zahlung[art.dateField];
       if (betrag > 0 && !datum) add(member, "warnung", `${art.label} ${jahr}: ${formatCurrency(betrag)} ohne Einzahlungsdatum.`);
       if (!betrag && datum) add(member, "warnung", `${art.label} ${jahr}: Einzahlung am ${formatDateDE(datum)} ohne Betrag.`);
-      if (betrag > 0 && guest) add(member, "warnung", `Gast mit ${art.label}-Beitrag ${jahr}.`);
       if (datum && member.austrittsdatum && datum > member.austrittsdatum) add(member, "warnung", `${art.label}-Einzahlung ${formatDateDE(datum)} nach dem Austritt.`);
       if (betrag > 0 && betrag !== art.amount) add(member, "hinweis", `${art.label} ${jahr}: ${formatCurrency(betrag)} statt ${formatCurrency(art.amount)}.`);
     }));
@@ -373,3 +375,70 @@ export const findMemberIssues = (members, { today = new Date() } = {}) => {
     }))
     .sort((a, b) => germanCollator.compare(a.member.name || "", b.member.name || "") || germanCollator.compare(a.member.vorname || "", b.member.vorname || ""));
 };
+
+// Gleicher Name und kein widersprechender Geburtstag: dieselben Regeln wie die Dublettenwarnung der Maske
+export const findDuplicateGroups = members => {
+  const byName = new Map();
+  members.filter(member => member.name && member.vorname).forEach(member => {
+    const key = nameKey(member);
+    byName.set(key, [...(byName.get(key) || []), member]);
+  });
+  const groups = [];
+  byName.forEach(sameName => {
+    const birthdays = [...new Set(sameName.map(member => member.geburtstag).filter(Boolean))];
+    if (birthdays.length <= 1) groups.push(sameName);
+    else birthdays.forEach(birthday => groups.push(sameName.filter(member => member.geburtstag === birthday)));
+  });
+  return groups
+    .filter(group => group.length > 1)
+    .map(group => [...group].sort((a, b) => a.id - b.id))
+    .sort((a, b) => germanCollator.compare(a[0].name, b[0].name) || germanCollator.compare(a[0].vorname, b[0].vorname));
+};
+
+// Behalten wird bevorzugt der aktive, sonst der juengere Datensatz
+export const suggestMergeTarget = group => [...group].sort((a, b) =>
+  Number(isActiveMember(b)) - Number(isActiveMember(a))
+  || String(b.eintrittsdatum || "").localeCompare(String(a.eintrittsdatum || ""))
+  || b.id - a.id)[0];
+
+const formatYesNo = value => asBoolean(value) ? "Ja" : "Nein";
+const MERGE_FIELDS = [
+  { key: "name", label: "Name" },
+  { key: "vorname", label: "Vorname" },
+  { key: "geschlecht", label: "Geschlecht", format: value => ({ m: "männlich", w: "weiblich" })[value] || "" },
+  { key: "geburtstag", label: "Geburtstag", format: formatDateDE },
+  { key: "strasse", label: "Straße" },
+  { key: "plz", label: "PLZ" },
+  { key: "ort", label: "Ort" },
+  { key: "telefon", label: "Telefon" },
+  { key: "handy", label: "Handy" },
+  { key: "email", label: "E-Mail" },
+  { key: "eintrittsdatum", label: "Eintrittsdatum", format: formatDateDE },
+  { key: "austrittsdatum", label: "Austrittsdatum", format: formatDateDE },
+  { key: "austrittsgrund", label: "Austrittsgrund", format: value => austrittsgrundMap[Number(value)] || "" },
+  { key: "clubzugehoerigkeit", label: "Clubzugehörigkeit", format: value => seniorenclubsMap.find(club => club.id === Number(value))?.name || "" },
+  { key: "interessengruppen", label: "Interessengruppen", value: member => [...(member.interessengruppen || [])].sort((a, b) => a - b), format: formatInterestGroups },
+  { key: "funktionen", label: "Funktionen", value: member => [...getMemberFunctionIds(member)].sort((a, b) => a - b), format: formatFunctions },
+  { key: "ausweisErteilt", label: "Ausweis erteilt", value: member => asBoolean(member.ausweisErteilt), format: formatYesNo },
+  { key: "bemerkung", label: "Bemerkung" },
+  { key: "passbild", label: "Passbild", value: member => member.hasPassbildInDb ? member.passbild || "vorhanden" : "", format: value => value ? "vorhanden" : "" }
+];
+
+/**
+ * Felder, in denen sich die beiden Datensaetze unterscheiden. Vorausgewaehlt sind die Werte
+ * des behaltenen Datensatzes - ausser dem frueheren Eintrittsdatum und einem Passbild, das
+ * nur der aufgeloeste Datensatz hat.
+ */
+export const mergeFieldDiffs = (target, source) => MERGE_FIELDS
+  .map(field => {
+    const read = field.value || (member => member[field.key] ?? "");
+    const targetValue = read(target);
+    const sourceValue = read(source);
+    const format = value => (field.format ? field.format(value) : String(value ?? "")) || "–";
+    const fromSource = field.key === "eintrittsdatum"
+      ? Boolean(sourceValue) && (!targetValue || sourceValue < targetValue)
+      : field.key === "passbild" && !targetValue && Boolean(sourceValue);
+    return { key: field.key, label: field.label, targetText: format(targetValue), sourceText: format(sourceValue), fromSource, same: JSON.stringify(targetValue) === JSON.stringify(sourceValue) };
+  })
+  .filter(diff => !diff.same)
+  .map(({ same, ...diff }) => diff);

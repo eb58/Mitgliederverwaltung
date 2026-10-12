@@ -1394,6 +1394,18 @@ body {
 
 .member-issues__list {
   display: grid;
+  gap: 1.4rem;
+}
+
+.member-issues__group-title {
+  margin: 0 0 0.6rem;
+  color: var(--accent-dark);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.member-issues__cards {
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
   gap: 0.8rem;
 }
@@ -1426,6 +1438,43 @@ body {
 .member-issue__name:hover,
 .member-issue__name:focus-visible {
   text-decoration: underline;
+}
+
+.member-issue__title {
+  flex: 1;
+  color: var(--accent-dark);
+  font-weight: 800;
+}
+
+.member-issue__name--small {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.member-merge__choice-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.member-merge__options {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.9rem;
+}
+
+.member-merge__option,
+.member-merge__value {
+  cursor: pointer;
+}
+
+.member-merge__hint {
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+}
+
+.member-merge__table th[scope="row"] {
+  white-space: nowrap;
 }
 
 .member-issue__tag {

@@ -8,7 +8,8 @@ const actionLabel = action => ({
   updated: "Mitglied geändert",
   deleted: "Mitglied gelöscht",
   photo_updated: "Passbild geändert",
-  photo_deleted: "Passbild entfernt"
+  photo_deleted: "Passbild entfernt",
+  merged: "Doppelten Datensatz zusammengeführt"
 }[action] || "Änderung");
 // preisClub und preisComputer liefert die API seit "Bereinige Filter und Preisfelder" nicht mehr -
 // aeltere Protokollzeilen in der Datenbank tragen sie aber weiterhin. Der Filter bleibt deshalb.

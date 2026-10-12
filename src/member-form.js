@@ -749,15 +749,15 @@ export const createMemberForm = ({
     if (document.getElementById("changes-pane")?.classList.contains("active")) refreshRecentChanges({ force: true });
   };
 
-  // Gaeste zahlen keinen Beitrag: eigene Ueberschrift und kein Zahlungen-Reiter.
-  // Ehemalige (beim Oeffnen schon ausgetreten) brauchen den Reiter ebenfalls nicht.
+  // Gaeste bekommen eine eigene Ueberschrift. Ehemalige (beim Oeffnen schon
+  // ausgetreten) zahlen nicht mehr und brauchen den Zahlungen-Reiter nicht.
   const updateGuestView = () => {
     const guest = isGuestMember({ clubzugehoerigkeit: document.getElementById("field-clubzugehoerigkeit").value });
     const isNew = state.editingId === null;
     document.getElementById("memberModalLabel").textContent = guest
       ? (isNew ? "Neuen Gast anlegen" : "Gast bearbeiten")
       : (isNew ? "Neues Mitglied anlegen" : "Mitglied bearbeiten");
-    const hidePayments = guest || Boolean(originalMember && !isActiveMember(originalMember));
+    const hidePayments = Boolean(originalMember && !isActiveMember(originalMember));
     const paymentTab = document.getElementById("member-form-zahlungen-tab");
     paymentTab.closest("li").hidden = hidePayments;
     if (hidePayments && paymentTab.classList.contains("active")) Tab.getOrCreateInstance(document.querySelector("#memberFormTabs .nav-link")).show();

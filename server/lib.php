@@ -1416,6 +1416,84 @@ function handleMemberResource(int $id, array $currentUser): void
     unhandledMethod();
 }
 
+/** Felder, die beim Zusammenfuehren vom aufgeloesten Datensatz uebernommen werden koennen. */
+function mergeableMemberFields(): array
+{
+    $fields = array_diff(array_keys(mainMemberFields()), ['id', 'passbild', 'funktion']);
+    return array_values(array_merge($fields, ['interessengruppen', 'funktionen', 'passbild']));
+}
+
+/**
+ * Fuehrt einen doppelten Datensatz (sourceId) in diesen hier zusammen. "fromSource" nennt
+ * die Felder, deren Wert vom aufgeloesten Datensatz kommt - alle anderen behaelt dieser.
+ * Zahlungsjahre, die hier fehlen, Eventanmeldungen und Aenderungsverlauf ziehen mit um,
+ * das Weihnachtsessen bleibt bei diesem Datensatz. Danach wird der andere geloescht.
+ */
+function handleMemberMerge(int $id, array $currentUser): void
+{
+    assertMethodAllowed($_SERVER['REQUEST_METHOD'], ['POST']);
+    $payload = readJsonBody();
+    $sourceId = (int) ($payload['sourceId'] ?? 0);
+    $fromSource = $payload['fromSource'] ?? [];
+    if ($sourceId <= 0 || $sourceId === $id) throw new ApiError('sourceId muss ein anderer Datensatz sein.', 400);
+    if (!is_array($fromSource)) throw new ApiError('fromSource muss eine Liste sein.', 400);
+    $unknown = array_diff($fromSource, mergeableMemberFields());
+    if ($unknown) throw new ApiError('Nicht uebernehmbare Felder: ' . implode(', ', $unknown), 400);
+
+    $target = findMemberById($id);
+    $source = findMemberById($sourceId);
+    if (!$target || !$source) throw new ApiError('Mitglied nicht gefunden.', 404);
+
+    $patch = array_intersect_key($source, array_flip(array_diff($fromSource, ['passbild'])));
+    $member = array_replace($target, $patch);
+    assertValidMember($member);
+    assertPlausibleMember($member, array_keys($patch));
+
+    db()->beginTransaction();
+    try {
+        updateMemberColumns($id, $patch);
+        foreach (['interessengruppen' => ['mitglied_interessengruppe', 'interessengruppe_id'], 'funktionen' => ['mitglied_funktion', 'funktion_id']] as $key => [$table, $column]) {
+            if (array_key_exists($key, $patch)) syncJoinTable($table, $column, $id, $patch[$key]);
+        }
+        if (in_array('passbild', $fromSource, true)) {
+            db()->prepare('DELETE FROM mitglied_passbild WHERE mitglied_id = ?')->execute([$id]);
+            db()->prepare('UPDATE mitglied_passbild SET mitglied_id = ? WHERE mitglied_id = ?')->execute([$id, $sourceId]);
+            db()->prepare('UPDATE mitglied SET passbild = ? WHERE id = ?')->execute([$source['passbild'] ?? '', $id]);
+        }
+
+        $targetYears = db()->prepare('SELECT beitragsjahr FROM mitglied_zahlung WHERE mitglied_id = ?');
+        $targetYears->execute([$id]);
+        $years = array_map('intval', $targetYears->fetchAll(PDO::FETCH_COLUMN));
+        $movePayments = 'UPDATE mitglied_zahlung SET mitglied_id = ? WHERE mitglied_id = ?'
+            . ($years ? ' AND beitragsjahr NOT IN (' . implode(', ', array_fill(0, count($years), '?')) . ')' : '');
+        db()->prepare($movePayments)->execute([$id, $sourceId, ...$years]);
+
+        foreach (eventDefinitions() as ['table' => $table]) {
+            if (tableExists($table)) db()->prepare("UPDATE {$table} SET mitglied_id = ? WHERE mitglied_id = ?")->execute([$id, $sourceId]);
+        }
+        db()->prepare('UPDATE mitglied_aenderung SET mitglied_id = ? WHERE mitglied_id = ?')->execute([$id, $sourceId]);
+
+        $updated = findMemberById($id);
+        $changes = buildMemberAuditChanges($target, $updated);
+        if (in_array('passbild', $fromSource, true)) {
+            $changes[] = ['field' => 'passbild', 'label' => memberAuditLabels()['passbild'], 'old' => $target['hasPassbildInDb'] ? 'vorhanden' : '', 'new' => $source['hasPassbildInDb'] ? 'übernommen' : 'entfernt'];
+        }
+        $changes[] = [
+            'field' => 'merge',
+            'label' => 'Zusammengeführt mit',
+            'old' => trim(($source['vorname'] ?? '') . ' ' . ($source['name'] ?? '')) . ' (ID ' . $sourceId . ')',
+            'new' => 'aufgelöst',
+        ];
+        auditMemberChange($id, 'merged', $changes, $currentUser);
+        db()->prepare('DELETE FROM mitglied WHERE id = ?')->execute([$sourceId]);
+        db()->commit();
+    } catch (Throwable $error) {
+        if (db()->inTransaction()) db()->rollBack();
+        throw $error;
+    }
+    jsonResponse(['member' => findMemberById($id)]);
+}
+
 /** Liefert die vergebene Mitgliedsnummer - ohne eigene Angabe die der Datenbank. */
 function insertMember(array $member): int
 {
@@ -1642,12 +1720,17 @@ function handleMemberPhoto(int $id, array $currentUser): void
  * Jedes Event hat eine eigene Teilnehmertabelle. `meals` leer heisst: das Event kennt keine
  * Essensauswahl - dann fehlt die Spalte sowohl in der Tabelle als auch in der API.
  */
-function eventDefinition(string $event): array
+function eventDefinitions(): array
 {
-    $events = [
+    return [
         'warnemuende' => ['table' => 'warnemuende_teilnehmer', 'meals' => ['Zander', 'Rind', 'Vegie']],
         'eisbeinessen' => ['table' => 'eisbeinessen_teilnehmer', 'meals' => []],
     ];
+}
+
+function eventDefinition(string $event): array
+{
+    $events = eventDefinitions();
     if (!isset($events[$event])) throw new ApiError('Unbekanntes Event: ' . $event, 404);
     return $events[$event];
 }

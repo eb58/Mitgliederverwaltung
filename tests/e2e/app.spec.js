@@ -670,18 +670,29 @@ test("Weihnachtsessen wird per Chips statt Dropdown ausgewählt", async ({ page 
   expect((await requestPromise).postDataJSON()).toMatchObject({ weihnachtsessen: 2 });
 });
 
-test("Gäste heißen in der Maske Gast und haben keinen Zahlungen-Reiter", async ({ page }) => {
+test("Einzahlungen auf dem Dashboard enthalten Beiträge von Gästen", async ({ page }) => {
+  Object.assign(members[1], { gezahlterBetragClub: 15, einzahlungClubAm: "2026-02-01" });
+  try {
+    await openAuthenticatedApp(page);
+    await expect(page.locator("#metricClubBeitragsjahrSum")).toHaveText(/45,00/);
+    await expect(page.locator("#metricClubPaid")).toHaveText(/^1 /);
+  } finally {
+    delete members[1].gezahlterBetragClub;
+    delete members[1].einzahlungClubAm;
+  }
+});
+
+test("Gäste heißen in der Maske Gast und haben einen Zahlungen-Reiter", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#guests-tab").click();
   await page.locator('#guestsGrid [row-id="2"] .edit-icon-btn').click();
 
   await expect(page.locator("#memberModalLabel")).toHaveText("Gast bearbeiten");
-  await expect(page.locator("#member-form-zahlungen-tab")).toBeHidden();
+  await expect(page.locator("#member-form-zahlungen-tab")).toBeVisible();
 
   await page.locator("#member-form-verein-tab").click();
   await page.locator("#field-clubzugehoerigkeit").selectOption("9");
   await expect(page.locator("#memberModalLabel")).toHaveText("Mitglied bearbeiten");
-  await expect(page.locator("#member-form-zahlungen-tab")).toBeVisible();
 });
 
 test("Ehemalige haben in der Maske keinen Zahlungen-Reiter", async ({ page }) => {
@@ -724,6 +735,8 @@ test("Auffällige Daten listen Warnungen, filtern nach Stufe und öffnen das Mit
   const anna = page.locator('.member-issue[data-member-id="1"]');
   await expect(anna).toContainText("Anna Müller");
   await expect(anna).toContainText("PLZ fehlt.");
+  await expect(page.locator('.member-issues__group[data-group="mitglieder"] .member-issue[data-member-id="1"]')).toHaveCount(1);
+  await expect(page.locator('.member-issues__group[data-group="mitglieder"] .member-issues__group-title')).toHaveText(/^Mitglieder \(\d+\)$/);
 
   await page.locator('#memberIssuesFilters [data-level="warnung"]').click();
   await expect(page.locator('#memberIssuesFilters [data-level="warnung"]')).toHaveAttribute("aria-pressed", "false");
@@ -733,6 +746,38 @@ test("Auffällige Daten listen Warnungen, filtern nach Stufe und öffnen das Mit
   await anna.locator(".member-issue__name").click();
   await expect(page.locator("#memberModal")).toBeVisible();
   await expect(page.locator("#field-name")).toHaveValue("Müller");
+});
+
+test("Auffällige Daten fassen Doppelte zusammen und führen sie zusammen", async ({ page }) => {
+  const doppelt = { id: 6, name: "Schmidt", vorname: "Clara", geschlecht: "w", geburtstag: "1958-04-12", eintrittsdatum: "2026-01-01", strasse: "Neue Str. 1", plz: "13469", ort: "Berlin", clubzugehoerigkeit: 9, interessengruppen: [], funktionen: [] };
+  members.push(doppelt);
+  try {
+    await openAuthenticatedApp(page);
+    let mergeRequest = null;
+    await page.route("**/php-api/index.php/api/members/6/merge", route => {
+      mergeRequest = route.request().postDataJSON();
+      return json(route, { member: { ...doppelt, eintrittsdatum: "2020-03-01" } });
+    });
+    await page.locator("#member-issues-tab").click();
+
+    const card = page.locator('.member-issues__group[data-group="doppelte"] .member-issue--duplicate');
+    await expect(card).toHaveCount(1);
+    await expect(card).toContainText("Clara Schmidt (2×)");
+    await expect(page.locator("#memberIssuesList")).not.toContainText("Es gibt bereits");
+
+    await card.locator(".member-issue__merge").click();
+    await expect(page.locator("#memberMergeModal")).toBeVisible();
+    await expect(page.locator("#memberMergeTargetHead")).toHaveText("Behalten (ID 6)");
+    await expect(page.locator('#memberMergeRows tr[data-field="eintrittsdatum"] input[value="source"]')).toBeChecked();
+    await expect(page.locator('#memberMergeRows tr[data-field="strasse"] input[value="target"]')).toBeChecked();
+
+    await page.locator("#memberMergeConfirmBtn").click();
+    await expect(page.locator("#memberMergeModal")).toBeHidden();
+    expect(mergeRequest).toEqual({ sourceId: 4, fromSource: ["eintrittsdatum"] });
+    await expect(page.locator('.member-issues__group[data-group="doppelte"]')).toHaveCount(0);
+  } finally {
+    members.splice(members.indexOf(doppelt), 1);
+  }
 });
 
 test("abgelaufene Beitragsjahre sind in der Maske nur zur Ansicht", async ({ page }) => {

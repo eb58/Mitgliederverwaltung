@@ -156,6 +156,8 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     invalidateMemberPhotoCache,
     loadMemberChanges,
     loadMembers,
+    mergeMembers: async (targetId, sourceId, fromSource) =>
+      normalizeMember((await request(`/api/members/${targetId}/merge`, { method: "POST", body: { sourceId, fromSource } })).member),
     loadRecentMemberChanges: () => request("/api/member-changes", { params: { limit: 100 } }),
     loadGeocodeCache: async () => (await request("/api/geocode-cache"))?.entries ?? {},
     saveGeocode: (key, result) => request("/api/geocode-cache", { method: "POST", body: { key, result } }),

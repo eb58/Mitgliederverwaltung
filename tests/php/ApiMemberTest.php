@@ -489,6 +489,70 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertSame(1, $this->countRows('mitglied_aenderung', 'mitglied_id = 3 AND aktion = ?', ['deleted']));
     }
 
+    public function testMemberMergeTakesChosenFieldsAndMovesRelatedRows(): void
+    {
+        TestDatabase::insertMemberRow(10, 'Lieven', 'Alexander', ['strasse' => 'Lahrer Pfad 5', 'plz' => '13469', 'ort' => 'Berlin', 'eintrittsdatum' => '2022-10-01', 'austrittsdatum' => '2024-12-31', 'austrittsgrund_id' => 4]);
+        TestDatabase::insertMemberRow(20, 'Lieven', 'Alexander', ['ort' => 'Oranienburg', 'eintrittsdatum' => '2025-06-01', 'handy' => '0157 1234567']);
+        db()->exec('INSERT INTO mitglied_interessengruppe (mitglied_id, interessengruppe_id) VALUES (10, 1), (20, 4)');
+        self::insertZahlung(10, self::jahr(-1), 30, self::jahr(-1) . '-02-01');
+        self::insertZahlung(10, self::jahr(), 15, self::jahr() . '-01-10');
+        self::insertZahlung(20, self::jahr(), 30, self::jahr() . '-02-05');
+        db()->exec("INSERT INTO warnemuende_teilnehmer (name, vorname, essensauswahl, mitglied_id) VALUES ('Lieven', 'Alexander', 'Rind', 10)");
+        auditMemberChange(10, 'updated', [], self::ADMIN);
+        $this->request('POST', ['sourceId' => 10, 'fromSource' => ['eintrittsdatum', 'strasse', 'plz']]);
+
+        $member = $this->capture(static fn() => handleMemberMerge(20, self::ADMIN))->payload['member'];
+
+        $this->assertSame('2022-10-01', $member['eintrittsdatum']);
+        $this->assertSame('Lahrer Pfad 5', $member['strasse']);
+        $this->assertSame('Oranienburg', $member['ort']);
+        $this->assertNull($member['austrittsdatum']);
+        $this->assertSame([4], $member['interessengruppen']);
+        // Fehlendes Vorjahr zieht um, im aktuellen Jahr behaelt der Zieldatensatz seine Zahlung
+        $this->assertEquals(30, $member['gezahlterBetragClub']);
+        $this->assertSame([self::jahr(), self::jahr(-1)], array_map('intval', array_column($member['zahlungen'], 'beitragsjahr')));
+        $this->assertSame(0, $this->countRows('mitglied', 'id = 10'));
+        $this->assertSame(0, $this->countRows('mitglied_zahlung', 'mitglied_id = 10'));
+        $this->assertSame(1, $this->countRows('warnemuende_teilnehmer', 'mitglied_id = 20'));
+        $this->assertSame(2, $this->countRows('mitglied_aenderung', 'mitglied_id = 20'));
+        $audit = json_decode((string) $this->fetchColumn("SELECT aenderungen_json FROM mitglied_aenderung WHERE mitglied_id = 20 AND aktion = 'merged'"), true);
+        $this->assertContains('eintrittsdatum', array_column($audit, 'field'));
+        $this->assertSame('Alexander Lieven (ID 10)', $audit[count($audit) - 1]['old']);
+    }
+
+    public function testMemberMergeCanTakeGroupsAndPhotoFromSource(): void
+    {
+        TestDatabase::insertMemberRow(10, 'Lieven', 'Alexander', ['passbild' => 'alt.png']);
+        TestDatabase::insertMemberRow(20, 'Lieven', 'Alexander');
+        db()->exec('INSERT INTO mitglied_interessengruppe (mitglied_id, interessengruppe_id) VALUES (10, 1)');
+        db()->prepare("INSERT INTO mitglied_passbild (mitglied_id, dateiname, mime_type, groesse_bytes, inhalt) VALUES (10, 'alt.png', 'image/png', ?, ?)")
+            ->execute([strlen(self::png()), self::png()]);
+        $this->request('POST', ['sourceId' => 10, 'fromSource' => ['interessengruppen', 'passbild']]);
+
+        $member = $this->capture(static fn() => handleMemberMerge(20, self::ADMIN))->payload['member'];
+
+        $this->assertSame([1], $member['interessengruppen']);
+        $this->assertSame('alt.png', $member['passbild']);
+        $this->assertTrue($member['hasPassbildInDb']);
+        $this->assertSame(self::png(), $this->fetchColumn('SELECT inhalt FROM mitglied_passbild WHERE mitglied_id = 20'));
+    }
+
+    public function testMemberMergeRejectsInvalidRequests(): void
+    {
+        TestDatabase::insertMemberRow(10, 'Lieven', 'Alexander');
+        TestDatabase::insertMemberRow(20, 'Lieven', 'Alexander');
+
+        $this->request('POST', ['sourceId' => 20, 'fromSource' => []]);
+        $this->assertApiError(400, 'anderer Datensatz', static fn() => handleMemberMerge(20, self::ADMIN));
+        $this->request('POST', ['sourceId' => 10, 'fromSource' => ['gezahlterBetragClub']]);
+        $this->assertApiError(400, 'Nicht uebernehmbare Felder', static fn() => handleMemberMerge(20, self::ADMIN));
+        $this->request('POST', ['sourceId' => 99, 'fromSource' => []]);
+        $this->assertApiError(404, 'nicht gefunden', static fn() => handleMemberMerge(20, self::ADMIN));
+        $this->request('GET');
+        $this->assertApiError(405, '', static fn() => handleMemberMerge(20, self::ADMIN));
+        $this->assertSame(2, $this->countRows('mitglied', 'id IN (10, 20)'));
+    }
+
     public function testMemberChangesListsHistoryForOneMember(): void
     {
         TestDatabase::insertMemberRow(3, 'Müller', 'Anna');

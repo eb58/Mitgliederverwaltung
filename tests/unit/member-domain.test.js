@@ -26,7 +26,10 @@ import {
   formatInterestGroups,
   formatMemberName,
   getEntriesPerYear,
+  findDuplicateGroups,
   findMemberIssues,
+  mergeFieldDiffs,
+  suggestMergeTarget,
   getExitsPerYear,
   getMemberEmails,
   getMemberFunctionIds,
@@ -452,12 +455,20 @@ describe("findMemberIssues", () => {
     expect(issues.some(issue => issue.message === "Austrittsdatum ohne Austrittsgrund.")).toBe(true);
   });
 
-  it("meldet Ehemalige mit Funktion", () => {
-    const issues = issuesOf([{ ...base, id: 1, austrittsdatum: "2024-01-01", austrittsgrund: 1, funktionen: [1] }], 1);
-    expect(issues).toEqual([{ level: "warnung", message: "Ausgetreten, hat aber noch die Funktion Vorstand." }]);
+  it("ignoriert die fehlende Hausnummer bei Ehemaligen", () => {
+    const members = [
+      { ...base, id: 1, name: "Aktiv", strasse: "Benekendorfstr.", plz: "13469", ort: "Berlin" },
+      { ...base, id: 2, name: "Ehemalig", strasse: "Benekendorfstr.", plz: "13469", ort: "Berlin", austrittsdatum: "2024-01-01", austrittsgrund: 1 }
+    ];
+    expect(issuesOf(members, 1)).toEqual([{ level: "warnung", message: "Hausnummer fehlt." }]);
+    expect(issuesOf(members, 2)).toEqual([]);
   });
 
-  it("prueft Zahlungen auf Datum, Betrag, Gaeste und Austritt", () => {
+  it("laesst die fruehere Funktion von Ehemaligen stehen", () => {
+    expect(issuesOf([{ ...base, id: 1, austrittsdatum: "2024-01-01", austrittsgrund: 1, funktionen: [1] }], 1)).toEqual([]);
+  });
+
+  it("prueft Zahlungen auf Datum, Betrag und Austritt", () => {
     // Intl setzt ein geschuetztes Leerzeichen vor das Euro-Zeichen
     const messages = id => issuesOf(members, id).map(issue => issue.message.replace(/\s/g, " "));
     const members = [
@@ -466,7 +477,7 @@ describe("findMemberIssues", () => {
       { ...base, id: 3, name: "Drei", austrittsdatum: "2025-06-30", austrittsgrund: 1, zahlungen: [{ beitragsjahr: 2025, gezahlterBetragClub: 30, einzahlungClubAm: "2025-08-01" }] }
     ];
     expect(messages(1)).toEqual(["Club 2026: 30,00 € ohne Einzahlungsdatum.", "Computer 2026: Einzahlung am 21.01.2026 ohne Betrag."]);
-    expect(messages(2)).toEqual(["Gast mit Club-Beitrag 2026.", "Club 2026: 15,00 € statt 30,00 €."]);
+    expect(messages(2)).toEqual(["Club 2026: 15,00 € statt 30,00 €."]);
     expect(messages(3)).toEqual(["Club-Einzahlung 01.08.2025 nach dem Austritt."]);
   });
 
@@ -487,5 +498,40 @@ describe("findMemberIssues", () => {
     ];
     expect(issuesOf(members, 1)).toEqual([{ level: "hinweis", message: "Eintrittsdatum fehlt." }, { level: "hinweis", message: "Geburtstag fehlt." }]);
     expect(issuesOf(members, 2)).toEqual([]);
+  });
+});
+
+describe("Doppelte zusammenfuehren", () => {
+  const alt = { id: 383, name: "Lieven", vorname: "Alexander", geburtstag: "1959-05-09", eintrittsdatum: "2022-10-01", austrittsdatum: "2024-12-31", austrittsgrund: 1, strasse: "Lahrer Pfad 5", ort: "Berlin", interessengruppen: [1], hasPassbildInDb: true, passbild: "lieven.jpg" };
+  const neu = { id: 463, name: "Lieven", vorname: "Alexander", geburtstag: "1959-05-09", eintrittsdatum: "2025-06-01", austrittsdatum: "", austrittsgrund: null, strasse: "", ort: "Oranienburg", interessengruppen: [3], hasPassbildInDb: false, passbild: "" };
+
+  it("gruppiert gleiche Namen ohne widersprechenden Geburtstag", () => {
+    const groups = findDuplicateGroups([
+      neu, alt,
+      { id: 1, name: "lieven ", vorname: "alexander", geburtstag: "" },
+      { id: 2, name: "Bredlau", vorname: "Henry", geburtstag: "1956-01-26" },
+      { id: 3, name: "Bredlau", vorname: "Henry", geburtstag: "1960-01-01" }
+    ]);
+    expect(groups.map(group => group.map(member => member.id))).toEqual([[1, 383, 463]]);
+  });
+
+  it("schlaegt den aktiven, sonst den juengeren Datensatz als Ziel vor", () => {
+    expect(suggestMergeTarget([alt, neu]).id).toBe(463);
+    expect(suggestMergeTarget([{ ...alt, austrittsdatum: "", austrittsgrund: null }, neu]).id).toBe(463);
+    expect(suggestMergeTarget([{ ...neu, austrittsdatum: "2025-12-31", austrittsgrund: 1 }, { ...alt, id: 500 }]).id).toBe(463);
+  });
+
+  it("listet nur abweichende Felder und waehlt frueheren Eintritt und fehlendes Passbild vor", () => {
+    const diffs = mergeFieldDiffs(neu, alt);
+    expect(diffs.map(diff => diff.key)).toEqual(["strasse", "ort", "eintrittsdatum", "austrittsdatum", "austrittsgrund", "interessengruppen", "passbild"]);
+    expect(diffs.filter(diff => diff.fromSource).map(diff => diff.key)).toEqual(["eintrittsdatum", "passbild"]);
+    expect(diffs.find(diff => diff.key === "eintrittsdatum")).toEqual({ key: "eintrittsdatum", label: "Eintrittsdatum", targetText: "01.06.2025", sourceText: "01.10.2022", fromSource: true });
+    expect(diffs.find(diff => diff.key === "strasse").targetText).toBe("–");
+    expect(diffs.find(diff => diff.key === "interessengruppen").sourceText).toBe("Skat");
+  });
+
+  it("nimmt Doppelte aus den Einzelkarten der Auffaelligkeiten heraus", () => {
+    const issues = findMemberIssues([{ ...neu, id: 1, clubzugehoerigkeit: MEMBER_CLUB_ID }, { ...neu, id: 2, clubzugehoerigkeit: MEMBER_CLUB_ID }], { today: new Date("2026-10-12") });
+    expect(issues.flatMap(entry => entry.issues).some(issue => issue.message.startsWith("Es gibt bereits"))).toBe(false);
   });
 });
