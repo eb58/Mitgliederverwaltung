@@ -1,6 +1,6 @@
 import { Modal, Tab } from "bootstrap";
 import { beitragsjahr, fieldDefinitions, formSections, paidAmountDefaults } from "./member-config.js";
-import { ZAHLUNG_FIELDS, beitragsjahrOptionen, cloneMember, createEmptyMember, formatMemberName, isGuestMember, istBeitragBezahlt, normalizeMember, validateMember, zahlungenNachJahr } from "./member-domain.js";
+import { ZAHLUNG_FIELDS, beitragsjahrOptionen, cloneMember, createEmptyMember, formatMemberName, isActiveMember, isGuestMember, istBeitragBezahlt, normalizeMember, validateMember, zahlungenNachJahr } from "./member-domain.js";
 import { asBoolean, formatIsoDate, roundCurrency } from "./member-utils.js";
 import { state } from "./state.js";
 import { showToast } from "./ui.js";
@@ -749,16 +749,18 @@ export const createMemberForm = ({
     if (document.getElementById("changes-pane")?.classList.contains("active")) refreshRecentChanges({ force: true });
   };
 
-  // Gaeste zahlen keinen Beitrag: eigene Ueberschrift und kein Zahlungen-Reiter
+  // Gaeste zahlen keinen Beitrag: eigene Ueberschrift und kein Zahlungen-Reiter.
+  // Ehemalige (beim Oeffnen schon ausgetreten) brauchen den Reiter ebenfalls nicht.
   const updateGuestView = () => {
     const guest = isGuestMember({ clubzugehoerigkeit: document.getElementById("field-clubzugehoerigkeit").value });
     const isNew = state.editingId === null;
     document.getElementById("memberModalLabel").textContent = guest
       ? (isNew ? "Neuen Gast anlegen" : "Gast bearbeiten")
       : (isNew ? "Neues Mitglied anlegen" : "Mitglied bearbeiten");
+    const hidePayments = guest || Boolean(originalMember && !isActiveMember(originalMember));
     const paymentTab = document.getElementById("member-form-zahlungen-tab");
-    paymentTab.closest("li").hidden = guest;
-    if (guest && paymentTab.classList.contains("active")) Tab.getOrCreateInstance(document.querySelector("#memberFormTabs .nav-link")).show();
+    paymentTab.closest("li").hidden = hidePayments;
+    if (hidePayments && paymentTab.classList.contains("active")) Tab.getOrCreateInstance(document.querySelector("#memberFormTabs .nav-link")).show();
   };
 
   const open = memberId => {
@@ -768,11 +770,11 @@ export const createMemberForm = ({
     state.editingId = isNew ? null : member.id;
     clearSelectedPhoto();
     fill(member, isNew);
+    originalMember = isNew ? null : cloneMember(member);
     updateGuestView();
     clearFieldMarks();
     hideReview();
     addressCheck = { key: null, result: null };
-    originalMember = isNew ? null : cloneMember(member);
     dirty = false;
     toggleDiscardBar(false);
     renderMemberHistory([], {
