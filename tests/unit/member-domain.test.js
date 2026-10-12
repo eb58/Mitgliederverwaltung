@@ -26,7 +26,9 @@ import {
   formatInterestGroups,
   formatMemberName,
   getEntriesPerYear,
+  findMemberIssues,
   getExitsPerYear,
+  getMemberEmails,
   getMemberFunctionIds,
   getMemberInterestGroupText,
   getNewestMembers,
@@ -271,6 +273,17 @@ describe("Gruppen und Funktionen", () => {
     expect(formatFunctions([1, 2])).toBe("Vorstand, Kassenwart");
     expect(formatFunctions(null)).toBe("");
   });
+
+  it("sammelt E-Mail-Adressen nach Namen sortiert ohne Doppelte", () => {
+    const result = getMemberEmails([
+      { vorname: "Uwe", name: "Zander", email: "uwe@example.org" },
+      { vorname: "Anna", name: "Berg", email: " anna@example.org " },
+      { vorname: "Uwe", name: "Zander-Alt", email: "UWE@example.org" },
+      { vorname: "Olga", name: "Ohne", email: "" }
+    ]);
+    expect(result.emails).toEqual(["anna@example.org", "uwe@example.org"]);
+    expect(result.withoutEmail.map(member => member.vorname)).toEqual(["Olga"]);
+  });
 });
 
 describe("getNewestMembers", () => {
@@ -421,5 +434,58 @@ describe("Geburtstage", () => {
 
   it("ignoriert Mitglieder ohne auswertbaren Geburtstag", () => {
     expect(getRoundBirthdays([{ name: "Ohne", geburtstag: "" }], today)).toEqual([]);
+  });
+});
+
+describe("findMemberIssues", () => {
+  const today = new Date("2026-10-12T12:00:00");
+  const base = { name: "Muster", vorname: "Max", geburtstag: "1950-01-01", eintrittsdatum: "2020-01-01", clubzugehoerigkeit: MEMBER_CLUB_ID, zahlungen: [] };
+  const issuesOf = (members, id) => findMemberIssues(members, { today }).find(entry => entry.member.id === id)?.issues || [];
+
+  it("laesst unauffaellige Datensaetze weg", () => {
+    expect(findMemberIssues([{ ...base, id: 1 }], { today })).toEqual([]);
+  });
+
+  it("uebernimmt Fehler und Warnungen der Maske und sortiert Fehler nach vorn", () => {
+    const issues = issuesOf([{ ...base, id: 1, email: "ohne", austrittsdatum: "2024-01-01" }], 1);
+    expect(issues[0]).toEqual({ level: "fehler", message: "Keine gültige E-Mail-Adresse." });
+    expect(issues.some(issue => issue.message === "Austrittsdatum ohne Austrittsgrund.")).toBe(true);
+  });
+
+  it("meldet Ehemalige mit Funktion", () => {
+    const issues = issuesOf([{ ...base, id: 1, austrittsdatum: "2024-01-01", austrittsgrund: 1, funktionen: [1] }], 1);
+    expect(issues).toEqual([{ level: "warnung", message: "Ausgetreten, hat aber noch die Funktion Vorstand." }]);
+  });
+
+  it("prueft Zahlungen auf Datum, Betrag, Gaeste und Austritt", () => {
+    // Intl setzt ein geschuetztes Leerzeichen vor das Euro-Zeichen
+    const messages = id => issuesOf(members, id).map(issue => issue.message.replace(/\s/g, " "));
+    const members = [
+      { ...base, id: 1, name: "Eins", gezahlterBetragClub: 30, einzahlungClubAm: "", einzahlungComputerAm: "2026-01-21" },
+      { ...base, id: 2, name: "Zwei", clubzugehoerigkeit: 8, gezahlterBetragClub: 15, einzahlungClubAm: "2026-02-01" },
+      { ...base, id: 3, name: "Drei", austrittsdatum: "2025-06-30", austrittsgrund: 1, zahlungen: [{ beitragsjahr: 2025, gezahlterBetragClub: 30, einzahlungClubAm: "2025-08-01" }] }
+    ];
+    expect(messages(1)).toEqual(["Club 2026: 30,00 € ohne Einzahlungsdatum.", "Computer 2026: Einzahlung am 21.01.2026 ohne Betrag."]);
+    expect(messages(2)).toEqual(["Gast mit Club-Beitrag 2026.", "Club 2026: 15,00 € statt 30,00 €."]);
+    expect(messages(3)).toEqual(["Club-Einzahlung 01.08.2025 nach dem Austritt."]);
+  });
+
+  it("meldet gleiche Anschrift mit unterschiedlicher PLZ und PLZ ausserhalb Berlins", () => {
+    const members = [
+      { ...base, id: 1, name: "Kalweit", strasse: "Oranienburger Str. 157", plz: "13433", ort: "Berlin" },
+      { ...base, id: 2, name: "Pliet", strasse: "Oranienburger Straße 157", plz: "13437", ort: "Berlin" },
+      { ...base, id: 3, name: "Fern", strasse: "Hauptstr. 1", plz: "16515", ort: "Berlin" }
+    ];
+    expect(issuesOf(members, 1).map(issue => issue.message)).toEqual(["Gleiche Anschrift wie Max Pliet (13437), aber andere PLZ."]);
+    expect(issuesOf(members, 3).map(issue => issue.message)).toEqual(["PLZ 16515 liegt nicht in Berlin."]);
+  });
+
+  it("gibt Hinweise auf fehlende Daten nur bei aktiven Mitgliedern", () => {
+    const members = [
+      { ...base, id: 1, name: "Eins", geburtstag: "", eintrittsdatum: "" },
+      { ...base, id: 2, name: "Zwei", geburtstag: "", eintrittsdatum: "", clubzugehoerigkeit: 8 }
+    ];
+    expect(issuesOf(members, 1)).toEqual([{ level: "hinweis", message: "Eintrittsdatum fehlt." }, { level: "hinweis", message: "Geburtstag fehlt." }]);
+    expect(issuesOf(members, 2)).toEqual([]);
   });
 });

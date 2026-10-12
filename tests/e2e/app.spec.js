@@ -684,6 +684,57 @@ test("Gäste heißen in der Maske Gast und haben keinen Zahlungen-Reiter", async
   await expect(page.locator("#member-form-zahlungen-tab")).toBeVisible();
 });
 
+test("Ehemalige haben in der Maske keinen Zahlungen-Reiter", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#historical-tab").click();
+  await page.locator('#historicalGrid [row-id="4"] .edit-icon-btn').click();
+
+  await expect(page.locator("#memberModalLabel")).toHaveText("Mitglied bearbeiten");
+  await expect(page.locator("#member-form-zahlungen-tab")).toBeHidden();
+});
+
+test("Vorstand und Gruppenleiter zeigen ihre E-Mail-Adressen", async ({ page }) => {
+  members[0].email = "anna@example.org";
+  try {
+    await openAuthenticatedApp(page);
+    await page.locator("#function-overview-tab").click();
+    const card = label => page.locator(".function-card").filter({ has: page.locator(".function-card__title", { hasText: new RegExp(`^${label}$`) }) });
+
+    await card("Vorstand").locator(".function-card__email").click();
+    await expect(page.locator("#functionEmailModalLabel")).toHaveText("E-Mail-Adressen: Vorstand");
+    await expect(page.locator("#functionEmailList")).toHaveValue("anna@example.org");
+    await expect(page.locator("#functionEmailMailto")).toHaveAttribute("href", "mailto:anna%40example.org");
+    await expect(page.locator("#functionEmailMissing")).toBeHidden();
+    await page.locator("#functionEmailModal .btn-close").click();
+    await expect(page.locator("#functionEmailModal")).toBeHidden();
+
+    await card("Gruppenleiter").locator(".function-card__email").click();
+    await expect(page.locator("#functionEmailModalLabel")).toHaveText("E-Mail-Adressen: Gruppenleiter");
+    await expect(page.locator("#functionEmailList")).toHaveValue("");
+    await expect(page.locator("#functionEmailCopyBtn")).toBeDisabled();
+  } finally {
+    delete members[0].email;
+  }
+});
+
+test("Auffällige Daten listen Warnungen, filtern nach Stufe und öffnen das Mitglied", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#member-issues-tab").click();
+
+  const anna = page.locator('.member-issue[data-member-id="1"]');
+  await expect(anna).toContainText("Anna Müller");
+  await expect(anna).toContainText("PLZ fehlt.");
+
+  await page.locator('#memberIssuesFilters [data-level="warnung"]').click();
+  await expect(page.locator('#memberIssuesFilters [data-level="warnung"]')).toHaveAttribute("aria-pressed", "false");
+  await expect(anna).toHaveCount(0);
+  await page.locator('#memberIssuesFilters [data-level="warnung"]').click();
+
+  await anna.locator(".member-issue__name").click();
+  await expect(page.locator("#memberModal")).toBeVisible();
+  await expect(page.locator("#field-name")).toHaveValue("Müller");
+});
+
 test("abgelaufene Beitragsjahre sind in der Maske nur zur Ansicht", async ({ page }) => {
   members[0].zahlungen = [{ beitragsjahr: beitragsjahr - 1, gezahlterBetragClub: 25, einzahlungClubAm: "2025-02-01" }];
   try {

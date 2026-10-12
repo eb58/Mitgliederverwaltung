@@ -8,7 +8,8 @@ import {
   fieldDefinitions,
   funktionsMap,
   germanCollator,
-  interestGroupMap
+  interestGroupMap,
+  paidAmountDefaults
 } from "./member-config.js";
 import {
   asBoolean,
@@ -117,6 +118,17 @@ export const getMemberInterestGroupText = member => (member?.interessengruppen |
 export const getMemberFunctionIds = member => Array.isArray(member?.funktionen) && member.funktionen.length
   ? member.funktionen
   : String(member?.funktion || "").split(/[;,]/).map(Number).filter(id => Number.isFinite(id) && id > 0);
+// E-Mail-Liste einer Funktion (z.B. Vorstand): Adressen ohne Doppelte, dazu wer keine Adresse hat
+export const getMemberEmails = members => {
+  const sorted = [...members]
+    .sort((a, b) => germanCollator.compare(a.name || "", b.name || "") || germanCollator.compare(a.vorname || "", b.vorname || ""));
+  const emails = new Map();
+  sorted.forEach(member => {
+    const email = String(member.email || "").trim();
+    if (email && !emails.has(email.toLowerCase())) emails.set(email.toLowerCase(), email);
+  });
+  return { emails: [...emails.values()], withoutEmail: sorted.filter(member => !String(member.email || "").trim()) };
+};
 export const isComputerGroupMember = member => {
   const text = normalizeGroupText(getMemberInterestGroupText(member));
   return computerGroupPatterns.some(pattern => text.includes(pattern));
@@ -297,4 +309,67 @@ export const validateMember = (member, { original = null, members = [], today = 
     if (duplicate) warn("name", `Es gibt bereits ${formatMemberName(duplicate)}${duplicate.geburtstag ? ` (geb. ${formatDateDE(duplicate.geburtstag)})` : ""}.`);
   }
   return { errors, warnings };
+};
+
+// Uebersicht "Auffaellige Daten": die Regeln der Maske plus Pruefungen ueber mehrere Datensaetze
+export const ISSUE_LEVELS = ["fehler", "warnung", "hinweis"];
+const BERLIN_PLZ = { min: 10115, max: 14199 };
+const normalizeStreet = strasse => String(strasse || "").toLowerCase().replace(/\s+/g, " ").replace(/str\.?(?=\s|\d|$)/, "straße").trim();
+const BEITRAGSARTEN = [
+  { label: "Club", ...paidAmountDefaults.beitragClubBezahlt },
+  { label: "Computer", ...paidAmountDefaults.beitragComputerBezahlt }
+];
+
+export const findMemberIssues = (members, { today = new Date() } = {}) => {
+  const todayIso = formatIsoDate(today);
+  const issuesById = new Map(members.map(member => [member.id, []]));
+  const add = (member, level, message) => issuesById.get(member.id).push({ level, message });
+
+  members.forEach(member => {
+    const { errors, warnings } = validateMember(member, { members, today });
+    errors.forEach(({ message }) => add(member, "fehler", message));
+    warnings.forEach(({ message }) => add(member, "warnung", message));
+
+    const active = isActiveMember(member);
+    const guest = isGuestMember(member);
+    const functionIds = getMemberFunctionIds(member);
+    if (!active && functionIds.length) add(member, "warnung", `Ausgetreten, hat aber noch die Funktion ${formatFunctions(functionIds)}.`);
+    if (member.eintrittsdatum && member.eintrittsdatum > todayIso) add(member, "warnung", `Eintrittsdatum ${formatDateDE(member.eintrittsdatum)} liegt in der Zukunft.`);
+    if (/^berlin$/i.test(String(member.ort || "").trim()) && isValidPlz(member.plz)
+      && (Number(member.plz) < BERLIN_PLZ.min || Number(member.plz) > BERLIN_PLZ.max)) add(member, "warnung", `PLZ ${member.plz} liegt nicht in Berlin.`);
+    if (active && !guest && !member.eintrittsdatum) add(member, "hinweis", "Eintrittsdatum fehlt.");
+    if (active && !guest && !member.geburtstag) add(member, "hinweis", "Geburtstag fehlt.");
+
+    zahlungenNachJahr(member).forEach((zahlung, jahr) => BEITRAGSARTEN.forEach(art => {
+      const betrag = Number(zahlung[art.amountField]) || 0;
+      const datum = zahlung[art.dateField];
+      if (betrag > 0 && !datum) add(member, "warnung", `${art.label} ${jahr}: ${formatCurrency(betrag)} ohne Einzahlungsdatum.`);
+      if (!betrag && datum) add(member, "warnung", `${art.label} ${jahr}: Einzahlung am ${formatDateDE(datum)} ohne Betrag.`);
+      if (betrag > 0 && guest) add(member, "warnung", `Gast mit ${art.label}-Beitrag ${jahr}.`);
+      if (datum && member.austrittsdatum && datum > member.austrittsdatum) add(member, "warnung", `${art.label}-Einzahlung ${formatDateDE(datum)} nach dem Austritt.`);
+      if (betrag > 0 && betrag !== art.amount) add(member, "hinweis", `${art.label} ${jahr}: ${formatCurrency(betrag)} statt ${formatCurrency(art.amount)}.`);
+    }));
+  });
+
+  // Gleiche Strasse und Hausnummer, aber unterschiedliche PLZ
+  const byStreet = new Map();
+  members.filter(member => member.strasse && member.plz).forEach(member => {
+    const key = normalizeStreet(member.strasse);
+    byStreet.set(key, [...(byStreet.get(key) || []), member]);
+  });
+  byStreet.forEach(group => {
+    if (new Set(group.map(member => member.plz)).size < 2) return;
+    group.forEach(member => {
+      const others = group.filter(other => other !== member).map(other => `${formatMemberName(other)} (${other.plz})`).join(", ");
+      add(member, "warnung", `Gleiche Anschrift wie ${others}, aber andere PLZ.`);
+    });
+  });
+
+  return members
+    .filter(member => issuesById.get(member.id).length)
+    .map(member => ({
+      member,
+      issues: issuesById.get(member.id).sort((a, b) => ISSUE_LEVELS.indexOf(a.level) - ISSUE_LEVELS.indexOf(b.level))
+    }))
+    .sort((a, b) => germanCollator.compare(a.member.name || "", b.member.name || "") || germanCollator.compare(a.member.vorname || "", b.member.vorname || ""));
 };

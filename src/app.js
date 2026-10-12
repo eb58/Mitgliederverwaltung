@@ -1,7 +1,7 @@
 "use strict";
 
 import "bootstrap/dist/css/bootstrap.min.css";
-import { Tab } from "bootstrap";
+import { Modal, Tab } from "bootstrap";
 import { AllCommunityModule, ModuleRegistry, createGrid as createAgGrid } from "ag-grid-community";
 import "./styles.css";
 import { createAuth } from "./auth.js";
@@ -18,6 +18,7 @@ import {
 import { createMemberApi } from "./member-api.js";
 import { createMemberForm } from "./member-form.js";
 import { createMemberHistory } from "./member-history.js";
+import { createMemberIssuesView } from "./member-issues.js";
 import { createReferenceAdmin } from "./reference-admin.js";
 import { createDashboard } from "./dashboard.js";
 import { checkMemberAddress, createMemberMap } from "./member-map.js";
@@ -36,6 +37,7 @@ import {
   dateFormatter,
   formatInterestGroups,
   formatMemberName,
+  getMemberEmails,
   getMemberFunctionIds,
   interestGroupFormatter,
   isActiveMember,
@@ -46,6 +48,7 @@ import {
   matchesPaymentMetricFilter
 } from "./member-domain.js";
 import { PAYMENT_TOGGLE_STORAGE_KEYS, gridApis, state } from "./state.js";
+import { showToast } from "./ui.js";
 import { createUserAdmin } from "./user-admin.js";
 import { createEventAdmin } from "./event-admin.js";
 import { eventList } from "./event-config.js";
@@ -179,6 +182,7 @@ const showMemberOnMap = memberId => {
   const mapTab = document.getElementById("member-map-tab");
   if (mapTab.classList.contains("active")) memberMap.render(); else Tab.getOrCreateInstance(mapTab).show();
 };
+const memberIssuesView = createMemberIssuesView({ openMemberModal: memberId => memberForm.open(memberId) });
 const memberMap = createMemberMap({ openMemberModal: memberId => memberForm.open(memberId), loadGeocodeCache: () => loadGeocodeCache(), saveGeocode: (key, result) => saveGeocode(key, result), resolveMemberPhotoDataUrl: member => resolveMemberPhotoDataUrl(member) });
 
 let uiInitialized = false;
@@ -261,6 +265,7 @@ const wireUi = () => {
   document.getElementById("downloadMembersBtn").addEventListener("click", downloadMembers);
   document.getElementById("downloadOpenPaymentsBtn").addEventListener("click", downloadOpenClubPayments);
   document.getElementById("downloadRoundBirthdayBtn").addEventListener("click", downloadRoundBirthdayList);
+  document.getElementById("functionEmailCopyBtn").addEventListener("click", copyFunctionEmails);
   document.getElementById("refreshRecentChangesBtn").addEventListener("click", () => refreshRecentChanges({ force: true }));
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
   document.getElementById("clearAllFiltersBtn").addEventListener("click", clearAllFilters);
@@ -936,6 +941,7 @@ const refreshAllViews = () => {
   setGridData(gridApis.christmas, nonGuests);
   setGridData(gridApis.guests, guests);
   renderFunctionOverview(nonGuests);
+  memberIssuesView.render(state.members);
 
   // Auch ausgetretene Gaeste gehoeren hierher - sonst stehen sie in gar keiner
   // Ansicht. Die Zeilenmarkierung des Grids weist sie weiterhin als Gaeste aus.
@@ -951,6 +957,9 @@ const refreshAllViews = () => {
 
   Object.entries(gridApis).forEach(([gridKey, api]) => fitGridColumnsIfNeeded(gridKey, api));
 };
+
+// Funktionen, deren Karte einen Knopf fuer die E-Mail-Liste bekommt
+const EMAIL_LIST_FUNCTIONS = ["vorstand", "gruppenleiter"];
 
 const renderFunctionOverview = members => {
   const grid = document.getElementById("functionOverviewGrid");
@@ -997,7 +1006,20 @@ const renderFunctionOverview = members => {
     count.className = "function-card__count";
     count.textContent = String(entry.members.length);
     count.setAttribute("aria-label", `${entry.members.length} Mitglieder`);
-    header.append(title, count);
+    const actions = document.createElement("span");
+    actions.className = "function-card__actions";
+    if (EMAIL_LIST_FUNCTIONS.includes(normalizeGroupText(entry.label).trim())) {
+      const mailButton = document.createElement("button");
+      mailButton.type = "button";
+      mailButton.className = "edit-icon-btn function-card__email";
+      mailButton.title = `E-Mail-Adressen: ${entry.label}`;
+      mailButton.setAttribute("aria-label", mailButton.title);
+      mailButton.innerHTML = '<svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>';
+      mailButton.addEventListener("click", () => showFunctionEmails(entry.label, entry.members));
+      actions.appendChild(mailButton);
+    }
+    actions.appendChild(count);
+    header.append(title, actions);
 
     const memberList = document.createElement("div");
     memberList.className = "function-card__members";
@@ -1032,6 +1054,35 @@ const renderFunctionOverview = members => {
     card.append(header, memberList);
     grid.appendChild(card);
   });
+};
+
+// Adressen mit "; " getrennt, damit sie sich direkt in Outlook & Co. einfuegen lassen
+const showFunctionEmails = (label, members) => {
+  const { emails, withoutEmail } = getMemberEmails(members);
+  document.getElementById("functionEmailModalLabel").textContent = `E-Mail-Adressen: ${label}`;
+  document.getElementById("functionEmailSummary").textContent = emails.length
+    ? `${emails.length} ${emails.length === 1 ? "Adresse" : "Adressen"}:`
+    : "Es ist keine E-Mail-Adresse hinterlegt.";
+  document.getElementById("functionEmailList").value = emails.join("; ");
+  const missing = document.getElementById("functionEmailMissing");
+  missing.hidden = !withoutEmail.length;
+  missing.textContent = `Ohne E-Mail-Adresse: ${withoutEmail.map(formatMemberName).join(", ")}`;
+  const mailto = document.getElementById("functionEmailMailto");
+  mailto.href = `mailto:${emails.map(encodeURIComponent).join(",")}`;
+  mailto.classList.toggle("disabled", !emails.length);
+  document.getElementById("functionEmailCopyBtn").disabled = !emails.length;
+  Modal.getOrCreateInstance(document.getElementById("functionEmailModal")).show();
+};
+
+const copyFunctionEmails = async () => {
+  const list = document.getElementById("functionEmailList");
+  try {
+    await navigator.clipboard.writeText(list.value);
+    showToast("E-Mail-Adressen in die Zwischenablage kopiert.", { duration: 3000 });
+  } catch {
+    list.select();
+    showToast("Kopieren nicht möglich - die Adressen sind markiert und lassen sich mit Strg+C kopieren.");
+  }
 };
 
 const functionOverviewSortWeight = label => {

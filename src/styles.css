@@ -145,6 +145,7 @@ body {
 #mainTabs #guests-tab { order: 6; }
 #mainTabs #historical-tab { order: 7; }
 #mainTabs #changes-tab { order: 8; }
+#mainTabs #member-issues-tab { order: 9; }
 #mainTabs .sidebar__group { order: 9; }
 
 .sidebar__nav .nav-link {
@@ -1385,6 +1386,86 @@ body {
   gap: 0.8rem;
 }
 
+.member-issues__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.member-issues__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: 0.8rem;
+}
+
+.member-issue {
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.member-issue__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.member-issue__name {
+  padding: 0;
+  color: var(--accent-dark);
+  background: none;
+  border: 0;
+  font-weight: 800;
+  text-align: left;
+}
+
+.member-issue__name:hover,
+.member-issue__name:focus-visible {
+  text-decoration: underline;
+}
+
+.member-issue__tag {
+  padding: 0.1rem 0.5rem;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.member-issue__list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.member-issue__list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.member-issue__badge {
+  flex-shrink: 0;
+  min-width: 4.6rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.member-issue__badge--fehler { color: #8a1c1c; background: #fde2e1; }
+.member-issue__badge--warnung { color: #7a4b00; background: #fff0cc; }
+.member-issue__badge--hinweis { color: var(--accent-dark); background: var(--accent-soft); }
+
 .recent-change-list__empty {
   border: 1px dashed var(--border-strong);
   border-radius: 8px;
@@ -2032,6 +2113,12 @@ body {
   color: var(--accent-dark);
   font-size: 1.05rem;
   font-weight: 800;
+}
+
+.function-card__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .function-card__count {

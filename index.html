@@ -78,6 +78,10 @@
           <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <span class="sidebar__nav-label">Änderungen</span>
         </button>
+        <button class="nav-link sidebar__nav-item" id="member-issues-tab" data-bs-toggle="tab" data-bs-target="#member-issues-pane" type="button" role="tab" aria-controls="member-issues-pane" aria-selected="false">
+          <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span class="sidebar__nav-label">Auffällige Daten</span>
+        </button>
       </nav>
 
       <div class="sidebar__actions">
@@ -447,6 +451,14 @@
           </div>
           <div id="recentChangesList" class="recent-change-list" aria-live="polite"></div>
         </div>
+
+        <div class="tab-pane fade" id="member-issues-pane" role="tabpanel" aria-labelledby="member-issues-tab" tabindex="0">
+          <div class="grid-toolbar">
+            <div id="memberIssuesFilters" class="member-issues__filters"></div>
+            <span id="memberIssuesSummary" class="text-muted small"></span>
+          </div>
+          <div id="memberIssuesList" class="member-issues__list"></div>
+        </div>
       </section>
     </div>
   </main>
@@ -527,6 +539,26 @@
               <tbody id="userTableBody"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="functionEmailModal" tabindex="-1" aria-labelledby="functionEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="functionEmailModalLabel">E-Mail-Adressen</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schlie&szlig;en"></button>
+        </div>
+        <div class="modal-body">
+          <p id="functionEmailSummary" class="mb-2"></p>
+          <textarea id="functionEmailList" class="form-control" rows="6" readonly aria-labelledby="functionEmailModalLabel"></textarea>
+          <p id="functionEmailMissing" class="text-muted small mt-2 mb-0" hidden></p>
+        </div>
+        <div class="modal-footer">
+          <a id="functionEmailMailto" class="btn btn-outline-primary" href="#">E-Mail schreiben</a>
+          <button id="functionEmailCopyBtn" class="btn btn-primary" type="button">Kopieren</button>
         </div>
       </div>
     </div>
