@@ -141,6 +141,20 @@ Das Passwort der lokalen gemeinsamen MySQL-Instanz ist aktuell:
 changeme!!
 ```
 
+## Prod-Daten nach Docker holen
+
+`server/pull-prod-db.ps1` ersetzt die lokale Datenbank durch den aktuellen Stand der Produktion (Strato):
+
+```powershell
+.\server\pull-prod-db.ps1
+```
+
+Das Skript erzeugt per SSH einen Dump auf dem Server (nur lesend, `mysqldump --single-transaction`), laedt ihn herunter, loescht ihn sofort wieder auf dem Server, sichert den bisherigen lokalen Stand nach `.db-backups/` und spielt dann den Prod-Stand in `gradi-db` ein. Voraussetzung ist derselbe SSH-Zugang wie fuer `server/deploy.ps1`.
+
+- `-NoBackup` laesst die lokale Sicherung weg, `-Force` die Rueckfrage.
+- Danach gelten lokal die Benutzer und Passwoerter aus der Produktion; `admin` / `passwd` funktioniert nicht mehr (siehe "Admin-Benutzer").
+- Dumps und Sicherungen enthalten Personendaten. `.db-backups/` ist von Git ausgenommen; nicht mehr benoetigte Sicherungen loeschen.
+
 ## phpMyAdmin
 
 Die Compose-Datei des Gratulationsdienstes bringt phpMyAdmin mit. Starten:

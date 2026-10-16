@@ -37,3 +37,6 @@ tests/.cache/
 warnemuende_teilnehmerliste_abgleich.csv
 server/db/*.seed.sql
 output/
+
+# Lokale Sicherungen aus server/pull-prod-db.ps1 (Personendaten)
+.db-backups/
