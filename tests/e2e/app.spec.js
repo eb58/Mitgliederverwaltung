@@ -96,6 +96,10 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
     warnemuende: [{ id: 1, name: "Müller", vorname: "Anna", essensauswahl: "Zander", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }],
     eisbeinessen: [{ id: 1, name: "Müller", vorname: "Anna", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }]
   };
+  const externalContacts = [
+    { id: 1, kategorie: "Musiker", firma: "", name: "Spielmann", vorname: "Franz", zustaendigkeit: "Akkordeon", strasse: "", plz: "", ort: "", telefon: "030 / 123 45", handy: "", email: "franz@example.org", webseite: "", bemerkung: "", favorit: false },
+    { id: 2, kategorie: "Vermieter", firma: "Wohnbau Nord", name: "Kaiser", vorname: "Petra", zustaendigkeit: "Hausverwaltung", strasse: "Alt-Lübars 8", plz: "13469", ort: "Berlin", telefon: "", handy: "", email: "", webseite: "www.example.org", bemerkung: "Schlüssel beim Hausmeister", favorit: true }
+  ];
   let remainingReferenceDataFailures = referenceDataFailures;
   const collections = {
     "interest-groups": { key: "interestGroups", labelKey: "label" },
@@ -166,6 +170,26 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
       }
       participants[index] = { ...participants[index], ...request.postDataJSON() };
       return json(route, { participant: participants[index] });
+    }
+    if (apiPath === "/api/external-contacts") {
+      if (request.method() === "GET") {
+        await initialDataGate;
+        return json(route, { contacts: externalContacts });
+      }
+      const contact = { id: Math.max(0, ...externalContacts.map(entry => entry.id)) + 1, ...request.postDataJSON() };
+      externalContacts.push(contact);
+      return json(route, { contact }, 201);
+    }
+    const contactMatch = apiPath.match(/^\/api\/external-contacts\/(\d+)$/);
+    if (contactMatch) {
+      const index = externalContacts.findIndex(entry => entry.id === Number(contactMatch[1]));
+      if (index < 0) return json(route, { error: "Kontakt nicht gefunden." }, 404);
+      if (request.method() === "DELETE") {
+        externalContacts.splice(index, 1);
+        return json(route, null, 204);
+      }
+      externalContacts[index] = { id: externalContacts[index].id, ...request.postDataJSON() };
+      return json(route, { contact: externalContacts[index] });
     }
     if (apiPath === "/api/members/1/photo") {
       return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64") });
@@ -1324,4 +1348,68 @@ test("Plausibilitätsprüfung zeigt Fehler und Warnungen im Hinweisbereich der M
   await submit.click();
   await expect(page.locator("#memberModal")).toBeHidden();
   expect(saved[1]).toMatchObject({ telefon: "abends" });
+});
+
+test("Adressen zeigen Kontakte je Kategorie und lassen sich suchen, anlegen, markieren und löschen", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#contacts-tab").click();
+  const cards = page.locator("#contactsList .contact-card");
+  const musikerCards = page.locator('.contacts__group[data-category="Musiker"] .contact-card');
+
+  await expect(cards).toHaveCount(2);
+  expect(await page.locator(".contacts__group").evaluateAll(groups => groups.map(group => group.dataset.category))).toEqual(["Musiker", "Vermieter"]);
+  const vermieter = page.locator('.contact-card[data-contact-id="2"]');
+  await expect(vermieter.locator(".contact-card__name")).toHaveText("Wohnbau Nord");
+  await expect(vermieter.locator(".contact-card__subtitle")).toHaveText("Petra Kaiser · Hausverwaltung");
+  await expect(vermieter.locator(".contact-card__note")).toHaveText("Schlüssel beim Hausmeister");
+  await expect(vermieter.locator('a[href^="https://www.openstreetmap.org/"]')).toHaveText("Alt-Lübars 8, 13469 Berlin");
+  await expect(page.locator('.contact-card[data-contact-id="1"] a[href^="tel:"]')).toHaveAttribute("href", "tel:03012345");
+  await expect(page.locator("#contactsSummary")).toHaveText("2 Kontakte");
+
+  await page.locator("#contactsSearch").fill("lübars");
+  await expect(cards).toHaveCount(1);
+  await expect(page.locator("#contactsSummary")).toHaveText("1 von 2 Kontakten");
+  await page.locator("#contactsSearch").fill("");
+
+  await page.locator(".contacts__group-mail").click();
+  await expect(page.locator("#functionEmailModalLabel")).toHaveText("E-Mail-Adressen: Musiker");
+  await expect(page.locator("#functionEmailList")).toHaveValue("franz@example.org");
+  await page.locator("#functionEmailModal .btn-close").click();
+  await expect(page.locator("#functionEmailModal")).toBeHidden();
+
+  await page.locator("#contactsCategoryFilters .contacts__chip", { hasText: "Musiker" }).click();
+  await expect(cards).toHaveCount(1);
+  await page.locator("#addContactBtn").click();
+  await expect(page.locator("#contactEditModalLabel")).toHaveText("Neuer Kontakt");
+  await expect(page.locator("#contactEditKategorie")).toHaveValue("Musiker");
+  await expect(page.locator("#contactDeleteBtn")).toBeHidden();
+  await page.locator('#contactEditForm button[type="submit"]').click();
+  await expect(page.locator("#contactEditError")).toHaveText("Bitte einen Namen oder eine Firma eintragen.");
+  await page.locator("#contactEditFirma").fill("Zupforchester Lübars");
+  await page.locator("#contactEditWebseite").fill("zupfer.example.org");
+  const createRequest = page.waitForRequest(request => request.url().endsWith("/api/external-contacts") && request.method() === "POST");
+  await page.locator('#contactEditForm button[type="submit"]').click();
+  expect((await createRequest).postDataJSON()).toMatchObject({ kategorie: "Musiker", firma: "Zupforchester Lübars", name: "", favorit: false });
+  await expect(page.locator("#contactEditModal")).toBeHidden();
+  await expect(musikerCards).toHaveCount(2);
+
+  const zupforchester = page.locator(".contact-card", { hasText: "Zupforchester" });
+  await expect(zupforchester.locator('a[target="_blank"]')).toHaveAttribute("href", "https://zupfer.example.org/");
+  await expect(musikerCards.first()).toContainText("Franz Spielmann");
+  await zupforchester.locator(".contact-card__favorite").click();
+  await expect(zupforchester.locator(".contact-card__favorite")).toHaveAttribute("aria-pressed", "true");
+  await expect(musikerCards.first()).toContainText("Zupforchester");
+
+  await page.locator("#contactsCategoryFilters .contacts__chip", { hasText: "Alle" }).click();
+  await zupforchester.locator(".contact-card__name").click();
+  await page.locator("#contactEditCategoryChips .contact-category-chip", { hasText: "Vermieter" }).click();
+  await expect(page.locator("#contactEditKategorie")).toHaveValue("Vermieter");
+  await page.locator('#contactEditForm button[type="submit"]').click();
+  await expect(page.locator('.contacts__group[data-category="Vermieter"] .contact-card')).toHaveCount(2);
+
+  await zupforchester.locator(".contact-card__name").click();
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator("#contactDeleteBtn").click();
+  await expect(zupforchester).toHaveCount(0);
+  await expect(cards).toHaveCount(2);
 });

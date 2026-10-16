@@ -32,6 +32,12 @@ GET    /api/{event}-participants/{id}
 PUT    /api/{event}-participants/{id}
 PATCH  /api/{event}-participants/{id}
 DELETE /api/{event}-participants/{id}
+GET    /api/external-contacts
+POST   /api/external-contacts
+GET    /api/external-contacts/{id}
+PUT    /api/external-contacts/{id}
+PATCH  /api/external-contacts/{id}
+DELETE /api/external-contacts/{id}
 GET    /api/reference-data
 GET    /api/reference-data/{type}
 POST   /api/reference-data/{type}
@@ -44,6 +50,10 @@ GET    /health
 `{event}` ist einer der in `eventDefinition()` (`lib.php`) eingetragenen Schluessel:
 `warnemuende` (mit Essensauswahl) und `eisbeinessen` (ohne). Jedes Event hat eine eigene Tabelle
 `<event>_teilnehmer`; ein unbekannter Schluessel liefert 404.
+
+`/api/external-contacts` ist die allgemeine Adressverwaltung (Tabelle `externe_kontakte`): Musiker,
+Bezirksamt, Reinigungsfirma, Vermieter usw. Pflicht ist nur Name oder Firma, die Kategorie ist Freitext.
+Fehlt die Tabelle, legt die API sie beim ersten Zugriff selbst an.
 
 ## Installation auf Webhosting
 

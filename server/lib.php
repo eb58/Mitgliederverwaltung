@@ -2033,3 +2033,172 @@ function handleGeocodeCache(): void
     )->execute([$key, $lon, $lat, $exact]);
     noContent();
 }
+
+const EXTERNAL_CONTACT_TABLE_DDL = 'CREATE TABLE IF NOT EXISTS externe_kontakte (
+  id INT NOT NULL AUTO_INCREMENT,
+  kategorie VARCHAR(80) NOT NULL DEFAULT \'\',
+  firma VARCHAR(200) NOT NULL DEFAULT \'\',
+  name VARCHAR(120) NOT NULL DEFAULT \'\',
+  vorname VARCHAR(120) NOT NULL DEFAULT \'\',
+  zustaendigkeit VARCHAR(160) NOT NULL DEFAULT \'\',
+  strasse VARCHAR(200) NOT NULL DEFAULT \'\',
+  plz VARCHAR(12) NOT NULL DEFAULT \'\',
+  ort VARCHAR(120) NOT NULL DEFAULT \'\',
+  telefon VARCHAR(80) NOT NULL DEFAULT \'\',
+  handy VARCHAR(80) NOT NULL DEFAULT \'\',
+  email VARCHAR(254) NOT NULL DEFAULT \'\',
+  webseite VARCHAR(255) NOT NULL DEFAULT \'\',
+  bemerkung TEXT NULL,
+  favorit TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_externe_kontakte_kategorie (kategorie),
+  INDEX idx_externe_kontakte_name (name, vorname)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+
+/** Wie ensureEventTable: fehlt die Tabelle, legen wir sie an; sonst lesbarer Hinweis statt 500er. */
+function ensureExternalContactTable(): void
+{
+    if (tableExists('externe_kontakte')) return;
+    try {
+        db()->exec(EXTERNAL_CONTACT_TABLE_DDL);
+    } catch (PDOException $error) {
+        error_log((string) $error);
+        throw new ApiError('Tabelle externe_kontakte fehlt und konnte nicht angelegt werden - bitte das Schema aus server/db/schema.mysql.sql einspielen.', 503);
+    }
+    clearSchemaCache();
+}
+
+/** Textspalten der Adressverwaltung mit ihrer Hoechstlaenge; JSON-Schluessel = Spaltenname. */
+function externalContactTextFields(): array
+{
+    return [
+        'kategorie' => 80,
+        'firma' => 200,
+        'name' => 120,
+        'vorname' => 120,
+        'zustaendigkeit' => 160,
+        'strasse' => 200,
+        'plz' => 12,
+        'ort' => 120,
+        'telefon' => 80,
+        'handy' => 80,
+        'email' => 254,
+        'webseite' => 255,
+    ];
+}
+
+function externalContactColumns(): array
+{
+    return [...array_keys(externalContactTextFields()), 'bemerkung', 'favorit'];
+}
+
+/** Zaehlt Zeichen statt Bytes - mbstring ist beim Hoster nicht sicher da. */
+function assertMaxTextLength(string $label, string $value, int $max): void
+{
+    if (preg_match('/^.{0,' . $max . '}$/su', $value) !== 1) {
+        throw new ApiError("$label darf hoechstens $max Zeichen lang sein.", 400);
+    }
+}
+
+function normalizeExternalContactInput(array $payload, bool $partial = false): array
+{
+    $unknown = array_diff(array_keys($payload), ['id', ...externalContactColumns()]);
+    if ($unknown) throw new ApiError('Unbekannte Felder: ' . implode(', ', $unknown), 400);
+
+    $contact = [];
+    foreach (externalContactTextFields() as $field => $max) {
+        if ($partial && !array_key_exists($field, $payload)) continue;
+        $value = $field === 'email' ? normalizeEmailValue($payload[$field] ?? '') : trim((string) ($payload[$field] ?? ''));
+        assertMaxTextLength($field, $value, $max);
+        $contact[$field] = $value;
+    }
+    if (!$partial || array_key_exists('bemerkung', $payload)) {
+        $contact['bemerkung'] = trim((string) ($payload['bemerkung'] ?? ''));
+    }
+    if (!$partial || array_key_exists('favorit', $payload)) {
+        $contact['favorit'] = (bool) ($payload['favorit'] ?? false);
+    }
+    return $contact;
+}
+
+/** Ein Kontakt ohne Name und Firma liesse sich in der Liste nicht wiederfinden. */
+function assertValidExternalContact(array $contact): void
+{
+    if (trim($contact['name'] . $contact['firma']) === '') {
+        throw new ApiError('Name oder Firma ist erforderlich.', 400);
+    }
+}
+
+function externalContactRowToApi(array $row): array
+{
+    $contact = ['id' => (int) $row['id']];
+    foreach (array_keys(externalContactTextFields()) as $field) {
+        $contact[$field] = (string) $row[$field];
+    }
+    $contact['bemerkung'] = (string) ($row['bemerkung'] ?? '');
+    $contact['favorit'] = (bool) $row['favorit'];
+    return $contact;
+}
+
+function externalContactValues(array $contact): array
+{
+    return array_map(
+        static fn(string $column) => $column === 'favorit' ? (int) $contact[$column] : $contact[$column],
+        externalContactColumns()
+    );
+}
+
+function findExternalContactById(int $id): ?array
+{
+    $statement = db()->prepare('SELECT id, ' . implode(', ', externalContactColumns()) . ' FROM externe_kontakte WHERE id = ?');
+    $statement->execute([$id]);
+    $row = $statement->fetch();
+    return $row ? externalContactRowToApi($row) : null;
+}
+
+function handleExternalContactCollection(): void
+{
+    $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'POST']);
+    ensureExternalContactTable();
+    $columns = externalContactColumns();
+
+    if ($method === 'GET') {
+        $rows = db()->query('SELECT id, ' . implode(', ', $columns) . ' FROM externe_kontakte ORDER BY kategorie, firma, name, vorname, id')->fetchAll();
+        jsonResponse(['contacts' => array_map('externalContactRowToApi', $rows)]);
+    }
+
+    $contact = normalizeExternalContactInput(readJsonBody());
+    assertValidExternalContact($contact);
+    $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+    db()->prepare('INSERT INTO externe_kontakte (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')')
+        ->execute(externalContactValues($contact));
+    jsonResponse(['contact' => findExternalContactById((int) db()->lastInsertId())], 201);
+}
+
+function handleExternalContactResource(int $id): void
+{
+    $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'PUT', 'PATCH', 'DELETE']);
+    ensureExternalContactTable();
+    $existing = findExternalContactById($id);
+    if (!$existing) throw new ApiError('Kontakt nicht gefunden.', 404);
+
+    if ($method === 'GET') {
+        jsonResponse(['contact' => $existing]);
+    }
+
+    if ($method === 'DELETE') {
+        db()->prepare('DELETE FROM externe_kontakte WHERE id = ?')->execute([$id]);
+        noContent();
+    }
+
+    $contact = array_replace($existing, normalizeExternalContactInput(readJsonBody(), $method === 'PATCH'));
+    assertValidExternalContact($contact);
+    $assignments = implode(', ', array_map(static fn(string $column) => $column . ' = ?', externalContactColumns()));
+    db()->prepare('UPDATE externe_kontakte SET ' . $assignments . ' WHERE id = ?')
+        ->execute([...externalContactValues($contact), $id]);
+    jsonResponse(['contact' => findExternalContactById($id)]);
+}

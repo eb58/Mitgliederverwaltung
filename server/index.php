@@ -57,6 +57,14 @@ try {
         handleEventParticipantResource($matches[1], (int) $matches[2]);
     }
 
+    if ($path === '/api/external-contacts') {
+        handleExternalContactCollection();
+    }
+
+    if (preg_match('#^/api/external-contacts/(\d+)$#', $path, $matches)) {
+        handleExternalContactResource((int) $matches[1]);
+    }
+
     if ($path === '/api/members') {
         handleMembersCollection($user);
     }

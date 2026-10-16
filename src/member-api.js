@@ -149,7 +149,9 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     createUrl,
     createUser: user => request("/api/users", { method: "POST", body: user }),
     createEventParticipant: async (event, participant) => (await request(`/api/${event}-participants`, { method: "POST", body: participant })).participant,
+    createExternalContact: async contact => (await request("/api/external-contacts", { method: "POST", body: contact })).contact,
     deactivateUser: id => request(`/api/users/${id}`, { method: "DELETE" }),
+    deleteExternalContact: id => request(`/api/external-contacts/${id}`, { method: "DELETE" }),
     deleteReferenceItem: (type, id) => request(`/api/reference-data/${type}/${id}`, { method: "DELETE" }),
     deleteEventParticipant: (event, id) => request(`/api/${event}-participants/${id}`, { method: "DELETE" }),
     fetchMemberPhotoObjectUrl,
@@ -165,11 +167,13 @@ export const createMemberApi = ({ getAuthToken, onSessionExpired }) => {
     loadReferenceItems: type => request(`/api/reference-data/${type}`),
     loadUsers: () => request("/api/users"),
     loadEventParticipants: async event => (await request(`/api/${event}-participants`))?.participants || [],
+    loadExternalContacts: async () => (await request("/api/external-contacts"))?.contacts || [],
     request,
     updateMember,
     updateReferenceItem: (type, item) => request(`/api/reference-data/${type}/${item.id}`, { method: "PUT", body: item }),
     updateUser: user => request(`/api/users/${user.id}`, { method: "PUT", body: user }),
     updateEventParticipant: async (event, participant) => (await request(`/api/${event}-participants/${participant.id}`, { method: "PUT", body: participant })).participant,
+    updateExternalContact: async (id, contact) => (await request(`/api/external-contacts/${id}`, { method: "PUT", body: contact })).contact,
     uploadMemberPhoto
   };
 };

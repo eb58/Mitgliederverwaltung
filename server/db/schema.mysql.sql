@@ -363,3 +363,29 @@ CREATE TABLE adress_koordinate (
 INSERT INTO austrittsgrund (id, bezeichnung) SELECT MAX(id) + 1, 'ruht' FROM austrittsgrund;
 UPDATE mitglied SET austrittsgrund_id = (SELECT id FROM austrittsgrund WHERE bezeichnung = 'ruht') WHERE austrittsgrund_id = 1;
 DELETE FROM austrittsgrund WHERE id = 1;
+
+-- Allgemeine Adressverwaltung: Ansprechpartner ausserhalb des Clubs (Musiker, Bezirksamt,
+-- Reinigungsfirma, Vermieter, ...). Name oder Firma muss gefuellt sein, die Kategorie ist
+-- Freitext. Legt ensureExternalContactTable() im Betrieb beim ersten Zugriff selbst an.
+CREATE TABLE externe_kontakte (
+  id INT NOT NULL AUTO_INCREMENT,
+  kategorie VARCHAR(80) NOT NULL DEFAULT '',
+  firma VARCHAR(200) NOT NULL DEFAULT '',
+  name VARCHAR(120) NOT NULL DEFAULT '',
+  vorname VARCHAR(120) NOT NULL DEFAULT '',
+  zustaendigkeit VARCHAR(160) NOT NULL DEFAULT '',
+  strasse VARCHAR(200) NOT NULL DEFAULT '',
+  plz VARCHAR(12) NOT NULL DEFAULT '',
+  ort VARCHAR(120) NOT NULL DEFAULT '',
+  telefon VARCHAR(80) NOT NULL DEFAULT '',
+  handy VARCHAR(80) NOT NULL DEFAULT '',
+  email VARCHAR(254) NOT NULL DEFAULT '',
+  webseite VARCHAR(255) NOT NULL DEFAULT '',
+  bemerkung TEXT NULL,
+  favorit TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_externe_kontakte_kategorie (kategorie),
+  INDEX idx_externe_kontakte_name (name, vorname)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

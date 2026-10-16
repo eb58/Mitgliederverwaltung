@@ -54,6 +54,8 @@ import { createUserAdmin } from "./user-admin.js";
 import { createEventAdmin } from "./event-admin.js";
 import { eventList } from "./event-config.js";
 import { createEventMemberMatchDialog } from "./event-member-match.js";
+import { createContactAdmin } from "./contact-admin.js";
+import { contactDisplayName } from "./contact-domain.js";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -66,7 +68,9 @@ const {
   createReferenceItem: createReferenceItemViaApi,
   createUser: createUserViaApi,
   createEventParticipant: createEventParticipantViaApi,
+  createExternalContact: createExternalContactViaApi,
   deactivateUser: deactivateUserViaApi,
+  deleteExternalContact: deleteExternalContactViaApi,
   deleteReferenceItem: deleteReferenceItemViaApi,
   deleteEventParticipant: deleteEventParticipantViaApi,
   fetchMemberPhotoObjectUrl,
@@ -81,11 +85,13 @@ const {
   loadReferenceItems: loadReferenceItemsFromApi,
   loadUsers: loadUsersFromApi,
   loadEventParticipants: loadEventParticipantsFromApi,
+  loadExternalContacts: loadExternalContactsFromApi,
   request: requestMemberApi,
   updateMember: updateMemberViaApi,
   updateReferenceItem: updateReferenceItemViaApi,
   updateUser: updateUserViaApi,
   updateEventParticipant: updateEventParticipantViaApi,
+  updateExternalContact: updateExternalContactViaApi,
   uploadMemberPhoto: uploadMemberPhotoViaApi
 } = createMemberApi({
   getAuthToken: () => state.authToken,
@@ -129,6 +135,14 @@ const eventAdmins = eventList.map(event => createEventAdmin({
   setFallbackPhoto: wrapper => setFallbackPhoto(wrapper),
   updateParticipant: participant => updateEventParticipantViaApi(event.key, participant)
 }));
+
+const contactAdmin = createContactAdmin({
+  createContact: createExternalContactViaApi,
+  deleteContact: deleteExternalContactViaApi,
+  loadContacts: loadExternalContactsFromApi,
+  showEmails: (label, contacts) => showFunctionEmails(label, contacts, contactDisplayName),
+  updateContact: updateExternalContactViaApi
+});
 
 const auth = createAuth({
   changeOwnPassword: changeOwnPasswordViaApi,
@@ -206,6 +220,7 @@ const initUiOnce = () => {
   memberForm.init();
   userAdmin.init();
   referenceAdmin.init();
+  contactAdmin.init();
   initGrids();
   wireUi();
   restoreLastView();
@@ -217,7 +232,8 @@ const loadAppData = async () => {
   const [, loadedMembers] = await Promise.all([
     retryAsync(referenceAdmin.load),
     retryAsync(loadMembersFromApi),
-    ...eventAdmins.map(admin => admin.load())
+    ...eventAdmins.map(admin => admin.load()),
+    contactAdmin.load()
   ]);
   state.members = loadedMembers;
   initUiOnce();
@@ -1069,8 +1085,9 @@ const renderFunctionOverview = members => {
   });
 };
 
-// Adressen mit "; " getrennt, damit sie sich direkt in Outlook & Co. einfuegen lassen
-const showFunctionEmails = (label, members) => {
+// Adressen mit "; " getrennt, damit sie sich direkt in Outlook & Co. einfuegen lassen.
+// Auch fuer die Kategorien der Adressverwaltung - dort mit eigenem Anzeigenamen.
+const showFunctionEmails = (label, members, formatName = formatMemberName) => {
   const { emails, withoutEmail } = getMemberEmails(members);
   document.getElementById("functionEmailModalLabel").textContent = `E-Mail-Adressen: ${label}`;
   document.getElementById("functionEmailSummary").textContent = emails.length
@@ -1079,7 +1096,7 @@ const showFunctionEmails = (label, members) => {
   document.getElementById("functionEmailList").value = emails.join("; ");
   const missing = document.getElementById("functionEmailMissing");
   missing.hidden = !withoutEmail.length;
-  missing.textContent = `Ohne E-Mail-Adresse: ${withoutEmail.map(formatMemberName).join(", ")}`;
+  missing.textContent = `Ohne E-Mail-Adresse: ${withoutEmail.map(formatName).join(", ")}`;
   const mailto = document.getElementById("functionEmailMailto");
   mailto.href = `mailto:${emails.map(encodeURIComponent).join(",")}`;
   mailto.classList.toggle("disabled", !emails.length);
