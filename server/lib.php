@@ -2123,6 +2123,27 @@ function normalizeExternalContactInput(array $payload, bool $partial = false): a
     return $contact;
 }
 
+/** Feste Kategorien der Adressverwaltung, wie CONTACT_CATEGORY_SUGGESTIONS in src/contact-domain.js. */
+const EXTERNAL_CONTACT_CATEGORIES = [
+    'Musiker', 'Bezirksamt', 'Reinigung', 'Vermieter', 'Handwerker',
+    'Catering', 'Busunternehmen', 'Referenten', 'Presse', 'Sonstiges',
+];
+
+/** Neue Kategorien legt nur ein Admin an - alle anderen waehlen eine feste oder schon benutzte. */
+function assertExternalContactCategoryAllowed(array $user, string $kategorie): void
+{
+    if ($kategorie === '' || ($user['role'] ?? '') === 'admin') return;
+    foreach (EXTERNAL_CONTACT_CATEGORIES as $known) {
+        if (strcasecmp($known, $kategorie) === 0) return;
+    }
+    // Die Spalte vergleicht ohne Gross-/Kleinschreibung (utf8mb4_unicode_ci), wie die Oberflaeche.
+    $statement = db()->prepare('SELECT 1 FROM externe_kontakte WHERE kategorie = ? LIMIT 1');
+    $statement->execute([$kategorie]);
+    if (!$statement->fetchColumn()) {
+        throw new ApiError('Neue Kategorien kann nur ein Admin anlegen.', 403);
+    }
+}
+
 /** Ein Kontakt ohne Name und Firma liesse sich in der Liste nicht wiederfinden. */
 function assertValidExternalContact(array $contact): void
 {
@@ -2158,7 +2179,7 @@ function findExternalContactById(int $id): ?array
     return $row ? externalContactRowToApi($row) : null;
 }
 
-function handleExternalContactCollection(): void
+function handleExternalContactCollection(array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'POST']);
@@ -2172,13 +2193,14 @@ function handleExternalContactCollection(): void
 
     $contact = normalizeExternalContactInput(readJsonBody());
     assertValidExternalContact($contact);
+    assertExternalContactCategoryAllowed($currentUser, $contact['kategorie']);
     $placeholders = implode(', ', array_fill(0, count($columns), '?'));
     db()->prepare('INSERT INTO externe_kontakte (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')')
         ->execute(externalContactValues($contact));
     jsonResponse(['contact' => findExternalContactById((int) db()->lastInsertId())], 201);
 }
 
-function handleExternalContactResource(int $id): void
+function handleExternalContactResource(array $currentUser, int $id): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'PUT', 'PATCH', 'DELETE']);
@@ -2197,6 +2219,7 @@ function handleExternalContactResource(int $id): void
 
     $contact = array_replace($existing, normalizeExternalContactInput(readJsonBody(), $method === 'PATCH'));
     assertValidExternalContact($contact);
+    assertExternalContactCategoryAllowed($currentUser, $contact['kategorie']);
     $assignments = implode(', ', array_map(static fn(string $column) => $column . ' = ?', externalContactColumns()));
     db()->prepare('UPDATE externe_kontakte SET ' . $assignments . ' WHERE id = ?')
         ->execute([...externalContactValues($contact), $id]);

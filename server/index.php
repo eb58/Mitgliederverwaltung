@@ -58,11 +58,11 @@ try {
     }
 
     if ($path === '/api/external-contacts') {
-        handleExternalContactCollection();
+        handleExternalContactCollection($user);
     }
 
     if (preg_match('#^/api/external-contacts/(\d+)$#', $path, $matches)) {
-        handleExternalContactResource((int) $matches[1]);
+        handleExternalContactResource($user, (int) $matches[1]);
     }
 
     if ($path === '/api/members') {

@@ -6,8 +6,9 @@ import { normalizeGroupText } from "./member-utils.js";
  * Reinigungsfirma, Vermieter und alle anderen Ansprechpartner ausserhalb des Clubs.
  */
 
-// Vorschlaege fuer das Kategoriefeld. Die Kategorie bleibt Freitext - die Liste gibt nur
-// die feste Farbe vor, damit "Musiker" nicht je nach Datenbestand die Farbe wechselt.
+// Feste Kategorien, zusaetzlich zu den schon benutzten waehlbar; weitere legt nur ein Admin an.
+// Die Reihenfolge gibt die feste Farbe vor, damit "Musiker" nicht je nach Datenbestand die Farbe
+// wechselt. Der Server kennt dieselbe Liste (EXTERNAL_CONTACT_CATEGORIES in server/lib.php).
 export const CONTACT_CATEGORY_SUGGESTIONS = [
   "Musiker",
   "Bezirksamt",
@@ -79,7 +80,7 @@ export const summarizeContactCategories = contacts => {
     || germanCollator.compare(a.label, b.label));
 };
 
-/** Vorschlaege fuer das Kategoriefeld: die festen plus alle schon benutzten. */
+/** Waehlbare Kategorien: die festen plus alle schon benutzten. */
 export const contactCategoryOptions = contacts => {
   const options = new Map(CONTACT_CATEGORY_SUGGESTIONS.map(label => [normalizeGroupText(label), label]));
   contacts.forEach(contact => {

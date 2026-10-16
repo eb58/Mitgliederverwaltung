@@ -139,6 +139,7 @@ const eventAdmins = eventList.map(event => createEventAdmin({
 const contactAdmin = createContactAdmin({
   createContact: createExternalContactViaApi,
   deleteContact: deleteExternalContactViaApi,
+  isAdmin: () => state.currentUser?.role === "admin",
   loadContacts: loadExternalContactsFromApi,
   showEmails: (label, contacts) => showFunctionEmails(label, contacts, contactDisplayName),
   updateContact: updateExternalContactViaApi

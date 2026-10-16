@@ -3089,10 +3089,6 @@ body {
   grid-column: 1 / -1;
 }
 
-.contact-form__chips {
-  margin-top: 0.6rem;
-}
-
 .contact-category-chip::before {
   content: "";
   display: inline-block;
@@ -3102,6 +3098,10 @@ body {
   background: var(--cat);
   border-radius: 50%;
   vertical-align: 0.05rem;
+}
+
+.contact-category-chip--new::before {
+  display: none;
 }
 
 .meal-chip.contact-category-chip.is-selected {

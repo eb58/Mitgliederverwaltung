@@ -52,7 +52,7 @@ const downloadVCard = (fileName, contacts) => {
 };
 
 // Ansicht "Adressen": Karten je Kategorie, Suche, Favoriten und ein Bearbeiten-Dialog
-export const createContactAdmin = ({ createContact, deleteContact, loadContacts, showEmails, updateContact }) => {
+export const createContactAdmin = ({ createContact, deleteContact, isAdmin, loadContacts, showEmails, updateContact }) => {
   let contacts = [];
   let search = "";
   let category = null;
@@ -277,19 +277,32 @@ export const createContactAdmin = ({ createContact, deleteContact, loadContacts,
     const host = document.getElementById("contactEditCategoryChips");
     const input = form()?.elements.kategorie;
     if (!host || !input) return;
-    const selected = normalizeGroupText(input.value.trim());
-    host.replaceChildren(...contactCategoryOptions(contacts).map(option => {
+    const selected = normalizeGroupText(input.value);
+    const select = value => {
+      input.value = value;
+      renderCategoryChips();
+    };
+    // Die gewaehlte Kategorie steht mit drin, auch wenn ein Admin sie gerade erst neu angelegt hat.
+    const chips = contactCategoryOptions([...contacts, { kategorie: input.value }]).map(option => {
       const chip = element("button", `meal-chip contact-category-chip contact-cat--${contactCategoryColor(option)}`, option);
       chip.type = "button";
       const isSelected = normalizeGroupText(option) === selected;
       chip.classList.toggle("is-selected", isSelected);
       chip.setAttribute("aria-pressed", String(isSelected));
-      chip.addEventListener("click", () => {
-        input.value = option;
-        renderCategoryChips();
-      });
+      // Nochmal klicken nimmt die Kategorie wieder weg - der Kontakt steht dann unter "Ohne Kategorie".
+      chip.addEventListener("click", () => select(isSelected ? "" : option));
       return chip;
-    }));
+    });
+    if (isAdmin()) {
+      const add = element("button", "meal-chip contact-category-chip contact-category-chip--new", "+ Neue Kategorie");
+      add.type = "button";
+      add.addEventListener("click", () => {
+        const name = prompt("Name der neuen Kategorie")?.trim();
+        if (name) select(name);
+      });
+      chips.push(add);
+    }
+    host.replaceChildren(...chips);
   };
 
   const openEdit = contact => {
@@ -363,7 +376,6 @@ export const createContactAdmin = ({ createContact, deleteContact, loadContacts,
       render();
     });
     form()?.addEventListener("submit", handleSubmit);
-    form()?.elements.kategorie.addEventListener("input", renderCategoryChips);
     document.getElementById("contactDeleteBtn")?.addEventListener("click", handleDelete);
     render();
   };

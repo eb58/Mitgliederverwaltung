@@ -1402,7 +1402,14 @@ test("Adressen zeigen Kontakte je Kategorie und lassen sich suchen, anlegen, mar
 
   await page.locator("#contactsCategoryFilters .contacts__chip", { hasText: "Alle" }).click();
   await zupforchester.locator(".contact-card__name").click();
-  await page.locator("#contactEditCategoryChips .contact-category-chip", { hasText: "Vermieter" }).click();
+  const categoryChips = page.locator("#contactEditCategoryChips .contact-category-chip");
+  page.once("dialog", dialog => dialog.accept("Chor"));
+  await categoryChips.filter({ hasText: "Neue Kategorie" }).click();
+  await expect(page.locator("#contactEditKategorie")).toHaveValue("Chor");
+  await expect(categoryChips.filter({ hasText: "Chor" })).toHaveAttribute("aria-pressed", "true");
+  await categoryChips.filter({ hasText: "Chor" }).click();
+  await expect(page.locator("#contactEditKategorie")).toHaveValue("");
+  await categoryChips.filter({ hasText: "Vermieter" }).click();
   await expect(page.locator("#contactEditKategorie")).toHaveValue("Vermieter");
   await page.locator('#contactEditForm button[type="submit"]').click();
   await expect(page.locator('.contacts__group[data-category="Vermieter"] .contact-card')).toHaveCount(2);

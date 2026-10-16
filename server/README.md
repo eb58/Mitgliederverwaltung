@@ -52,7 +52,8 @@ GET    /health
 `<event>_teilnehmer`; ein unbekannter Schluessel liefert 404.
 
 `/api/external-contacts` ist die allgemeine Adressverwaltung (Tabelle `externe_kontakte`): Musiker,
-Bezirksamt, Reinigungsfirma, Vermieter usw. Pflicht ist nur Name oder Firma, die Kategorie ist Freitext.
+Bezirksamt, Reinigungsfirma, Vermieter usw. Pflicht ist nur Name oder Firma. Als Kategorie gilt eine der festen
+(`EXTERNAL_CONTACT_CATEGORIES`) oder eine schon benutzte - neue Kategorien legt nur ein Admin an.
 Fehlt die Tabelle, legt die API sie beim ersten Zugriff selbst an.
 
 ## Installation auf Webhosting
