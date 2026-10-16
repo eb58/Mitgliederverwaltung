@@ -649,6 +649,17 @@
     </div>
   </div>
 
+  <dialog id="confirmModal" class="confirm-dialog" aria-labelledby="confirmModalLabel" aria-describedby="confirmModalMessage">
+    <form method="dialog">
+      <h2 class="confirm-dialog__title h5" id="confirmModalLabel">Bitte best&auml;tigen</h2>
+      <p id="confirmModalMessage" class="confirm-dialog__text"></p>
+      <div class="confirm-dialog__actions">
+        <button id="confirmModalCancelBtn" class="btn btn-outline-secondary" value="cancel">Abbrechen</button>
+        <button id="confirmModalConfirmBtn" class="btn btn-primary" value="confirm">OK</button>
+      </div>
+    </form>
+  </dialog>
+
   <div class="modal fade" id="warnemuendeEditModal" tabindex="-1" aria-labelledby="warnemuendeEditModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -818,8 +829,13 @@
             <div id="contactEditError" class="login-error mt-3" role="alert" hidden></div>
           </div>
           <div class="modal-footer">
+            <div id="contactDeleteConfirm" class="member-form-discard" role="alert" hidden>
+              <span id="contactDeleteConfirmText" class="member-form-discard__text">Kontakt endgültig löschen?</span>
+              <button id="contactDeleteConfirmBtn" type="button" class="btn btn-danger">Löschen</button>
+              <button id="contactDeleteCancelBtn" type="button" class="btn btn-outline-secondary">Behalten</button>
+            </div>
             <button id="contactDeleteBtn" class="btn btn-outline-danger me-auto" type="button">Löschen</button>
-            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Abbrechen</button>
+            <button class="btn btn-outline-secondary contact-form-cancel" type="button" data-bs-dismiss="modal">Abbrechen</button>
             <button class="btn btn-primary" type="submit">Speichern</button>
           </div>
         </form>

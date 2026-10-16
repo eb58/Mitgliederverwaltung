@@ -65,6 +65,14 @@ try {
         handleExternalContactResource($user, (int) $matches[1]);
     }
 
+    if ($path === '/api/external-contact-categories') {
+        handleExternalContactCategoryCollection($user);
+    }
+
+    if (preg_match('#^/api/external-contact-categories/(\d+)$#', $path, $matches)) {
+        handleExternalContactCategoryResource($user, (int) $matches[1]);
+    }
+
     if ($path === '/api/members') {
         handleMembersCollection($user);
     }

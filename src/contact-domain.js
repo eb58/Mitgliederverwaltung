@@ -6,7 +6,7 @@ import { normalizeGroupText } from "./member-utils.js";
  * Reinigungsfirma, Vermieter und alle anderen Ansprechpartner ausserhalb des Clubs.
  */
 
-// Feste Kategorien, zusaetzlich zu den schon benutzten waehlbar; weitere legt nur ein Admin an.
+// Feste Kategorien, zusaetzlich zu den angelegten und schon benutzten waehlbar; weitere legt nur ein Admin an.
 // Die Reihenfolge gibt die feste Farbe vor, damit "Musiker" nicht je nach Datenbestand die Farbe
 // wechselt. Der Server kennt dieselbe Liste (EXTERNAL_CONTACT_CATEGORIES in server/lib.php).
 export const CONTACT_CATEGORY_SUGGESTIONS = [
@@ -65,9 +65,16 @@ export const compareContacts = (a, b) => Number(Boolean(b.favorit)) - Number(Boo
   || germanCollator.compare(contactDisplayName(a), contactDisplayName(b))
   || germanCollator.compare(contactPersonName(a), contactPersonName(b));
 
-/** Kategorien mit Anzahl, alphabetisch; "Ohne Kategorie" steht immer am Ende. */
-export const summarizeContactCategories = contacts => {
+/**
+ * Kategorien mit Anzahl, alphabetisch; "Ohne Kategorie" steht immer am Ende. Angelegte Kategorien
+ * (Namen aus externe_kontakt_kategorie) stehen auch ohne Kontakt drin, damit man sie findet und fuellen kann.
+ */
+export const summarizeContactCategories = (contacts, categories = []) => {
   const counts = new Map();
+  categories.forEach(name => {
+    const label = clean(name);
+    if (label) counts.set(normalizeGroupText(label), { label, count: 0 });
+  });
   contacts.forEach(contact => {
     const label = contactCategoryLabel(contact);
     const key = normalizeGroupText(label);
@@ -80,14 +87,20 @@ export const summarizeContactCategories = contacts => {
     || germanCollator.compare(a.label, b.label));
 };
 
-/** Waehlbare Kategorien: die festen plus alle schon benutzten. */
-export const contactCategoryOptions = contacts => {
+/** Waehlbare Kategorien: die festen, dann die angelegten, dann alle schon benutzten. */
+export const contactCategoryOptions = (contacts, categories = []) => {
   const options = new Map(CONTACT_CATEGORY_SUGGESTIONS.map(label => [normalizeGroupText(label), label]));
-  contacts.forEach(contact => {
-    const label = clean(contact?.kategorie);
+  [...categories, ...contacts.map(contact => contact?.kategorie)].forEach(value => {
+    const label = clean(value);
     if (label && !options.has(normalizeGroupText(label))) options.set(normalizeGroupText(label), label);
   });
   return [...options.values()];
+};
+
+/** Die schon vorhandene Schreibweise einer Kategorie ("musiker" -> "Musiker"), sonst null. */
+export const findContactCategory = (options, name) => {
+  const key = normalizeGroupText(clean(name));
+  return key ? options.find(option => normalizeGroupText(option) === key) ?? null : null;
 };
 
 const searchableText = contact => normalizeGroupText(CONTACT_TEXT_FIELDS.map(field => contact?.[field] ?? "").join(" "));

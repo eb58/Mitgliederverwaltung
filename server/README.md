@@ -38,6 +38,9 @@ GET    /api/external-contacts/{id}
 PUT    /api/external-contacts/{id}
 PATCH  /api/external-contacts/{id}
 DELETE /api/external-contacts/{id}
+GET    /api/external-contact-categories
+POST   /api/external-contact-categories
+DELETE /api/external-contact-categories/{id}
 GET    /api/reference-data
 GET    /api/reference-data/{type}
 POST   /api/reference-data/{type}
@@ -53,8 +56,11 @@ GET    /health
 
 `/api/external-contacts` ist die allgemeine Adressverwaltung (Tabelle `externe_kontakte`): Musiker,
 Bezirksamt, Reinigungsfirma, Vermieter usw. Pflicht ist nur Name oder Firma. Als Kategorie gilt eine der festen
-(`EXTERNAL_CONTACT_CATEGORIES`) oder eine schon benutzte - neue Kategorien legt nur ein Admin an.
-Fehlt die Tabelle, legt die API sie beim ersten Zugriff selbst an.
+(`EXTERNAL_CONTACT_CATEGORIES`), eine schon benutzte oder eine angelegte - neue Kategorien legt nur ein Admin an.
+`/api/external-contact-categories` (Tabelle `externe_kontakt_kategorie`) haelt die von Admins angelegten Kategorien,
+auch solange noch kein Kontakt sie benutzt. Lesen duerfen alle, `POST` (`{"name": "Chor"}`) und `DELETE` nur Admins;
+eine schon vorhandene Kategorie liefert 409, ebenso das Loeschen einer Kategorie, die noch ein Kontakt benutzt.
+Fehlen die Tabellen, legt die API sie beim ersten Zugriff selbst an.
 
 ## Installation auf Webhosting
 

@@ -54,6 +54,7 @@ import { createUserAdmin } from "./user-admin.js";
 import { createEventAdmin } from "./event-admin.js";
 import { eventList } from "./event-config.js";
 import { createEventMemberMatchDialog } from "./event-member-match.js";
+import { createConfirmDialog } from "./confirm-dialog.js";
 import { createContactAdmin } from "./contact-admin.js";
 import { contactDisplayName } from "./contact-domain.js";
 
@@ -69,8 +70,10 @@ const {
   createUser: createUserViaApi,
   createEventParticipant: createEventParticipantViaApi,
   createExternalContact: createExternalContactViaApi,
+  createExternalContactCategory: createExternalContactCategoryViaApi,
   deactivateUser: deactivateUserViaApi,
   deleteExternalContact: deleteExternalContactViaApi,
+  deleteExternalContactCategory: deleteExternalContactCategoryViaApi,
   deleteReferenceItem: deleteReferenceItemViaApi,
   deleteEventParticipant: deleteEventParticipantViaApi,
   fetchMemberPhotoObjectUrl,
@@ -86,6 +89,7 @@ const {
   loadUsers: loadUsersFromApi,
   loadEventParticipants: loadEventParticipantsFromApi,
   loadExternalContacts: loadExternalContactsFromApi,
+  loadExternalContactCategories: loadExternalContactCategoriesFromApi,
   request: requestMemberApi,
   updateMember: updateMemberViaApi,
   updateReferenceItem: updateReferenceItemViaApi,
@@ -118,8 +122,10 @@ const referenceAdmin = createReferenceAdmin({
 });
 
 const eventMemberMatchDialog = createEventMemberMatchDialog();
+const confirmDialog = createConfirmDialog();
 
 const eventAdmins = eventList.map(event => createEventAdmin({
+  confirmAction: options => confirmDialog.ask(options),
   confirmMemberMatch: options => eventMemberMatchDialog.choose(options),
   createGrid: (gridKey, containerId, columnDefs, overrides) => createGrid(gridKey, containerId, columnDefs, overrides),
   createParticipant: participant => createEventParticipantViaApi(event.key, participant),
@@ -137,9 +143,13 @@ const eventAdmins = eventList.map(event => createEventAdmin({
 }));
 
 const contactAdmin = createContactAdmin({
+  confirmAction: options => confirmDialog.ask(options),
+  createCategory: createExternalContactCategoryViaApi,
   createContact: createExternalContactViaApi,
+  deleteCategory: deleteExternalContactCategoryViaApi,
   deleteContact: deleteExternalContactViaApi,
   isAdmin: () => state.currentUser?.role === "admin",
+  loadCategories: loadExternalContactCategoriesFromApi,
   loadContacts: loadExternalContactsFromApi,
   showEmails: (label, contacts) => showFunctionEmails(label, contacts, contactDisplayName),
   updateContact: updateExternalContactViaApi

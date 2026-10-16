@@ -100,6 +100,7 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
     { id: 1, kategorie: "Musiker", firma: "", name: "Spielmann", vorname: "Franz", zustaendigkeit: "Akkordeon", strasse: "", plz: "", ort: "", telefon: "030 / 123 45", handy: "", email: "franz@example.org", webseite: "", bemerkung: "", favorit: false },
     { id: 2, kategorie: "Vermieter", firma: "Wohnbau Nord", name: "Kaiser", vorname: "Petra", zustaendigkeit: "Hausverwaltung", strasse: "Alt-Lübars 8", plz: "13469", ort: "Berlin", telefon: "", handy: "", email: "", webseite: "www.example.org", bemerkung: "Schlüssel beim Hausmeister", favorit: true }
   ];
+  const externalContactCategories = [];
   let remainingReferenceDataFailures = referenceDataFailures;
   const collections = {
     "interest-groups": { key: "interestGroups", labelKey: "label" },
@@ -179,6 +180,17 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
       const contact = { id: Math.max(0, ...externalContacts.map(entry => entry.id)) + 1, ...request.postDataJSON() };
       externalContacts.push(contact);
       return json(route, { contact }, 201);
+    }
+    if (apiPath === "/api/external-contact-categories") {
+      if (request.method() === "GET") return json(route, { categories: externalContactCategories });
+      const category = { id: Math.max(0, ...externalContactCategories.map(entry => entry.id)) + 1, name: request.postDataJSON().name };
+      externalContactCategories.push(category);
+      return json(route, { category }, 201);
+    }
+    const categoryMatch = apiPath.match(/^\/api\/external-contact-categories\/(\d+)$/);
+    if (categoryMatch && request.method() === "DELETE") {
+      externalContactCategories.splice(externalContactCategories.findIndex(entry => entry.id === Number(categoryMatch[1])), 1);
+      return json(route, null, 204);
     }
     const contactMatch = apiPath.match(/^\/api\/external-contacts\/(\d+)$/);
     if (contactMatch) {
@@ -958,15 +970,15 @@ test("Eventteilnehmer ohne Treffer brauchen eine Sicherheitsabfrage", async ({ p
   const form = page.locator("#eisbeinessenForm");
   await form.locator('[name="name"]').fill("Namenlos");
   await form.locator('[name="vorname"]').fill("Fantasie");
-  page.once("dialog", dialog => {
-    expect(dialog.message()).toContain("Kein Mitglied oder Gast");
-    dialog.dismiss();
-  });
+  const confirmModal = page.locator("#confirmModal");
   await form.getByRole("button", { name: "Hinzufügen" }).click();
+  await expect(confirmModal).toContainText("Kein Mitglied oder Gast für „Fantasie Namenlos“ gefunden.");
+  await confirmModal.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(confirmModal).toBeHidden();
   await expect(page.locator("#eisbeinessenGrid")).not.toContainText("Namenlos");
 
-  page.once("dialog", dialog => dialog.accept());
   await form.getByRole("button", { name: "Hinzufügen" }).click();
+  await confirmModal.getByRole("button", { name: "Ohne Zuordnung einfügen" }).click();
   await expect(page.locator("#eisbeinessenGrid")).toContainText("Namenlos");
 });
 
@@ -1053,8 +1065,8 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 1 · bezahlt: 1");
 
   // Loeschen bleibt fuer Fehleintraege moeglich - endgueltig, deshalb mit Rueckfrage.
-  page.on("dialog", dialog => dialog.accept());
   await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer löschen" }).click();
+  await page.locator("#confirmModal").getByRole("button", { name: "Löschen" }).click();
   await expect(grid).not.toContainText("Gästefreund");
   await expect(summary).toHaveText("1 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
 });
@@ -1351,6 +1363,8 @@ test("Plausibilitätsprüfung zeigt Fehler und Warnungen im Hinweisbereich der M
 });
 
 test("Adressen zeigen Kontakte je Kategorie und lassen sich suchen, anlegen, markieren und löschen", async ({ page }) => {
+  const browserDialogs = [];
+  page.on("dialog", dialog => { browserDialogs.push(dialog.message()); dialog.dismiss(); });
   await openAuthenticatedApp(page);
   await page.locator("#contacts-tab").click();
   const cards = page.locator("#contactsList .contact-card");
@@ -1403,8 +1417,19 @@ test("Adressen zeigen Kontakte je Kategorie und lassen sich suchen, anlegen, mar
   await page.locator("#contactsCategoryFilters .contacts__chip", { hasText: "Alle" }).click();
   await zupforchester.locator(".contact-card__name").click();
   const categoryChips = page.locator("#contactEditCategoryChips .contact-category-chip");
-  page.once("dialog", dialog => dialog.accept("Chor"));
+  const editAdder = page.locator("#contactEditCategoryChips .category-adder");
   await categoryChips.filter({ hasText: "Neue Kategorie" }).click();
+  await editAdder.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(editAdder).toHaveCount(0);
+  await categoryChips.filter({ hasText: "Neue Kategorie" }).click();
+  await editAdder.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.locator("#contactEditError")).toHaveText("Bitte einen Namen für die Kategorie eintragen.");
+  const createCategoryRequest = page.waitForRequest(request => request.url().endsWith("/api/external-contact-categories") && request.method() === "POST");
+  // Enter legt die Kategorie an, ohne den Kontakt zu speichern.
+  await editAdder.getByRole("textbox").fill("Chor");
+  await editAdder.getByRole("textbox").press("Enter");
+  expect((await createCategoryRequest).postDataJSON()).toEqual({ name: "Chor" });
+  await expect(page.locator("#contactEditModal")).toBeVisible();
   await expect(page.locator("#contactEditKategorie")).toHaveValue("Chor");
   await expect(categoryChips.filter({ hasText: "Chor" })).toHaveAttribute("aria-pressed", "true");
   await categoryChips.filter({ hasText: "Chor" }).click();
@@ -1415,8 +1440,40 @@ test("Adressen zeigen Kontakte je Kategorie und lassen sich suchen, anlegen, mar
   await expect(page.locator('.contacts__group[data-category="Vermieter"] .contact-card')).toHaveCount(2);
 
   await zupforchester.locator(".contact-card__name").click();
-  page.once("dialog", dialog => dialog.accept());
+  const deleteConfirm = page.locator("#contactDeleteConfirm");
   await page.locator("#contactDeleteBtn").click();
+  await expect(deleteConfirm).toContainText("Zupforchester Lübars endgültig löschen?");
+  await deleteConfirm.getByRole("button", { name: "Behalten" }).click();
+  await expect(deleteConfirm).toBeHidden();
+  await expect(page.locator("#contactDeleteBtn")).toBeVisible();
+  await page.locator("#contactDeleteBtn").click();
+  await deleteConfirm.getByRole("button", { name: "Löschen" }).click();
   await expect(zupforchester).toHaveCount(0);
   await expect(cards).toHaveCount(2);
+
+  // Angelegte Kategorien bleiben stehen, auch ohne Kontakt - und lassen sich von dort fuellen oder loeschen.
+  const filterChips = page.locator("#contactsCategoryFilters .contacts__chip");
+  await expect(filterChips.filter({ hasText: "Chor" }).locator(".contacts__chip-count")).toHaveText("0");
+  await filterChips.filter({ hasText: "+ Kategorie" }).click();
+  await page.locator("#contactsCategoryFilters .category-adder").getByRole("textbox").fill("Blumen");
+  await page.locator("#contactsCategoryFilters .category-adder").getByRole("button", { name: "Anlegen" }).click();
+  await expect(filterChips.filter({ hasText: "Blumen" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".contacts__empty-title")).toHaveText("Noch keine Kontakte in „Blumen“");
+  await page.locator(".contacts__empty-actions .btn-primary").click();
+  await expect(page.locator("#contactEditKategorie")).toHaveValue("Blumen");
+  await page.locator("#contactEditModal .btn-close").click();
+  await expect(page.locator("#contactEditModal")).toBeHidden();
+
+  const confirmModal = page.locator("#confirmModal");
+  await page.locator(".contacts__delete-category").click();
+  await expect(confirmModal).toContainText("Die Kategorie „Blumen“ hat keine Kontakte mehr.");
+  await confirmModal.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(confirmModal).toBeHidden();
+  await expect(filterChips.filter({ hasText: "Blumen" })).toHaveCount(1);
+  await page.locator(".contacts__delete-category").click();
+  await confirmModal.getByRole("button", { name: "Löschen" }).click();
+  await expect(confirmModal).toBeHidden();
+  await expect(filterChips.filter({ hasText: "Blumen" })).toHaveCount(0);
+  await expect(filterChips.filter({ hasText: "Alle" })).toHaveAttribute("aria-pressed", "true");
+  expect(browserDialogs).toEqual([]);
 });

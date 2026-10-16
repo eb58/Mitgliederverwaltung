@@ -2057,17 +2057,31 @@ const EXTERNAL_CONTACT_TABLE_DDL = 'CREATE TABLE IF NOT EXISTS externe_kontakte 
   INDEX idx_externe_kontakte_name (name, vorname)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
 
-/** Wie ensureEventTable: fehlt die Tabelle, legen wir sie an; sonst lesbarer Hinweis statt 500er. */
-function ensureExternalContactTable(): void
+const EXTERNAL_CONTACT_CATEGORY_TABLE_DDL = 'CREATE TABLE IF NOT EXISTS externe_kontakt_kategorie (
+  id INT NOT NULL AUTO_INCREMENT,
+  name VARCHAR(80) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_externe_kontakt_kategorie_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+
+/** Wie ensureEventTable: fehlt eine Tabelle, legen wir sie an; sonst lesbarer Hinweis statt 500er. */
+function ensureExternalContactTables(): void
 {
-    if (tableExists('externe_kontakte')) return;
-    try {
-        db()->exec(EXTERNAL_CONTACT_TABLE_DDL);
-    } catch (PDOException $error) {
-        error_log((string) $error);
-        throw new ApiError('Tabelle externe_kontakte fehlt und konnte nicht angelegt werden - bitte das Schema aus server/db/schema.mysql.sql einspielen.', 503);
+    $tables = [
+        'externe_kontakte' => EXTERNAL_CONTACT_TABLE_DDL,
+        'externe_kontakt_kategorie' => EXTERNAL_CONTACT_CATEGORY_TABLE_DDL,
+    ];
+    foreach ($tables as $table => $ddl) {
+        if (tableExists($table)) continue;
+        try {
+            db()->exec($ddl);
+        } catch (PDOException $error) {
+            error_log((string) $error);
+            throw new ApiError("Tabelle $table fehlt und konnte nicht angelegt werden - bitte das Schema aus server/db/schema.mysql.sql einspielen.", 503);
+        }
+        clearSchemaCache();
     }
-    clearSchemaCache();
 }
 
 /** Textspalten der Adressverwaltung mit ihrer Hoechstlaenge; JSON-Schluessel = Spaltenname. */
@@ -2129,17 +2143,26 @@ const EXTERNAL_CONTACT_CATEGORIES = [
     'Catering', 'Busunternehmen', 'Referenten', 'Presse', 'Sonstiges',
 ];
 
-/** Neue Kategorien legt nur ein Admin an - alle anderen waehlen eine feste oder schon benutzte. */
+/** Eine Kategorie gibt es, wenn sie fest ist, ein Admin sie angelegt hat oder ein Kontakt sie benutzt. */
+function externalContactCategoryExists(string $kategorie): bool
+{
+    foreach (EXTERNAL_CONTACT_CATEGORIES as $known) {
+        if (strcasecmp($known, $kategorie) === 0) return true;
+    }
+    // Die Spalten vergleichen ohne Gross-/Kleinschreibung (utf8mb4_unicode_ci), wie die Oberflaeche.
+    $statement = db()->prepare(
+        'SELECT 1 FROM externe_kontakt_kategorie WHERE name = ?
+         UNION ALL SELECT 1 FROM externe_kontakte WHERE kategorie = ? LIMIT 1'
+    );
+    $statement->execute([$kategorie, $kategorie]);
+    return (bool) $statement->fetchColumn();
+}
+
+/** Neue Kategorien legt nur ein Admin an - alle anderen waehlen eine vorhandene. */
 function assertExternalContactCategoryAllowed(array $user, string $kategorie): void
 {
     if ($kategorie === '' || ($user['role'] ?? '') === 'admin') return;
-    foreach (EXTERNAL_CONTACT_CATEGORIES as $known) {
-        if (strcasecmp($known, $kategorie) === 0) return;
-    }
-    // Die Spalte vergleicht ohne Gross-/Kleinschreibung (utf8mb4_unicode_ci), wie die Oberflaeche.
-    $statement = db()->prepare('SELECT 1 FROM externe_kontakte WHERE kategorie = ? LIMIT 1');
-    $statement->execute([$kategorie]);
-    if (!$statement->fetchColumn()) {
+    if (!externalContactCategoryExists($kategorie)) {
         throw new ApiError('Neue Kategorien kann nur ein Admin anlegen.', 403);
     }
 }
@@ -2183,7 +2206,7 @@ function handleExternalContactCollection(array $currentUser): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'POST']);
-    ensureExternalContactTable();
+    ensureExternalContactTables();
     $columns = externalContactColumns();
 
     if ($method === 'GET') {
@@ -2204,7 +2227,7 @@ function handleExternalContactResource(array $currentUser, int $id): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'PUT', 'PATCH', 'DELETE']);
-    ensureExternalContactTable();
+    ensureExternalContactTables();
     $existing = findExternalContactById($id);
     if (!$existing) throw new ApiError('Kontakt nicht gefunden.', 404);
 
@@ -2224,4 +2247,65 @@ function handleExternalContactResource(array $currentUser, int $id): void
     db()->prepare('UPDATE externe_kontakte SET ' . $assignments . ' WHERE id = ?')
         ->execute([...externalContactValues($contact), $id]);
     jsonResponse(['contact' => findExternalContactById($id)]);
+}
+
+function externalContactCategoryRowToApi(array $row): array
+{
+    return ['id' => (int) $row['id'], 'name' => (string) $row['name']];
+}
+
+/** Von Admins angelegte Kategorien - auch solche, die noch kein Kontakt benutzt. Lesen duerfen alle. */
+function handleExternalContactCategoryCollection(array $currentUser): void
+{
+    $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'POST']);
+    ensureExternalContactTables();
+
+    if ($method === 'GET') {
+        $rows = db()->query('SELECT id, name FROM externe_kontakt_kategorie ORDER BY name, id')->fetchAll();
+        jsonResponse(['categories' => array_map('externalContactCategoryRowToApi', $rows)]);
+    }
+
+    requireAdmin($currentUser);
+    $payload = readJsonBody();
+    $unknown = array_diff(array_keys($payload), ['name']);
+    if ($unknown) throw new ApiError('Unbekannte Felder: ' . implode(', ', $unknown), 400);
+    $name = trim((string) ($payload['name'] ?? ''));
+    if ($name === '') throw new ApiError('Name der Kategorie fehlt.', 400);
+    assertMaxTextLength('Kategorie', $name, 80);
+    if (externalContactCategoryExists($name)) {
+        throw new ApiError("Die Kategorie \"$name\" gibt es schon.", 409);
+    }
+
+    try {
+        db()->prepare('INSERT INTO externe_kontakt_kategorie (name) VALUES (?)')->execute([$name]);
+    } catch (PDOException $error) {
+        // Zwei Admins legen gleichzeitig dieselbe Kategorie an.
+        if ($error->getCode() === '23000') throw new ApiError("Die Kategorie \"$name\" gibt es schon.", 409);
+        throw $error;
+    }
+    jsonResponse(['category' => ['id' => (int) db()->lastInsertId(), 'name' => $name]], 201);
+}
+
+/** Loeschen geht nur, solange kein Kontakt die Kategorie benutzt - sonst stuende er ploetzlich in einer unbekannten. */
+function handleExternalContactCategoryResource(array $currentUser, int $id): void
+{
+    assertMethodAllowed($_SERVER['REQUEST_METHOD'], ['DELETE']);
+    requireAdmin($currentUser);
+    ensureExternalContactTables();
+
+    $statement = db()->prepare('SELECT name FROM externe_kontakt_kategorie WHERE id = ?');
+    $statement->execute([$id]);
+    $name = $statement->fetchColumn();
+    if ($name === false) throw new ApiError('Kategorie nicht gefunden.', 404);
+
+    $statement = db()->prepare('SELECT COUNT(*) FROM externe_kontakte WHERE kategorie = ?');
+    $statement->execute([$name]);
+    $used = (int) $statement->fetchColumn();
+    if ($used > 0) {
+        throw new ApiError("Die Kategorie \"$name\" wird noch von $used " . ($used === 1 ? 'Kontakt' : 'Kontakten') . ' benutzt.', 409);
+    }
+
+    db()->prepare('DELETE FROM externe_kontakt_kategorie WHERE id = ?')->execute([$id]);
+    noContent();
 }

@@ -365,8 +365,9 @@ UPDATE mitglied SET austrittsgrund_id = (SELECT id FROM austrittsgrund WHERE bez
 DELETE FROM austrittsgrund WHERE id = 1;
 
 -- Allgemeine Adressverwaltung: Ansprechpartner ausserhalb des Clubs (Musiker, Bezirksamt,
--- Reinigungsfirma, Vermieter, ...). Name oder Firma muss gefuellt sein, die Kategorie ist
--- Freitext. Legt ensureExternalContactTable() im Betrieb beim ersten Zugriff selbst an.
+-- Reinigungsfirma, Vermieter, ...). Name oder Firma muss gefuellt sein. Als Kategorie gilt eine
+-- feste, eine schon benutzte oder eine aus externe_kontakt_kategorie. Legt
+-- ensureExternalContactTables() im Betrieb beim ersten Zugriff selbst an.
 CREATE TABLE externe_kontakte (
   id INT NOT NULL AUTO_INCREMENT,
   kategorie VARCHAR(80) NOT NULL DEFAULT '',
@@ -388,4 +389,14 @@ CREATE TABLE externe_kontakte (
   PRIMARY KEY (id),
   INDEX idx_externe_kontakte_kategorie (kategorie),
   INDEX idx_externe_kontakte_name (name, vorname)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Von Admins angelegte Kategorien der Adressverwaltung - auch solche, die noch kein Kontakt
+-- benutzt. Die festen Kategorien (EXTERNAL_CONTACT_CATEGORIES in lib.php) stehen nicht hier drin.
+CREATE TABLE externe_kontakt_kategorie (
+  id INT NOT NULL AUTO_INCREMENT,
+  name VARCHAR(80) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_externe_kontakt_kategorie_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

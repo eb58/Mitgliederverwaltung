@@ -186,12 +186,81 @@ final class ApiExternalContactsTest extends DatabaseTestCase
     public function testMissingTableIsCreatedOnDemand(): void
     {
         db()->exec('DROP TABLE externe_kontakte');
+        db()->exec('DROP TABLE externe_kontakt_kategorie');
         clearSchemaCache();
         $this->request('GET');
 
         $this->assertSame([], $this->capture(static fn() => handleExternalContactCollection(self::USER))->payload['contacts']);
+        $this->assertSame([], $this->capture(static fn() => handleExternalContactCategoryCollection(self::USER))->payload['categories']);
 
         $this->request('POST', ['kategorie' => 'Musiker', 'name' => 'Spielmann']);
         $this->assertSame('Musiker', $this->capture(static fn() => handleExternalContactCollection(self::USER))->payload['contact']['kategorie']);
+    }
+
+    private function createCategory(array $user, string $name): ApiResponse
+    {
+        $this->request('POST', ['name' => $name]);
+        return $this->capture(static fn() => handleExternalContactCategoryCollection($user));
+    }
+
+    public function testAdminCreatesCategoryThatUsersCanChoose(): void
+    {
+        $response = $this->createCategory(self::ADMIN, '  Chor ');
+        $this->assertSame(201, $response->statusCode);
+        $this->assertSame('Chor', $response->payload['category']['name']);
+        $this->createCategory(self::ADMIN, 'Blumen');
+
+        $this->request('GET');
+        $categories = $this->capture(static fn() => handleExternalContactCategoryCollection(self::USER))->payload['categories'];
+        $this->assertSame(['Blumen', 'Chor'], array_column($categories, 'name'));
+
+        $this->request('POST', ['kategorie' => 'chor', 'name' => 'Sangesfreude']);
+        $this->assertSame(201, $this->capture(static fn() => handleExternalContactCollection(self::USER))->statusCode);
+    }
+
+    public function testOnlyAdminCreatesOrDeletesCategories(): void
+    {
+        $this->request('POST', ['name' => 'Chor']);
+        $this->assertApiError(403, 'Administratorrechte', static fn() => handleExternalContactCategoryCollection(self::USER));
+
+        $id = $this->createCategory(self::ADMIN, 'Chor')->payload['category']['id'];
+        $this->request('DELETE');
+        $this->assertApiError(403, 'Administratorrechte', static fn() => handleExternalContactCategoryResource(self::USER, $id));
+        $this->assertSame(1, $this->countRows('externe_kontakt_kategorie'));
+    }
+
+    public function testCreateRejectsEmptyOverlongUnknownAndExistingCategories(): void
+    {
+        $this->request('POST', ['name' => '  ']);
+        $this->assertApiError(400, 'Name der Kategorie fehlt', static fn() => handleExternalContactCategoryCollection(self::ADMIN));
+
+        $this->request('POST', ['name' => str_repeat('x', 81)]);
+        $this->assertApiError(400, 'hoechstens 80 Zeichen', static fn() => handleExternalContactCategoryCollection(self::ADMIN));
+
+        $this->request('POST', ['name' => 'Chor', 'farbe' => 'rot']);
+        $this->assertApiError(400, 'Unbekannte Felder', static fn() => handleExternalContactCategoryCollection(self::ADMIN));
+
+        $this->insertContact(['kategorie' => 'Fotografen', 'name' => 'Blende']);
+        $this->createCategory(self::ADMIN, 'Chor');
+        foreach (['musiker', 'FOTOGRAFEN', 'chor'] as $name) {
+            $this->request('POST', ['name' => $name]);
+            $this->assertApiError(409, 'gibt es schon', static fn() => handleExternalContactCategoryCollection(self::ADMIN));
+        }
+        $this->assertSame(1, $this->countRows('externe_kontakt_kategorie'));
+    }
+
+    public function testDeleteOnlyRemovesUnusedCategory(): void
+    {
+        $id = $this->createCategory(self::ADMIN, 'Chor')->payload['category']['id'];
+        $contactId = $this->insertContact(['kategorie' => 'Chor', 'name' => 'Sangesfreude']);
+
+        $this->request('DELETE');
+        $this->assertApiError(409, 'noch von 1 Kontakt benutzt', static fn() => handleExternalContactCategoryResource(self::ADMIN, $id));
+
+        db()->prepare('DELETE FROM externe_kontakte WHERE id = ?')->execute([$contactId]);
+        $this->assertSame(204, $this->capture(static fn() => handleExternalContactCategoryResource(self::ADMIN, $id))->statusCode);
+        $this->assertSame(0, $this->countRows('externe_kontakt_kategorie'));
+
+        $this->assertApiError(404, 'Kategorie nicht gefunden', static fn() => handleExternalContactCategoryResource(self::ADMIN, $id));
     }
 }

@@ -5,6 +5,7 @@ import { createEventDomain, isUnambiguousMatch } from "./event-domain.js";
 import { buildEventPdf, pdfToBytes } from "./event-pdf.js";
 
 export const createEventAdmin = ({
+  confirmAction,
   confirmMemberMatch,
   createGrid,
   event,
@@ -127,7 +128,13 @@ export const createEventAdmin = ({
   };
 
   const handleDelete = async participant => {
-    if (!confirm(`${participant.vorname} ${participant.name} endgültig aus der Liste löschen? Für eine Absage bitte abbrechen und den Absage-Schalter benutzen.`)) return;
+    const confirmed = await confirmAction({
+      title: "Teilnehmer löschen",
+      text: `${participant.vorname} ${participant.name} endgültig aus der Liste löschen? Für eine Absage bitte abbrechen und den Absage-Schalter benutzen.`,
+      confirmLabel: "Löschen",
+      danger: true
+    });
+    if (!confirmed) return;
     try {
       setError("");
       await deleteParticipant(participant.id);
@@ -172,7 +179,11 @@ export const createEventAdmin = ({
         if (selection.member) {
           participant = { ...payload, name: selection.member.name, vorname: selection.member.vorname, mitgliedId: selection.member.id };
         }
-      } else if (!confirm(`Kein Mitglied oder Gast für „${payload.vorname} ${payload.name}“ gefunden. Soll der Name wirklich ohne Zuordnung eingefügt werden?`)) {
+      } else if (!await confirmAction({
+        title: "Ohne Zuordnung einfügen?",
+        text: `Kein Mitglied oder Gast für „${payload.vorname} ${payload.name}“ gefunden. Soll der Name wirklich ohne Zuordnung eingefügt werden?`,
+        confirmLabel: "Ohne Zuordnung einfügen"
+      })) {
         return;
       }
       const created = await createParticipant(participant);

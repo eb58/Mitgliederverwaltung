@@ -10,6 +10,7 @@ import {
   contactDisplayName,
   contactInitials,
   filterContacts,
+  findContactCategory,
   groupContactsByCategory,
   mapHref,
   phoneHref,
@@ -86,6 +87,29 @@ describe("Adressverwaltung: Kategorien", () => {
     expect(options.slice(0, 2)).toEqual(["Musiker", "Bezirksamt"]);
     expect(options.filter(option => option.toLowerCase() === "fotografen")).toEqual(["Fotografen"]);
     expect(options.filter(option => option === "Musiker")).toEqual(["Musiker"]);
+  });
+
+  it("zeigt angelegte Kategorien auch ohne Kontakt", () => {
+    expect(summarizeContactCategories([musiker, band, vermieter], ["Musiker", "Chor", " "])).toEqual([
+      { label: "Chor", count: 0 },
+      { label: "Musiker", count: 2 },
+      { label: UNCATEGORIZED_LABEL, count: 1 }
+    ]);
+  });
+
+  it("bietet angelegte Kategorien nach den festen und vor den benutzten an", () => {
+    const options = contactCategoryOptions([{ kategorie: "Fotografen" }], ["Chor", "presse"]);
+
+    expect(options.slice(-2)).toEqual(["Chor", "Fotografen"]);
+    expect(options.filter(option => option.toLowerCase() === "presse")).toEqual(["Presse"]);
+  });
+
+  it("findet die vorhandene Schreibweise einer Kategorie", () => {
+    const options = ["Musiker", "Chor"];
+
+    expect(findContactCategory(options, "  MUSIKER ")).toBe("Musiker");
+    expect(findContactCategory(options, "Fotografen")).toBe(null);
+    expect(findContactCategory(options, "")).toBe(null);
   });
 });
 

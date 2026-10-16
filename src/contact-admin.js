@@ -10,6 +10,7 @@ import {
   contactInitials,
   contactPersonName,
   filterContacts,
+  findContactCategory,
   groupContactsByCategory,
   mapHref,
   phoneHref,
@@ -52,13 +53,20 @@ const downloadVCard = (fileName, contacts) => {
 };
 
 // Ansicht "Adressen": Karten je Kategorie, Suche, Favoriten und ein Bearbeiten-Dialog
-export const createContactAdmin = ({ createContact, deleteContact, isAdmin, loadContacts, showEmails, updateContact }) => {
+export const createContactAdmin = ({
+  confirmAction, createCategory, createContact, deleteCategory, deleteContact, isAdmin, loadCategories, loadContacts, showEmails, updateContact
+}) => {
   let contacts = [];
+  // Von Admins angelegte Kategorien ({ id, name }) - auch solche, die noch kein Kontakt benutzt.
+  let categories = [];
   let search = "";
   let category = null;
   let favoritesOnly = false;
   let editModal = null;
   let editingId = null;
+  // Eingabefelder fuer neue Kategorien: eins in der Filterleiste, eins im Bearbeiten-Dialog
+  let filterCategoryAdder = null;
+  let editCategoryAdder = null;
 
   const setMessage = (id, message) => {
     const target = document.getElementById(id);
@@ -76,6 +84,8 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
   };
 
   const visibleContacts = () => filterContacts(contacts, { search, category, favoritesOnly });
+  const categoryNames = () => categories.map(entry => entry.name);
+  const storedCategory = label => categories.find(entry => normalizeGroupText(entry.name) === normalizeGroupText(label));
 
   const createFilterChip = ({ label, count, pressed, color = null, onClick, extraClass = "" }) => {
     const chip = element("button", `contacts__chip ${extraClass}`.trim());
@@ -93,13 +103,13 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
   const renderFilters = () => {
     const host = document.getElementById("contactsCategoryFilters");
     if (!host) return;
-    const categories = summarizeContactCategories(contacts);
+    const summary = summarizeContactCategories(contacts, categoryNames());
     // Eine Kategorie, die es nach dem Loeschen nicht mehr gibt, darf die Liste nicht leer halten.
-    if (category !== null && !categories.some(entry => normalizeGroupText(entry.label) === normalizeGroupText(category))) category = null;
+    if (category !== null && !summary.some(entry => normalizeGroupText(entry.label) === normalizeGroupText(category))) category = null;
     const favoriteCount = contacts.filter(contact => contact.favorit).length;
     host.replaceChildren(
       createFilterChip({ label: "Alle", count: contacts.length, pressed: category === null, onClick: () => { category = null; render(); } }),
-      ...categories.map(entry => createFilterChip({
+      ...summary.map(entry => createFilterChip({
         label: entry.label,
         count: entry.count,
         color: contactCategoryColor(entry.label),
@@ -115,6 +125,7 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
       })
     );
     host.querySelector(".contacts__chip--favorite")?.insertAdjacentHTML("afterbegin", icon("star", "contacts__chip-star"));
+    if (isAdmin() && filterCategoryAdder) host.append(filterCategoryAdder.node());
   };
 
   const detailRow = (iconName, label, href, { external = false, title = "" } = {}) => {
@@ -214,7 +225,26 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
   const renderEmpty = () => {
     const empty = element("div", "contacts__empty");
     empty.insertAdjacentHTML("afterbegin", icon("addressBook", "contacts__empty-icon"));
-    if (!contacts.length) {
+    // Eine angelegte Kategorie ohne Kontakte: hier fuellt man sie - oder ein Admin loescht sie wieder.
+    if (category !== null && !filterContacts(contacts, { category }).length) {
+      empty.append(
+        element("p", "contacts__empty-title", `Noch keine Kontakte in „${category}“`),
+        element("p", "contacts__empty-text", "Ein neuer Kontakt landet von hier aus gleich in dieser Kategorie.")
+      );
+      const actions = element("div", "contacts__empty-actions");
+      const add = element("button", "btn btn-primary", "Kontakt anlegen");
+      add.type = "button";
+      add.addEventListener("click", () => openEdit(null));
+      actions.append(add);
+      const stored = storedCategory(category);
+      if (stored && isAdmin()) {
+        const remove = element("button", "btn btn-outline-danger contacts__delete-category", "Kategorie löschen");
+        remove.type = "button";
+        remove.addEventListener("click", () => removeCategory(stored));
+        actions.append(remove);
+      }
+      empty.append(actions);
+    } else if (!contacts.length) {
       empty.append(
         element("p", "contacts__empty-title", "Noch keine Adressen"),
         element("p", "contacts__empty-text", "Hier stehen Musiker, Bezirksamt, Reinigungsfirma, Vermieter und alle anderen Ansprechpartner außerhalb des Clubs.")
@@ -248,10 +278,11 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
   // Faengt seine Ladefehler selbst ab: eine fehlende Tabelle soll den Start nicht verhindern.
   const load = async () => {
     try {
-      contacts = await retryAsync(loadContacts);
+      [contacts, categories] = await Promise.all([retryAsync(loadContacts), retryAsync(loadCategories)]);
       setError("");
     } catch (error) {
       contacts = [];
+      categories = [];
       setError(error.message || "Adressen konnten nicht geladen werden.");
       if (error?.sessionExpired) throw error;
     } finally {
@@ -271,6 +302,111 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
     }
   };
 
+  // Legt die Kategorie an. Gibt es sie schon, kommt nur ihre vorhandene Schreibweise zurueck.
+  const addCategory = async (value, showError) => {
+    const name = String(value ?? "").trim();
+    if (!name) {
+      showError("Bitte einen Namen für die Kategorie eintragen.");
+      return null;
+    }
+    const existing = findContactCategory(contactCategoryOptions(contacts, categoryNames()), name);
+    if (existing) return existing;
+    try {
+      showError("");
+      const created = await createCategory(name);
+      categories = [...categories, created];
+      showToast(`Kategorie „${created.name}“ angelegt.`);
+      return created.name;
+    } catch (error) {
+      showError(error.message || "Kategorie konnte nicht angelegt werden.");
+      return null;
+    }
+  };
+
+  // Statt Browser-Dialog: der Chip "+ Kategorie" klappt zu einem Eingabefeld mit Anlegen/Abbrechen auf.
+  // Kein <form>, weil es auch im Formular des Bearbeiten-Dialogs steht; das Feld hat keinen name,
+  // damit handleSubmit es nicht als Kontaktfeld mitschickt.
+  const createCategoryAdder = ({ chipClass, chipLabel, showError, onCreated }) => {
+    let open = false;
+    const chip = element("button", chipClass, chipLabel);
+    chip.type = "button";
+    chip.title = "Neue Kategorie anlegen";
+    const box = element("div", "category-adder");
+    const input = element("input", "form-control form-control-sm category-adder__input");
+    Object.assign(input, { type: "text", maxLength: 80, placeholder: "Name der Kategorie", autocomplete: "off" });
+    input.setAttribute("aria-label", "Name der neuen Kategorie");
+    const save = element("button", "btn btn-sm btn-primary", "Anlegen");
+    save.type = "button";
+    const cancel = element("button", "btn btn-sm btn-outline-secondary", "Abbrechen");
+    cancel.type = "button";
+    box.append(input, save, cancel);
+
+    const close = () => {
+      open = false;
+      input.value = "";
+      box.replaceWith(chip);
+    };
+    const submit = async () => {
+      save.disabled = true;
+      const name = await addCategory(input.value, showError);
+      save.disabled = false;
+      if (!name) {
+        input.focus();
+        return;
+      }
+      close();
+      onCreated(name);
+    };
+    chip.addEventListener("click", () => {
+      open = true;
+      chip.replaceWith(box);
+      input.focus();
+    });
+    save.addEventListener("click", submit);
+    cancel.addEventListener("click", () => {
+      showError("");
+      close();
+    });
+    input.addEventListener("keydown", event => {
+      // Enter wuerde sonst den Kontakt speichern, Esc den ganzen Dialog schliessen.
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submit();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        showError("");
+        close();
+      }
+    });
+    return {
+      node: () => open ? box : chip,
+      reset: () => {
+        if (open) close();
+      }
+    };
+  };
+
+  const removeCategory = async entry => {
+    const confirmed = await confirmAction({
+      title: "Kategorie löschen",
+      text: `Die Kategorie „${entry.name}“ hat keine Kontakte mehr. Soll sie gelöscht werden?`,
+      confirmLabel: "Löschen",
+      danger: true
+    });
+    if (!confirmed) return;
+    try {
+      setError("");
+      await deleteCategory(entry.id);
+      categories = categories.filter(item => item.id !== entry.id);
+      category = null;
+      render();
+      showToast(`Kategorie „${entry.name}“ gelöscht.`);
+    } catch (error) {
+      setError(error.message || "Kategorie konnte nicht gelöscht werden.");
+    }
+  };
+
   const form = () => document.getElementById("contactEditForm");
 
   const renderCategoryChips = () => {
@@ -278,31 +414,32 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
     const input = form()?.elements.kategorie;
     if (!host || !input) return;
     const selected = normalizeGroupText(input.value);
-    const select = value => {
-      input.value = value;
-      renderCategoryChips();
-    };
-    // Die gewaehlte Kategorie steht mit drin, auch wenn ein Admin sie gerade erst neu angelegt hat.
-    const chips = contactCategoryOptions([...contacts, { kategorie: input.value }]).map(option => {
+    // Die gewaehlte Kategorie steht mit drin, auch wenn sie nur noch dieser Kontakt benutzt.
+    const chips = contactCategoryOptions([...contacts, { kategorie: input.value }], categoryNames()).map(option => {
       const chip = element("button", `meal-chip contact-category-chip contact-cat--${contactCategoryColor(option)}`, option);
       chip.type = "button";
       const isSelected = normalizeGroupText(option) === selected;
       chip.classList.toggle("is-selected", isSelected);
       chip.setAttribute("aria-pressed", String(isSelected));
       // Nochmal klicken nimmt die Kategorie wieder weg - der Kontakt steht dann unter "Ohne Kategorie".
-      chip.addEventListener("click", () => select(isSelected ? "" : option));
+      chip.addEventListener("click", () => selectCategory(isSelected ? "" : option));
       return chip;
     });
-    if (isAdmin()) {
-      const add = element("button", "meal-chip contact-category-chip contact-category-chip--new", "+ Neue Kategorie");
-      add.type = "button";
-      add.addEventListener("click", () => {
-        const name = prompt("Name der neuen Kategorie")?.trim();
-        if (name) select(name);
-      });
-      chips.push(add);
-    }
+    if (isAdmin() && editCategoryAdder) chips.push(editCategoryAdder.node());
     host.replaceChildren(...chips);
+  };
+
+  const selectCategory = value => {
+    form().elements.kategorie.value = value;
+    renderCategoryChips();
+  };
+
+  // Statt Browser-Dialog: Rueckfrage als Leiste im Fuss des Dialogs (wie beim Verwerfen in der Mitgliedsmaske).
+  const toggleDeleteConfirm = show => {
+    document.getElementById("contactDeleteConfirm").hidden = !show;
+    document.getElementById("contactDeleteBtn").hidden = show || editingId === null;
+    document.querySelector("#contactEditModal .contact-form-cancel").hidden = show;
+    if (show) document.getElementById("contactDeleteCancelBtn").focus();
   };
 
   const openEdit = contact => {
@@ -318,8 +455,9 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
       else field.value = values[field.name] ?? "";
     });
     document.getElementById("contactEditModalLabel").textContent = contact ? `${contactDisplayName(contact)} bearbeiten` : "Neuer Kontakt";
-    document.getElementById("contactDeleteBtn").hidden = !contact;
+    toggleDeleteConfirm(false);
     setEditError("");
+    editCategoryAdder?.reset();
     renderCategoryChips();
     editModal.show();
   };
@@ -347,9 +485,17 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
     }
   };
 
+  const askDelete = () => {
+    const contact = contacts.find(entry => entry.id === editingId);
+    if (!contact) return;
+    document.getElementById("contactDeleteConfirmText").textContent = `${contactDisplayName(contact)} endgültig löschen?`;
+    toggleDeleteConfirm(true);
+  };
+
   const handleDelete = async () => {
     const contact = contacts.find(entry => entry.id === editingId);
-    if (!contact || !confirm(`${contactDisplayName(contact)} endgültig aus den Adressen löschen?`)) return;
+    toggleDeleteConfirm(false);
+    if (!contact) return;
     try {
       setEditError("");
       await deleteContact(contact.id);
@@ -376,7 +522,28 @@ export const createContactAdmin = ({ createContact, deleteContact, isAdmin, load
       render();
     });
     form()?.addEventListener("submit", handleSubmit);
-    document.getElementById("contactDeleteBtn")?.addEventListener("click", handleDelete);
+    document.getElementById("contactDeleteBtn")?.addEventListener("click", askDelete);
+    document.getElementById("contactDeleteConfirmBtn")?.addEventListener("click", handleDelete);
+    document.getElementById("contactDeleteCancelBtn")?.addEventListener("click", () => toggleDeleteConfirm(false));
+    filterCategoryAdder ||= createCategoryAdder({
+      chipClass: "contacts__chip contacts__chip--new",
+      chipLabel: "+ Kategorie",
+      showError: setError,
+      // Die neue Kategorie gleich auswaehlen - dann steht darunter "Kontakt anlegen".
+      onCreated: name => {
+        category = name;
+        render();
+      }
+    });
+    editCategoryAdder ||= createCategoryAdder({
+      chipClass: "meal-chip contact-category-chip contact-category-chip--new",
+      chipLabel: "+ Neue Kategorie",
+      showError: setEditError,
+      onCreated: name => {
+        render();
+        selectCategory(name);
+      }
+    });
     render();
   };
 
