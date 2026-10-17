@@ -262,6 +262,67 @@ const clickYearBar = async (page, selector, year) => {
   await canvas.click({ position });
 };
 
+test("Dunkle Darstellung schaltet Tabellen und Dialoge um und bleibt nach Neuladen erhalten", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await openAuthenticatedApp(page);
+  const root = page.locator("html");
+  const toggle = page.getByRole("button", { name: "Dunkle Darstellung", exact: true });
+  await expect(root).toHaveAttribute("data-bs-theme", "light");
+  await page.locator("#overview-tab").click();
+  const nameFilter = page.locator('#overviewGrid .ag-floating-filter[col-id="name"]').getByRole("textbox");
+  await nameFilter.fill("Müller");
+  await expect(page.locator("#overviewGrid .ag-center-cols-container")).toContainText("Müller");
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(root).toHaveCSS("color-scheme", "dark");
+  await expect(page.locator("#overviewGrid .ag-header")).toHaveCSS("background-color", "rgb(37, 65, 73)");
+  await expect(nameFilter).toHaveValue("Müller");
+  await nameFilter.fill("Kein Treffer");
+  await expect(page.locator("#overviewGrid .ag-center-cols-container")).not.toContainText("Müller");
+  await nameFilter.fill("Müller");
+  await page.locator('#overviewGrid .ag-floating-filter[col-id="name"]').getByRole("button", { name: "Filtermenü öffnen" }).click();
+  await expect(page.locator("#overviewGrid .ag-menu")).toHaveCSS("background-color", "rgb(33, 53, 66)");
+  await page.keyboard.press("Escape");
+  await page.locator('#overviewGrid .ag-row[row-id="1"] .edit-icon-btn').click();
+  await expect(page.locator("#memberModal .modal-content")).toHaveCSS("background-color", "rgb(27, 44, 56)");
+  await expect(page.locator("#field-name")).toHaveCSS("background-color", "rgb(27, 44, 56)");
+  await page.locator("#memberModal .btn-close").click();
+  await page.reload();
+  await expect(page.locator("#appShell")).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(root).toHaveAttribute("data-bs-theme", "dark");
+  await toggle.click();
+  await expect(root).toHaveAttribute("data-bs-theme", "light");
+  await expect(page.locator("#overviewGrid .ag-header")).toHaveCSS("background-color", "rgb(230, 245, 243)");
+  await page.reload();
+  await expect(root).toHaveAttribute("data-bs-theme", "light");
+});
+
+test("Darstellung folgt dem System bis zur manuellen Auswahl, auch auf dem Handy", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockMemberApi(page);
+  await page.goto("./");
+  await expect(page.locator("#loginModal")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-bs-theme", "dark");
+  await expect(page.locator("#loginUsername")).toHaveCSS("background-color", "rgb(27, 44, 56)");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-bs-theme", "light");
+  await page.locator("#loginUsername").fill("admin");
+  await page.locator('#loginForm button[type="submit"]').click();
+  await expect(page.locator("#appShell")).toBeVisible();
+  await page.locator("#mobileMenuToggle").click();
+  const toggle = page.locator("#themeToggle");
+  await expect(toggle).toBeInViewport();
+  await toggle.focus();
+  await page.keyboard.press("Space");
+  await expect(page.locator("html")).toHaveAttribute("data-bs-theme", "dark");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-bs-theme", "dark");
+});
+
 test("Login lädt Dashboard und UTF-8-Stammdaten", async ({ page }) => {
   await openAuthenticatedApp(page);
 

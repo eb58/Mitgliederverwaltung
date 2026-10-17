@@ -34,6 +34,12 @@ export const createDashboard = ({
   showHistoricalForExitYear
 }) => {
   const charts = new Map();
+  const themeColor = variable => getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+  const chartTextColor = () => themeColor("--muted");
+  const chartGridColor = () => themeColor("--chart-grid");
+  const chartBarColor = ({ dataIndex }) => themeColor(dataIndex % 2 ? "--chart-bar-alt" : "--chart-bar");
+  const groupBarColor = ({ dataIndex }) => themeColor(dataIndex % 2 ? "--chart-group-bar-alt" : "--chart-group-bar");
+  window.addEventListener("themechange", () => charts.forEach(chart => chart.update("none")));
 
   const createMemberPhoto = (member, className) => {
     const photo = document.createElement("div");
@@ -64,10 +70,9 @@ export const createDashboard = ({
     charts.get("ageChart")?.destroy();
     const labels = buckets.map(bucket => bucket.label);
     const data = buckets.map(bucket => bucket.count);
-    const colors = buckets.map((_, index) => index % 2 === 0 ? "rgba(15, 118, 110, 0.85)" : "rgba(44, 160, 151, 0.85)");
     charts.set("ageChart", new Chart(canvas, {
       type: "bar",
-      data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor: colors, borderColor: colors.map(color => color.replace(/0\.85\)$/, "1)")), borderWidth: 1, borderRadius: 12, borderSkipped: false, maxBarThickness: 36 }] },
+      data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor: chartBarColor, borderColor: chartBarColor, borderWidth: 1, borderRadius: 12, borderSkipped: false, maxBarThickness: 36 }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -85,8 +90,8 @@ export const createDashboard = ({
           tooltip: { callbacks: { label: context => `${context.parsed.y} Mitglieder (${percent(context.parsed.y, total)}%)` } }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
-          y: { beginAtZero: true, grid: { color: "rgba(15, 118, 110, 0.08)", borderDash: [3, 3] }, ticks: { color: "#46535c", precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
+          x: { grid: { display: false }, ticks: { color: chartTextColor, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
+          y: { beginAtZero: true, grid: { color: chartGridColor, borderDash: [3, 3] }, ticks: { color: chartTextColor, precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
         }
       }
     }));
@@ -100,11 +105,9 @@ export const createDashboard = ({
     charts.get("groupChart")?.destroy();
     const labels = groups.map(item => item.label);
     const data = groups.map(item => item.count);
-    const backgroundColor = labels.map((_, index) => index % 2 === 0 ? "rgba(22, 101, 84, 0.85)" : "rgba(43, 154, 124, 0.8)");
-    const borderColor = backgroundColor.map(color => color.replace(/0\.8?5\)$/, "1)"));
     charts.set("groupChart", new Chart(canvas, {
       type: "bar",
-      data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor, borderColor, borderWidth: 1, borderRadius: 8, borderSkipped: false, maxBarThickness: 18 }] },
+      data: { labels, datasets: [{ label: "Mitglieder", data, backgroundColor: groupBarColor, borderColor: groupBarColor, borderWidth: 1, borderRadius: 8, borderSkipped: false, maxBarThickness: 18 }] },
       options: {
         indexAxis: "y",
         responsive: true,
@@ -123,8 +126,8 @@ export const createDashboard = ({
           tooltip: { callbacks: { label: context => `${context.parsed.x} Mitglieder (${percent(context.parsed.x, total)}%)` } }
         },
         scales: {
-          x: { beginAtZero: true, grid: { color: "rgba(15, 118, 110, 0.08)", borderDash: [3, 3] }, ticks: { color: "#46535c", precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
-          y: { grid: { display: false }, ticks: { autoSkip: false, color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
+          x: { beginAtZero: true, grid: { color: chartGridColor, borderDash: [3, 3] }, ticks: { color: chartTextColor, precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
+          y: { grid: { display: false }, ticks: { autoSkip: false, color: chartTextColor, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
         }
       }
     }));
@@ -136,11 +139,10 @@ export const createDashboard = ({
     charts.get(canvasId)?.destroy();
     const labels = entries.map(entry => String(entry.year));
     const data = entries.map(entry => entry.count);
-    const colors = entries.map((_, index) => index % 2 === 0 ? "rgba(15, 118, 110, 0.85)" : "rgba(44, 160, 151, 0.85)");
     canvas.setAttribute("aria-label", `${label} von ${labels[0]} bis ${labels.at(-1)}`);
     charts.set(canvasId, new Chart(canvas, {
       type: "bar",
-      data: { labels, datasets: [{ label, data, backgroundColor: colors, borderColor: colors.map(color => color.replace(/0\.85\)$/, "1)")), borderWidth: 1, borderRadius: 10, borderSkipped: false, maxBarThickness: 36 }] },
+      data: { labels, datasets: [{ label, data, backgroundColor: chartBarColor, borderColor: chartBarColor, borderWidth: 1, borderRadius: 10, borderSkipped: false, maxBarThickness: 36 }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -158,8 +160,8 @@ export const createDashboard = ({
           tooltip: { callbacks: { label: context => `${context.parsed.y} ${context.parsed.y === 1 ? singular : plural}` } }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: "#46535c", font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
-          y: { beginAtZero: true, grid: { color: "rgba(15, 118, 110, 0.08)", borderDash: [3, 3] }, ticks: { color: "#46535c", precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
+          x: { grid: { display: false }, ticks: { color: chartTextColor, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } },
+          y: { beginAtZero: true, grid: { color: chartGridColor, borderDash: [3, 3] }, ticks: { color: chartTextColor, precision: 0, font: { size: 12, family: "Segoe UI, Noto Sans, sans-serif" } } }
         }
       }
     }));

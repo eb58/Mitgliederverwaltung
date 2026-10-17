@@ -70,13 +70,16 @@ export const gridLocaleText = {
 
 export const createGridTheme = () => themeQuartz.withParams({
   accentColor: "#12807c",
-  borderColor: "#d5e1de",
-  browserColorScheme: "light",
+  backgroundColor: "var(--surface)",
+  foregroundColor: "var(--ink)",
+  borderColor: "var(--border)",
+  browserColorScheme: "var(--app-color-scheme)",
   fontFamily: "Segoe UI, Noto Sans, sans-serif",
-  headerBackgroundColor: "#e6f5f3",
-  headerTextColor: "#143f44",
-  oddRowBackgroundColor: "#f7fbfb",
-  rowHoverColor: "#eaf7f5",
-  selectedRowBackgroundColor: "#d8efe8",
+  headerBackgroundColor: "var(--grid-header-bg)",
+  headerTextColor: "var(--grid-header-ink)",
+  menuBackgroundColor: "var(--surface-2)",
+  oddRowBackgroundColor: "var(--grid-odd-bg)",
+  rowHoverColor: "var(--grid-hover-bg)",
+  selectedRowBackgroundColor: "var(--grid-selected-bg)",
   wrapperBorderRadius: 16
 });

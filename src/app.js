@@ -50,6 +50,7 @@ import {
 } from "./member-domain.js";
 import { PAYMENT_TOGGLE_STORAGE_KEYS, gridApis, state } from "./state.js";
 import { showToast } from "./ui.js";
+import { initTheme } from "./theme.js";
 import { createUserAdmin } from "./user-admin.js";
 import { createEventAdmin } from "./event-admin.js";
 import { eventList } from "./event-config.js";
@@ -267,6 +268,7 @@ const initApp = async () => {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
   initApp().catch(error => {
     console.error("Initialisierung fehlgeschlagen.", error);
     if (error?.sessionExpired) return;

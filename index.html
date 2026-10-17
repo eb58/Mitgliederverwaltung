@@ -6,6 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mitgliederverwaltung Senioren Lübars</title>
   <link rel="icon" type="image/png" href="assets/app-icon.png">
+  <script>
+    // Vor dem ersten Zeichnen anwenden, damit die gespeicherte Darstellung nicht aufblitzt.
+    (() => {
+      let theme;
+      try { theme = localStorage.getItem("mitgliederverwaltung:theme"); } catch {}
+      document.documentElement.dataset.bsTheme = theme === "light" || theme === "dark"
+        ? theme
+        : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    })();
+  </script>
 </head>
 
 <body>
@@ -112,6 +122,11 @@
       </div>
 
       <div class="sidebar__footer">
+        <button id="themeToggle" class="sidebar__action-btn" type="button" title="Dunkle Darstellung" aria-label="Dunkle Darstellung" aria-pressed="false">
+          <svg class="sidebar__nav-icon theme-icon--moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.9 13a9 9 0 0 1-9.9-9.9A9 9 0 1 0 20.9 13Z"/></svg>
+          <svg class="sidebar__nav-icon theme-icon--sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+          <span class="sidebar__nav-label">Dunkle Darstellung</span>
+        </button>
         <button id="logoutBtn" class="logout-user-btn" type="button" aria-label="Abmelden" hidden>
           <svg class="logout-user-btn__user-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path fill="currentColor" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
