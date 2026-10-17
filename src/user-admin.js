@@ -1,4 +1,4 @@
-import { Modal } from "bootstrap";
+import { Modal, Tab } from "bootstrap";
 import { state } from "./state.js";
 
 export const createUserAdmin = ({ createUser, deactivateUser, dirtyForms, loadUsers, updateUser }) => {
@@ -116,10 +116,14 @@ export const createUserAdmin = ({ createUser, deactivateUser, dirtyForms, loadUs
     const username = String(state.currentUser?.username || "").trim();
     const changePasswordButton = document.getElementById("changePasswordBtn");
     if (changePasswordButton) changePasswordButton.hidden = !state.currentUser;
-    ["manageUsersBtn", "manageReferenceDataBtn"].forEach(id => {
+    ["manageUsersBtn", "manageReferenceDataBtn", "member-issues-tab"].forEach(id => {
       const button = document.getElementById(id);
       if (button) button.hidden = !isAdmin;
     });
+    // "Auffaellige Daten" ist Admins vorbehalten: stand ein anderer Benutzer zuletzt dort, geht es zum Dashboard.
+    const issuesTab = document.getElementById("member-issues-tab");
+    const dashboardTab = document.getElementById("dashboard-tab");
+    if (!isAdmin && issuesTab?.classList.contains("active") && dashboardTab) Tab.getOrCreateInstance(dashboardTab).show();
     const logoutButton = document.getElementById("logoutBtn");
     if (logoutButton) {
       logoutButton.hidden = !username;

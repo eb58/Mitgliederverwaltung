@@ -1432,6 +1432,8 @@ function mergeableMemberFields(): array
 function handleMemberMerge(int $id, array $currentUser): void
 {
     assertMethodAllowed($_SERVER['REQUEST_METHOD'], ['POST']);
+    // Zusammenfuehren gehoert zu "Auffaellige Daten" und ist wie diese Ansicht Admins vorbehalten.
+    requireAdmin($currentUser);
     $payload = readJsonBody();
     $sourceId = (int) ($payload['sourceId'] ?? 0);
     $fromSource = $payload['fromSource'] ?? [];

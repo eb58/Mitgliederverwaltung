@@ -89,7 +89,7 @@ const json = (route, body, status = 200) => route.fulfill({
   body: JSON.stringify(body)
 });
 
-const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0, staleToken = "" } = {}) => {
+const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0, role = "admin", staleToken = "" } = {}) => {
   const currentReferenceData = structuredClone(referenceData);
   const geocodeEntries = {};
   const eventDefaults = { datum: null, symbol: "kalender", maxSeats: null, mealOptions: [], preis: null, pdfHinweis: "", archiviert: false, participantCount: 0 };
@@ -123,14 +123,14 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
     if (apiPath === "/api/session" && request.method() === "POST") {
       return json(route, {
         token: "e2e-token",
-        user: { id: 1, username: "admin", role: "admin", passwordChangeRequired: false }
+        user: { id: 1, username: "admin", role, passwordChangeRequired: false }
       });
     }
     if (apiPath === "/api/session" && request.method() === "DELETE") return json(route, null, 204);
     if (apiPath === "/api/session" && request.method() === "GET") {
       return staleToken && (request.headers()["x-auth-token"] || "") === staleToken
         ? json(route, { error: "Anmeldung erforderlich." }, 401)
-        : json(route, { user: { id: 1, username: "admin", role: "admin", passwordChangeRequired: false } });
+        : json(route, { user: { id: 1, username: "admin", role, passwordChangeRequired: false } });
     }
     if (apiPath === "/api/reference-data") {
       await initialDataGate;
@@ -1790,4 +1790,21 @@ test("Events lassen sich anlegen, bearbeiten, archivieren und löschen", async (
   await expect(page.locator("#events-archive-pane")).toHaveCount(1);
   await expect(page.locator("#dashboard-tab")).toHaveClass(/active/);
   expect(browserDialogs).toEqual([]);
+});
+
+test("Auffällige Daten sehen nur Admins", async ({ page }) => {
+  await mockMemberApi(page, { role: "user" });
+  // Zuletzt geoeffnet war die Ansicht - fuer einen normalen Benutzer geht es trotzdem zum Dashboard.
+  await page.addInitScript(() => window.localStorage.setItem("mitgliederverwaltung:lastView", "member-issues-tab"));
+  await page.goto("./");
+  await page.locator("#loginUsername").fill("anna");
+  await page.locator("#loginPassword").fill("passwd");
+  await page.locator('#loginForm button[type="submit"]').click();
+  await expect(page.locator("#appShell")).toBeVisible();
+
+  await expect(page.locator("#member-issues-tab")).toBeHidden();
+  await expect(page.locator("#member-issues-pane")).toBeHidden();
+  await expect(page.locator("#dashboard-tab")).toHaveClass(/active/);
+  await expect(page.locator("#manageUsersBtn")).toBeHidden();
+  await expect(page.locator("#overview-tab")).toBeVisible();
 });

@@ -550,6 +550,8 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertApiError(404, 'nicht gefunden', static fn() => handleMemberMerge(20, self::ADMIN));
         $this->request('GET');
         $this->assertApiError(405, '', static fn() => handleMemberMerge(20, self::ADMIN));
+        $this->request('POST', ['sourceId' => 10, 'fromSource' => []]);
+        $this->assertApiError(403, 'Administratorrechte', static fn() => handleMemberMerge(20, ['id' => 2, 'username' => 'anna', 'role' => 'user']));
         $this->assertSame(2, $this->countRows('mitglied', 'id IN (10, 20)'));
     }
 
