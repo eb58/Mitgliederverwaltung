@@ -43,6 +43,9 @@ export const createDirtyForms = ({ confirm }) => {
     markClean(form);
   };
 
+  // Fuer Formulare, die aus der Seite verschwinden (z.B. ein geloeschtes Event)
+  const unregister = form => entries.delete(form);
+
   const isDirty = form => {
     const entry = entries.get(form);
     if (!entry) return false;
@@ -82,5 +85,5 @@ export const createDirtyForms = ({ confirm }) => {
     });
   };
 
-  return { confirmLeave, dirtyForms, guardModal, hasDirty, isDirty, markClean, register };
+  return { confirmLeave, dirtyForms, guardModal, hasDirty, isDirty, markClean, register, unregister };
 };

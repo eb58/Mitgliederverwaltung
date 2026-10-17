@@ -1449,6 +1449,8 @@ function handleMemberMerge(int $id, array $currentUser): void
     assertValidMember($member);
     assertPlausibleMember($member, array_keys($patch));
 
+    // Vor der Transaktion: ein CREATE TABLE wuerde sie sonst stillschweigend beenden.
+    ensureEventTables();
     db()->beginTransaction();
     try {
         updateMemberColumns($id, $patch);
@@ -1468,9 +1470,7 @@ function handleMemberMerge(int $id, array $currentUser): void
             . ($years ? ' AND beitragsjahr NOT IN (' . implode(', ', array_fill(0, count($years), '?')) . ')' : '');
         db()->prepare($movePayments)->execute([$id, $sourceId, ...$years]);
 
-        foreach (eventDefinitions() as ['table' => $table]) {
-            if (tableExists($table)) db()->prepare("UPDATE {$table} SET mitglied_id = ? WHERE mitglied_id = ?")->execute([$id, $sourceId]);
-        }
+        db()->prepare('UPDATE event_teilnehmer SET mitglied_id = ? WHERE mitglied_id = ?')->execute([$id, $sourceId]);
         db()->prepare('UPDATE mitglied_aenderung SET mitglied_id = ? WHERE mitglied_id = ?')->execute([$id, $sourceId]);
 
         $updated = findMemberById($id);
@@ -1717,87 +1717,357 @@ function handleMemberPhoto(int $id, array $currentUser): void
 }
 
 /**
- * Jedes Event hat eine eigene Teilnehmertabelle. `meals` leer heisst: das Event kennt keine
- * Essensauswahl - dann fehlt die Spalte sowohl in der Tabelle als auch in der API.
+ * Events (Teilnehmerlisten) legt man in der Oberflaeche an; sie stehen in der Tabelle event,
+ * ihre Teilnehmer gemeinsam in event_teilnehmer. Der `schluessel` wird beim Anlegen aus der
+ * Bezeichnung gebildet und bleibt danach fest: er traegt den API-Pfad
+ * (/api/<schluessel>-participants), die DOM-Ids und den gemerkten Spaltenzustand.
  */
-function eventDefinitions(): array
+const EVENT_TABLE_DDL = 'CREATE TABLE IF NOT EXISTS event (
+  id INT NOT NULL AUTO_INCREMENT,
+  schluessel VARCHAR(40) NOT NULL,
+  bezeichnung VARCHAR(120) NOT NULL,
+  datum DATE NULL,
+  symbol VARCHAR(20) NOT NULL DEFAULT \'kalender\',
+  max_plaetze INT NULL,
+  essensauswahl TEXT NULL,
+  preis DECIMAL(8,2) NULL,
+  pdf_hinweis VARCHAR(255) NOT NULL DEFAULT \'\',
+  archiviert TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_event_schluessel (schluessel)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+
+const EVENT_PARTICIPANT_TABLE_DDL = 'CREATE TABLE IF NOT EXISTS event_teilnehmer (
+  id INT NOT NULL AUTO_INCREMENT,
+  event_id INT NOT NULL,
+  name VARCHAR(120) NOT NULL,
+  vorname VARCHAR(120) NOT NULL,
+  essensauswahl VARCHAR(60) NOT NULL DEFAULT \'\',
+  bezahlt TINYINT(1) NOT NULL DEFAULT 0,
+  abgesagt TINYINT(1) NOT NULL DEFAULT 0,
+  bemerkung TEXT NULL,
+  mitglied_id INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_event_teilnehmer_name (event_id, name, vorname),
+  CONSTRAINT fk_event_teilnehmer_event FOREIGN KEY (event_id) REFERENCES event (id),
+  CONSTRAINT fk_event_teilnehmer_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+
+/** Symbole fuer den Eintrag in der Navigation; die Bilder dazu hat das Frontend. */
+const EVENT_SYMBOLS = ['kalender', 'essen', 'schiff', 'bus', 'feier', 'musik'];
+
+/**
+ * Bis Oktober 2026 hatte jedes Event eine eigene, im Code eingetragene Tabelle <schluessel>_teilnehmer.
+ * Beim ersten Zugriff ziehen sie mit ihren Teilnehmern nach event/event_teilnehmer um; die alten
+ * Tabellen bleiben unangetastet stehen.
+ */
+function legacyEventDefinitions(): array
 {
     return [
-        'warnemuende' => ['table' => 'warnemuende_teilnehmer', 'meals' => ['Zander', 'Rind', 'Vegie']],
-        'eisbeinessen' => ['table' => 'eisbeinessen_teilnehmer', 'meals' => []],
+        ['schluessel' => 'warnemuende', 'bezeichnung' => 'Warnemünde', 'symbol' => 'schiff', 'max_plaetze' => 50, 'essensauswahl' => ['Zander', 'Rind', 'Vegie'], 'pdf_hinweis' => ''],
+        ['schluessel' => 'eisbeinessen', 'bezeichnung' => 'Eisbeinessen', 'symbol' => 'essen', 'max_plaetze' => 30, 'essensauswahl' => [], 'pdf_hinweis' => 'Selbstbeteiligung liegt bei 20 Euro.'],
     ];
 }
 
-function eventDefinition(string $event): array
-{
-    $events = eventDefinitions();
-    if (!isset($events[$event])) throw new ApiError('Unbekanntes Event: ' . $event, 404);
-    return $events[$event];
-}
-
-/** Alle Eventtabellen sind bis auf die Essensauswahl gleich gebaut - deshalb reicht ein Bauplan. */
-function eventTableDdl(string $event): string
-{
-    ['table' => $table, 'meals' => $meals] = eventDefinition($event);
-    return implode("\n", array_filter([
-        "CREATE TABLE IF NOT EXISTS {$table} (",
-        '  id INT NOT NULL AUTO_INCREMENT,',
-        '  name VARCHAR(120) NOT NULL,',
-        '  vorname VARCHAR(120) NOT NULL,',
-        $meals ? "  essensauswahl ENUM('" . implode("', '", $meals) . "') NOT NULL DEFAULT '{$meals[0]}'," : '',
-        '  bezahlt TINYINT(1) NOT NULL DEFAULT 0,',
-        '  abgesagt TINYINT(1) NOT NULL DEFAULT 0,',
-        '  bemerkung TEXT NULL,',
-        '  mitglied_id INT NULL,',
-        '  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,',
-        '  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,',
-        '  PRIMARY KEY (id),',
-        "  INDEX idx_{$table}_name (name, vorname),",
-        "  CONSTRAINT fk_{$table}_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE SET NULL",
-        ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
-    ]));
-}
+/** Merkt sich, welche alte Liste schon umgezogen ist - auch wenn das Event spaeter geloescht wird. */
+const EVENT_MIGRATION_TABLE_DDL = 'CREATE TABLE IF NOT EXISTS event_migration (
+  schluessel VARCHAR(40) NOT NULL,
+  migriert_am TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (schluessel)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
 
 /**
- * Ein neues Event soll ohne Schema-Import laufen: fehlt die Tabelle, legen wir sie an.
- * Darf der DB-Benutzer das nicht (Hoster), bleibt der lesbare Hinweis statt eines 500ers.
+ * Fehlen die Tabellen, legen wir sie an; sonst lesbarer Hinweis statt 500er. Danach zieht jede
+ * alte Liste um, die noch nicht in event_migration steht - bei jedem Zugriff, bis es geklappt hat.
  */
-function ensureEventTable(string $event): void
+function ensureEventTables(): void
 {
-    $table = eventDefinition($event)['table'];
-    if (tableExists($table)) return;
-
-    try {
-        db()->exec(eventTableDdl($event));
-    } catch (PDOException $error) {
-        error_log((string) $error);
-        throw new ApiError('Tabelle ' . $table . ' fehlt und konnte nicht angelegt werden - bitte das Schema aus server/db/schema.mysql.sql einspielen.', 503);
+    if (!tableExists('event') || !tableExists('event_teilnehmer') || !tableExists('event_migration')) {
+        try {
+            db()->exec(EVENT_TABLE_DDL);
+            db()->exec(EVENT_PARTICIPANT_TABLE_DDL);
+            db()->exec(EVENT_MIGRATION_TABLE_DDL);
+        } catch (PDOException $error) {
+            error_log((string) $error);
+            throw new ApiError('Tabellen event/event_teilnehmer fehlen und konnten nicht angelegt werden - bitte das Schema aus server/db/schema.mysql.sql einspielen.', 503);
+        }
+        clearSchemaCache();
     }
-    clearSchemaCache();
+    migrateLegacyEvents();
 }
 
-function eventParticipantColumns(string $event): array
+/** Je alte Liste in einer Transaktion: entweder Event, Teilnehmer und Vermerk - oder nichts. */
+function migrateLegacyEvents(): void
 {
-    $meals = eventDefinition($event)['meals'] ? ['essensauswahl'] : [];
-    return array_merge(['name', 'vorname'], $meals, ['bezahlt', 'abgesagt', 'bemerkung', 'mitglied_id']);
+    $done = db()->query('SELECT schluessel FROM event_migration')->fetchAll(PDO::FETCH_COLUMN);
+    foreach (legacyEventDefinitions() as $event) {
+        if (in_array($event['schluessel'], $done, true)) continue;
+        try {
+            db()->beginTransaction();
+            // Der Vermerk zuerst: ein gleichzeitiger Aufruf wartet hier auf die Sperre und scheitert danach am Primaerschluessel.
+            db()->prepare('INSERT INTO event_migration (schluessel) VALUES (?)')->execute([$event['schluessel']]);
+            db()->prepare('INSERT INTO event (schluessel, bezeichnung, symbol, max_plaetze, essensauswahl, pdf_hinweis) VALUES (?, ?, ?, ?, ?, ?)')
+                ->execute([$event['schluessel'], $event['bezeichnung'], $event['symbol'], $event['max_plaetze'], json_encode($event['essensauswahl'], JSON_UNESCAPED_UNICODE), $event['pdf_hinweis']]);
+            $eventId = (int) db()->lastInsertId();
+
+            $legacyTable = $event['schluessel'] . '_teilnehmer';
+            if (tableExists($legacyTable)) {
+                $meal = tableHasColumn($legacyTable, 'essensauswahl') ? 'essensauswahl' : "''";
+                $abgesagt = tableHasColumn($legacyTable, 'abgesagt') ? 'abgesagt' : '0';
+                // In Anmeldereihenfolge: die Liste zaehlt ihre Plaetze nach der ID.
+                db()->prepare(
+                    'INSERT INTO event_teilnehmer (event_id, name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id, created_at, updated_at) '
+                    . "SELECT ?, name, vorname, {$meal}, bezahlt, {$abgesagt}, bemerkung, mitglied_id, created_at, updated_at FROM {$legacyTable} ORDER BY id"
+                )->execute([$eventId]);
+            }
+            db()->commit();
+        } catch (PDOException $error) {
+            if (db()->inTransaction()) db()->rollBack();
+            // Ein gleichzeitiger Aufruf war schneller - dann ist die Liste schon umgezogen.
+            if ($error->getCode() === '23000' && legacyEventMigrated($event['schluessel'])) continue;
+            error_log((string) $error);
+            throw new ApiError('Die bisherige Teilnehmerliste ' . $event['bezeichnung'] . ' konnte nicht uebernommen werden. Beim naechsten Aufruf wird es erneut versucht.', 503);
+        }
+    }
 }
+
+function legacyEventMigrated(string $key): bool
+{
+    $statement = db()->prepare('SELECT 1 FROM event_migration WHERE schluessel = ?');
+    $statement->execute([$key]);
+    return (bool) $statement->fetchColumn();
+}
+
+function decodeEventMeals(?string $json): array
+{
+    $meals = json_decode((string) $json, true);
+    return is_array($meals) ? array_values(array_filter($meals, 'is_string')) : [];
+}
+
+function eventRowToApi(array $row): array
+{
+    return [
+        'id' => (int) $row['id'],
+        'key' => (string) $row['schluessel'],
+        'label' => (string) $row['bezeichnung'],
+        'datum' => $row['datum'] === null ? null : (string) $row['datum'],
+        'symbol' => (string) $row['symbol'],
+        'maxSeats' => $row['max_plaetze'] === null ? null : (int) $row['max_plaetze'],
+        'mealOptions' => decodeEventMeals($row['essensauswahl']),
+        'preis' => $row['preis'] === null ? null : (float) $row['preis'],
+        'pdfHinweis' => (string) $row['pdf_hinweis'],
+        'archiviert' => (bool) $row['archiviert'],
+        'participantCount' => (int) ($row['teilnehmer'] ?? 0),
+    ];
+}
+
+/** Zaehlt nur, wer noch teilnimmt - Abgesagte stehen zwar in der Liste, belegen aber keinen Platz. */
+function eventSelect(): string
+{
+    return 'SELECT e.*, (SELECT COUNT(*) FROM event_teilnehmer t WHERE t.event_id = e.id AND t.abgesagt = 0) AS teilnehmer FROM event e';
+}
+
+function findEventById(int $id): ?array
+{
+    $statement = db()->prepare(eventSelect() . ' WHERE e.id = ?');
+    $statement->execute([$id]);
+    $row = $statement->fetch();
+    return $row ? eventRowToApi($row) : null;
+}
+
+function eventDefinition(string $key): array
+{
+    ensureEventTables();
+    $statement = db()->prepare(eventSelect() . ' WHERE e.schluessel = ?');
+    $statement->execute([$key]);
+    $row = $statement->fetch();
+    if (!$row) throw new ApiError('Unbekanntes Event: ' . $key, 404);
+    return eventRowToApi($row);
+}
+
+/** "Sommerfest 2027" -> "sommerfest2027": nur a-z und Ziffern, damit Pfad und DOM-Ids ohne Escaping auskommen. */
+function eventKeyFromLabel(string $label): string
+{
+    $text = strtolower(strtr($label, ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'Ä' => 'ae', 'Ö' => 'oe', 'Ü' => 'ue', 'ß' => 'ss']));
+    // Weitere Sonderzeichen fallen weg - iconv ist beim Hoster nicht sicher da.
+    $key = substr((string) preg_replace('/[^a-z0-9]+/', '', $text), 0, 30);
+    return $key !== '' ? $key : 'event';
+}
+
+function uniqueEventKey(string $label): string
+{
+    $base = eventKeyFromLabel($label);
+    $statement = db()->prepare('SELECT 1 FROM event WHERE schluessel = ?');
+    for ($suffix = 1; ; $suffix++) {
+        $key = $suffix === 1 ? $base : $base . $suffix;
+        $statement->execute([$key]);
+        if (!$statement->fetchColumn()) return $key;
+    }
+}
+
+function normalizeEventSettings(array $payload): array
+{
+    $known = ['id', 'key', 'label', 'datum', 'symbol', 'maxSeats', 'mealOptions', 'preis', 'pdfHinweis', 'archiviert', 'participantCount'];
+    $unknown = array_diff(array_keys($payload), $known);
+    if ($unknown) throw new ApiError('Unbekannte Felder: ' . implode(', ', $unknown), 400);
+
+    $label = trim((string) ($payload['label'] ?? ''));
+    if ($label === '') throw new ApiError('Bezeichnung des Events fehlt.', 400);
+    assertMaxTextLength('Bezeichnung', $label, 120);
+
+    $datum = trim((string) ($payload['datum'] ?? ''));
+    if ($datum !== '') {
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $datum);
+        if (!$date || $date->format('Y-m-d') !== $datum) throw new ApiError('Datum muss im Format JJJJ-MM-TT sein.', 400);
+    }
+
+    $symbol = (string) ($payload['symbol'] ?? 'kalender');
+    if (!in_array($symbol, EVENT_SYMBOLS, true)) throw new ApiError('Symbol muss ' . implode(', ', EVENT_SYMBOLS) . ' sein.', 400);
+
+    $maxSeats = $payload['maxSeats'] ?? null;
+    if ($maxSeats !== null && $maxSeats !== '') {
+        if (filter_var($maxSeats, FILTER_VALIDATE_INT) === false || (int) $maxSeats < 1 || (int) $maxSeats > 1000) {
+            throw new ApiError('Plaetze muessen eine ganze Zahl zwischen 1 und 1000 sein.', 400);
+        }
+        $maxSeats = (int) $maxSeats;
+    } else {
+        $maxSeats = null;
+    }
+
+    $meals = $payload['mealOptions'] ?? [];
+    if (!is_array($meals)) throw new ApiError('Essensauswahl muss eine Liste sein.', 400);
+    $mealOptions = [];
+    foreach ($meals as $meal) {
+        $meal = trim((string) $meal);
+        if ($meal === '') continue;
+        assertMaxTextLength('Ein Gericht', $meal, 60);
+        foreach ($mealOptions as $existing) {
+            if (strcasecmp($existing, $meal) === 0) throw new ApiError("Das Gericht \"$meal\" steht doppelt in der Essensauswahl.", 400);
+        }
+        $mealOptions[] = $meal;
+    }
+    if (count($mealOptions) > 10) throw new ApiError('Hoechstens 10 Gerichte zur Auswahl.', 400);
+
+    $preis = $payload['preis'] ?? null;
+    if ($preis !== null && $preis !== '') {
+        if (!is_numeric($preis) || (float) $preis < 0 || (float) $preis > 100000) throw new ApiError('Preis muss ein Betrag ab 0 sein.', 400);
+        $preis = round((float) $preis, 2);
+    } else {
+        $preis = null;
+    }
+
+    $pdfHinweis = trim((string) ($payload['pdfHinweis'] ?? ''));
+    assertMaxTextLength('Hinweis fuer die PDF-Liste', $pdfHinweis, 255);
+
+    return [
+        'bezeichnung' => $label,
+        'datum' => $datum === '' ? null : $datum,
+        'symbol' => $symbol,
+        'max_plaetze' => $maxSeats,
+        'essensauswahl' => json_encode($mealOptions, JSON_UNESCAPED_UNICODE),
+        'preis' => $preis,
+        'pdf_hinweis' => $pdfHinweis,
+        'archiviert' => (int) (bool) ($payload['archiviert'] ?? false),
+    ];
+}
+
+/** Ein Gericht, das noch jemand gewaehlt hat, darf nicht aus der Auswahl verschwinden. */
+function assertEventMealsStillCover(int $eventId, array $mealOptions): void
+{
+    if (!$mealOptions) return;
+    $placeholders = implode(', ', array_fill(0, count($mealOptions), '?'));
+    $statement = db()->prepare(
+        "SELECT essensauswahl, COUNT(*) AS anzahl FROM event_teilnehmer WHERE event_id = ? AND essensauswahl <> '' AND essensauswahl NOT IN ({$placeholders}) GROUP BY essensauswahl ORDER BY essensauswahl"
+    );
+    $statement->execute([$eventId, ...$mealOptions]);
+    $row = $statement->fetch();
+    if (!$row) return;
+    $count = (int) $row['anzahl'];
+    throw new ApiError("\"{$row['essensauswahl']}\" haben noch $count Teilnehmer gewaehlt - bitte erst bei ihnen ein anderes Gericht eintragen.", 409);
+}
+
+function handleEventsCollection(): void
+{
+    $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'POST']);
+    ensureEventTables();
+
+    if ($method === 'GET') {
+        $rows = db()->query(eventSelect() . ' ORDER BY e.datum IS NULL, e.datum, e.bezeichnung, e.id')->fetchAll();
+        jsonResponse(['events' => array_map('eventRowToApi', $rows)]);
+    }
+
+    $settings = normalizeEventSettings(readJsonBody());
+    $settings['schluessel'] = uniqueEventKey($settings['bezeichnung']);
+    $columns = array_keys($settings);
+    try {
+        db()->prepare('INSERT INTO event (' . implode(', ', $columns) . ') VALUES (' . implode(', ', array_fill(0, count($columns), '?')) . ')')
+            ->execute(array_values($settings));
+    } catch (PDOException $error) {
+        // Zwei Benutzer legen gleichzeitig ein gleichnamiges Event an.
+        if ($error->getCode() === '23000') throw new ApiError('Das Event wurde gerade schon angelegt - bitte die Seite neu laden.', 409);
+        throw $error;
+    }
+    jsonResponse(['event' => findEventById((int) db()->lastInsertId())], 201);
+}
+
+function handleEventResource(int $id): void
+{
+    $method = $_SERVER['REQUEST_METHOD'];
+    assertMethodAllowed($method, ['GET', 'PUT', 'DELETE']);
+    ensureEventTables();
+    $existing = findEventById($id);
+    if (!$existing) throw new ApiError('Event nicht gefunden.', 404);
+
+    if ($method === 'GET') {
+        jsonResponse(['event' => $existing]);
+    }
+
+    if ($method === 'PUT') {
+        $settings = normalizeEventSettings(readJsonBody());
+        assertEventMealsStillCover($id, decodeEventMeals($settings['essensauswahl']));
+        $assignments = implode(', ', array_map(static fn(string $column) => $column . ' = ?', array_keys($settings)));
+        db()->prepare('UPDATE event SET ' . $assignments . ' WHERE id = ?')->execute([...array_values($settings), $id]);
+        jsonResponse(['event' => findEventById($id)]);
+    }
+
+    // Loeschen nur fuer leere Listen (z.B. versehentlich angelegt) - alles andere wird archiviert.
+    $statement = db()->prepare('SELECT COUNT(*) FROM event_teilnehmer WHERE event_id = ?');
+    $statement->execute([$id]);
+    $count = (int) $statement->fetchColumn();
+    if ($count > 0) {
+        throw new ApiError("{$existing['label']} hat noch $count " . ($count === 1 ? 'Eintrag' : 'Eintraege') . ' in der Teilnehmerliste - bitte archivieren statt loeschen.', 409);
+    }
+    db()->prepare('DELETE FROM event WHERE id = ?')->execute([$id]);
+    noContent();
+}
+
+const EVENT_PARTICIPANT_COLUMNS = ['name', 'vorname', 'essensauswahl', 'bezahlt', 'abgesagt', 'bemerkung', 'mitglied_id'];
 
 /** Akzeptiert auch die Schreibweisen der Papierliste ("Zanderfilet", "Rinderbäckchen"). */
-function normalizeEventMeal(string $event, mixed $value): string
+function normalizeEventMeal(array $event, mixed $value): string
 {
-    $options = eventDefinition($event)['meals'];
+    $options = $event['mealOptions'];
     $text = trim((string) $value);
+    // Erst der genaue Name, dann der Wortanfang - sonst wuerde "Rinderroulade" zu "Rind".
     foreach ($options as $option) {
-        // stripos genuegt: die Gerichtsnamen sind ASCII, nur die Endungen der
-        // Papierliste ("Rinderbaeckchen") tragen Umlaute - und mbstring ist beim Hoster nicht sicher da.
+        if (strcasecmp($text, $option) === 0) return $option;
+    }
+    foreach ($options as $option) {
+        // stripos genuegt: die Endungen der Papierliste ("Rinderbaeckchen") tragen zwar Umlaute,
+        // der Anfang aber nicht - und mbstring ist beim Hoster nicht sicher da.
         if (stripos($text, $option) === 0) return $option;
     }
     throw new ApiError('Essensauswahl muss ' . implode(', ', $options) . ' sein.', 400);
 }
 
-function normalizeEventInput(string $event, array $payload, bool $partial = false): array
+function normalizeEventInput(array $event, array $payload, bool $partial = false): array
 {
-    $meals = eventDefinition($event)['meals'];
+    $meals = $event['mealOptions'];
     $known = array_merge(['id', 'name', 'vorname', 'bezahlt', 'abgesagt', 'bemerkung', 'mitgliedId'], $meals ? ['essensauswahl'] : []);
     $unknown = array_diff(array_keys($payload), $known);
     if ($unknown) throw new ApiError('Unbekannte Felder: ' . implode(', ', $unknown), 400);
@@ -1836,18 +2106,17 @@ function assertEventMemberExists(?int $mitgliedId): void
 }
 
 /** Verhindert doppelte Eintraege innerhalb derselben Teilnehmerliste. */
-function assertEventParticipantNotExists(string $event, array $participant): void
+function assertEventParticipantNotExists(array $event, array $participant): void
 {
-    $table = eventDefinition($event)['table'];
     if ($participant['mitgliedId'] !== null) {
         $statement = db()->prepare(
-            'SELECT 1 FROM ' . $table
-            . ' WHERE mitglied_id = ? OR (mitglied_id IS NULL AND name = ? AND vorname = ?) LIMIT 1'
+            'SELECT 1 FROM event_teilnehmer WHERE event_id = ?'
+            . ' AND (mitglied_id = ? OR (mitglied_id IS NULL AND name = ? AND vorname = ?)) LIMIT 1'
         );
-        $statement->execute([$participant['mitgliedId'], $participant['name'], $participant['vorname']]);
+        $statement->execute([$event['id'], $participant['mitgliedId'], $participant['name'], $participant['vorname']]);
     } else {
-        $statement = db()->prepare('SELECT 1 FROM ' . $table . ' WHERE name = ? AND vorname = ? LIMIT 1');
-        $statement->execute([$participant['name'], $participant['vorname']]);
+        $statement = db()->prepare('SELECT 1 FROM event_teilnehmer WHERE event_id = ? AND name = ? AND vorname = ? LIMIT 1');
+        $statement->execute([$event['id'], $participant['name'], $participant['vorname']]);
     }
     if (!$statement->fetchColumn()) return;
 
@@ -1855,7 +2124,8 @@ function assertEventParticipantNotExists(string $event, array $participant): voi
     throw new ApiError($fullName . ' ist bereits in dieser Teilnehmerliste vorhanden.', 409);
 }
 
-function eventRowToApi(array $row): array
+/** Events ohne Essensauswahl kennen das Feld auch in der API nicht. */
+function eventParticipantRowToApi(array $event, array $row): array
 {
     return array_merge(
         [
@@ -1863,7 +2133,7 @@ function eventRowToApi(array $row): array
             'name' => (string) $row['name'],
             'vorname' => (string) $row['vorname'],
         ],
-        array_key_exists('essensauswahl', $row) ? ['essensauswahl' => (string) $row['essensauswahl']] : [],
+        $event['mealOptions'] ? ['essensauswahl' => (string) $row['essensauswahl']] : [],
         [
             'bezahlt' => (bool) $row['bezahlt'],
             'abgesagt' => (bool) $row['abgesagt'],
@@ -1874,76 +2144,67 @@ function eventRowToApi(array $row): array
 }
 
 /** Bringt den Datensatz in die Reihenfolge der Tabellenspalten - fuer INSERT und UPDATE gleich. */
-function eventParticipantValues(string $event, array $participant): array
+function eventParticipantValues(array $participant): array
 {
     return array_map(static fn(string $column) => match ($column) {
         'mitglied_id' => $participant['mitgliedId'],
         'bezahlt', 'abgesagt' => (int) $participant[$column],
+        'essensauswahl' => $participant['essensauswahl'] ?? '',
         default => $participant[$column],
-    }, eventParticipantColumns($event));
+    }, EVENT_PARTICIPANT_COLUMNS);
 }
 
-/** Speichert eine eindeutige Namenszuordnung dauerhaft in der Eventtabelle. */
-function linkEventParticipantToMember(string $event, int $participantId): void
+/** Speichert eine eindeutige Namenszuordnung dauerhaft in der Teilnehmerliste. */
+function linkEventParticipantToMember(int $participantId): void
 {
-    $table = eventDefinition($event)['table'];
     db()->prepare(
-        'UPDATE ' . $table . ' t JOIN ('
+        'UPDATE event_teilnehmer t JOIN ('
         . 'SELECT name, vorname, MIN(id) AS id FROM mitglied GROUP BY name, vorname HAVING COUNT(*) = 1'
         . ') m ON m.name = t.name AND m.vorname = t.vorname '
         . 'SET t.mitglied_id = m.id WHERE t.mitglied_id IS NULL AND t.id = ?'
     )->execute([$participantId]);
 }
 
-/** Gemeinsame SELECT-Liste fuer Collection und Einzelressource. */
-function eventParticipantSelect(string $event): string
+function findEventParticipantById(array $event, int $id): ?array
 {
-    $columns = array_map(static fn(string $column): string => 't.' . $column, eventParticipantColumns($event));
-    $table = eventDefinition($event)['table'];
-    return 'SELECT t.id, ' . implode(', ', $columns) . ' FROM ' . $table . ' t';
-}
-
-function findEventParticipantById(string $event, int $id): ?array
-{
-    $statement = db()->prepare(eventParticipantSelect($event) . ' WHERE t.id = ?');
-    $statement->execute([$id]);
+    $statement = db()->prepare('SELECT * FROM event_teilnehmer WHERE event_id = ? AND id = ?');
+    $statement->execute([$event['id'], $id]);
     $row = $statement->fetch();
-    return $row ? eventRowToApi($row) : null;
+    return $row ? eventParticipantRowToApi($event, $row) : null;
 }
 
-function handleEventParticipantCollection(string $event): void
+function handleEventParticipantCollection(string $key): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'POST']);
-    ensureEventTable($event);
-    $table = eventDefinition($event)['table'];
-    $columns = eventParticipantColumns($event);
+    $event = eventDefinition($key);
 
     if ($method === 'GET') {
-        $rows = db()->query(eventParticipantSelect($event) . ' ORDER BY t.name, t.vorname, t.id')->fetchAll();
-        jsonResponse(['participants' => array_map('eventRowToApi', $rows)]);
+        $statement = db()->prepare('SELECT * FROM event_teilnehmer WHERE event_id = ? ORDER BY name, vorname, id');
+        $statement->execute([$event['id']]);
+        jsonResponse(['participants' => array_map(static fn(array $row) => eventParticipantRowToApi($event, $row), $statement->fetchAll())]);
     }
 
     if ($method === 'POST') {
         $participant = normalizeEventInput($event, readJsonBody());
         assertEventMemberExists($participant['mitgliedId']);
         assertEventParticipantNotExists($event, $participant);
+        $columns = ['event_id', ...EVENT_PARTICIPANT_COLUMNS];
         $placeholders = implode(', ', array_fill(0, count($columns), '?'));
-        db()->prepare('INSERT INTO ' . $table . ' (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')')
-            ->execute(eventParticipantValues($event, $participant));
+        db()->prepare('INSERT INTO event_teilnehmer (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')')
+            ->execute([$event['id'], ...eventParticipantValues($participant)]);
         $id = (int) db()->lastInsertId();
-        linkEventParticipantToMember($event, $id);
+        linkEventParticipantToMember($id);
         jsonResponse(['participant' => findEventParticipantById($event, $id)], 201);
     }
     unhandledMethod();
 }
 
-function handleEventParticipantResource(string $event, int $id): void
+function handleEventParticipantResource(string $key, int $id): void
 {
     $method = $_SERVER['REQUEST_METHOD'];
     assertMethodAllowed($method, ['GET', 'PUT', 'PATCH', 'DELETE']);
-    ensureEventTable($event);
-    $table = eventDefinition($event)['table'];
+    $event = eventDefinition($key);
     $existing = findEventParticipantById($event, $id);
     if (!$existing) throw new ApiError('Teilnehmer nicht gefunden.', 404);
 
@@ -1952,20 +2213,29 @@ function handleEventParticipantResource(string $event, int $id): void
     }
 
     if ($method === 'PUT' || $method === 'PATCH') {
-        $patch = normalizeEventInput($event, readJsonBody(), $method === 'PATCH');
+        $payload = readJsonBody();
+        $patch = normalizeEventInput($event, $payload, $method === 'PATCH');
+        // Ohne mitgeschicktes Gericht bleibt das gespeicherte - auch bei PUT nicht stillschweigend das erste der Auswahl.
+        if (!array_key_exists('essensauswahl', $payload)) unset($patch['essensauswahl']);
         $participant = array_replace($existing, $patch);
         $nameChanged = $participant['name'] !== $existing['name'] || $participant['vorname'] !== $existing['vorname'];
         if ($nameChanged) $participant['mitgliedId'] = null;
         assertEventMemberExists($participant['mitgliedId']);
-        $assignments = implode(', ', array_map(static fn(string $column) => $column . ' = ?', eventParticipantColumns($event)));
-        db()->prepare('UPDATE ' . $table . ' SET ' . $assignments . ' WHERE id = ?')
-            ->execute([...eventParticipantValues($event, $participant), $id]);
-        linkEventParticipantToMember($event, $id);
+        $assignments = implode(', ', array_map(static fn(string $column) => $column . ' = ?', EVENT_PARTICIPANT_COLUMNS));
+        // Ohne Essensauswahl bleibt ein frueher gewaehltes Gericht stehen, falls die Auswahl zurueckkommt.
+        if (!$event['mealOptions']) {
+            $statement = db()->prepare('SELECT essensauswahl FROM event_teilnehmer WHERE id = ?');
+            $statement->execute([$id]);
+            $participant['essensauswahl'] = (string) $statement->fetchColumn();
+        }
+        db()->prepare('UPDATE event_teilnehmer SET ' . $assignments . ' WHERE id = ?')
+            ->execute([...eventParticipantValues($participant), $id]);
+        linkEventParticipantToMember($id);
         jsonResponse(['participant' => findEventParticipantById($event, $id)]);
     }
 
     if ($method === 'DELETE') {
-        db()->prepare('DELETE FROM ' . $table . ' WHERE id = ?')->execute([$id]);
+        db()->prepare('DELETE FROM event_teilnehmer WHERE id = ?')->execute([$id]);
         noContent();
     }
     unhandledMethod();
@@ -1981,7 +2251,7 @@ const GEOCODE_TABLE_DDL = 'CREATE TABLE IF NOT EXISTS adress_koordinate (
   PRIMARY KEY (adresse_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
 
-/** Wie ensureEventTable: fehlt die Tabelle, legen wir sie an; sonst lesbarer Hinweis statt 500er. */
+/** Wie ensureEventTables: fehlt die Tabelle, legen wir sie an; sonst lesbarer Hinweis statt 500er. */
 function ensureGeocodeTable(): void
 {
     if (tableExists('adress_koordinate')) return;
@@ -2065,7 +2335,7 @@ const EXTERNAL_CONTACT_CATEGORY_TABLE_DDL = 'CREATE TABLE IF NOT EXISTS externe_
   UNIQUE KEY uq_externe_kontakt_kategorie_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
 
-/** Wie ensureEventTable: fehlt eine Tabelle, legen wir sie an; sonst lesbarer Hinweis statt 500er. */
+/** Wie ensureEventTables: fehlt eine Tabelle, legen wir sie an; sonst lesbarer Hinweis statt 500er. */
 function ensureExternalContactTables(): void
 {
     $tables = [

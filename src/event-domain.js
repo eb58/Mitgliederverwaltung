@@ -1,3 +1,5 @@
+import { formatCurrency, formatDateDE } from "./member-utils.js";
+
 const isMitfahrend = participant => !participant?.abgesagt;
 
 /**
@@ -107,13 +109,77 @@ export const toParticipantPayload = (participant, mealOptions = []) => ({
   mitgliedId: Number(participant.mitgliedId) > 0 ? Number(participant.mitgliedId) : null
 });
 
+/** "bezahlt: 3" - mit Preis auch der eingenommene Betrag. Abgesagte zaehlen nicht mit. */
+export const summarizePayments = (participants, preis = null) => {
+  const paid = participants.filter(participant => isMitfahrend(participant) && participant.bezahlt).length;
+  return preis ? `bezahlt: ${paid} (${formatCurrency(paid * preis)})` : `bezahlt: ${paid}`;
+};
+
 /** Bindet die Event-Konfiguration an die Helfer, damit die Aufrufer sie nicht mitschleppen. */
-export const createEventDomain = ({ mealOptions = [], maxSeats = Infinity }) => ({
-  mealOptions,
-  maxSeats,
-  numberParticipants: participants => numberParticipants(participants, maxSeats),
-  findMemberMatches: (members, participant) => findEventMemberMatches(members, participant),
-  sortByAnmeldung,
-  summarizeMeals: participants => summarizeMeals(participants, mealOptions),
-  toParticipantPayload: participant => toParticipantPayload(participant, mealOptions)
+export const createEventDomain = ({ mealOptions = [], maxSeats = Infinity, preis = null }) => {
+  const seats = maxSeats ?? Infinity;
+  return {
+    mealOptions,
+    maxSeats: seats,
+    numberParticipants: participants => numberParticipants(participants, seats),
+    findMemberMatches: (members, participant) => findEventMemberMatches(members, participant),
+    sortByAnmeldung,
+    summarizeMeals: participants => summarizeMeals(participants, mealOptions),
+    summarizePayments: participants => summarizePayments(participants, preis),
+    toParticipantPayload: participant => toParticipantPayload(participant, mealOptions)
+  };
+};
+
+/** Symbole fuer den Eintrag in der Navigation - dieselbe Liste wie EVENT_SYMBOLS in lib.php. */
+export const EVENT_SYMBOLS = [
+  { value: "kalender", label: "Termin" },
+  { value: "essen", label: "Essen" },
+  { value: "schiff", label: "Schiffsfahrt" },
+  { value: "bus", label: "Busfahrt" },
+  { value: "feier", label: "Feier" },
+  { value: "musik", label: "Musik" }
+];
+
+/**
+ * DOM-Ids eines Events: "event-<schluessel>-<teil>". Das Praefix haelt sie fern von den festen
+ * Ids der App - ein Event "Member" wuerde sonst mit memberForm kollidieren. Feste Ids duerfen deshalb
+ * nie mit "event-" beginnen (das Archiv heisst "events-archive-..."), sonst trifft sie ein Event gleichen Namens.
+ */
+export const eventDomId = (key, part) => `event-${key}-${part}`;
+
+/** "Zander, Rind; Vegie" oder je Zeile ein Gericht -> ["Zander", "Rind", "Vegie"] */
+export const parseMealOptions = text => String(text || "")
+  .split(/[,;\n]/)
+  .map(option => option.trim())
+  .filter(Boolean);
+
+export const formatMealOptions = options => (options || []).join(", ");
+
+export const activeEvents = events => events.filter(event => !event.archiviert);
+export const archivedEvents = events => events.filter(event => event.archiviert);
+
+/** Datum, Preis und freier Hinweis als Unterzeile von Liste und PDF. */
+export const describeEvent = event => [
+  event.datum ? formatDateDE(event.datum) : "",
+  event.preis ? `${formatCurrency(event.preis)} pro Person` : "",
+  (event.pdfHinweis || "").trim()
+].filter(Boolean).join(" · ");
+
+/** Formularwerte des Event-Dialogs -> Payload fuer POST/PUT /api/events */
+export const toEventPayload = values => ({
+  label: String(values.label || "").trim(),
+  datum: values.datum || null,
+  symbol: values.symbol || "kalender",
+  maxSeats: String(values.maxSeats ?? "").trim() === "" ? null : Number(values.maxSeats),
+  mealOptions: parseMealOptions(values.mealOptions),
+  preis: String(values.preis ?? "").trim() === "" ? null : Number(String(values.preis).replace(",", ".")),
+  pdfHinweis: String(values.pdfHinweis || "").trim(),
+  archiviert: Boolean(values.archiviert)
 });
+
+/** Wie die API: nach Datum, Events ohne Datum zuletzt, dann nach Bezeichnung. */
+export const sortEvents = events => [...events].sort((left, right) =>
+  (left.datum ? 0 : 1) - (right.datum ? 0 : 1)
+  || String(left.datum || "").localeCompare(String(right.datum || ""))
+  || left.label.localeCompare(right.label, "de")
+  || left.id - right.id);

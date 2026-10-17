@@ -49,11 +49,19 @@ try {
         handleReferenceDataResource($user, $matches[1], (int) $matches[2]);
     }
 
-    if (preg_match('#^/api/([a-z]+)-participants$#', $path, $matches)) {
+    if ($path === '/api/events') {
+        handleEventsCollection();
+    }
+
+    if (preg_match('#^/api/events/(\d+)$#', $path, $matches)) {
+        handleEventResource((int) $matches[1]);
+    }
+
+    if (preg_match('#^/api/([a-z0-9]+)-participants$#', $path, $matches)) {
         handleEventParticipantCollection($matches[1]);
     }
 
-    if (preg_match('#^/api/([a-z]+)-participants/(\d+)$#', $path, $matches)) {
+    if (preg_match('#^/api/([a-z0-9]+)-participants/(\d+)$#', $path, $matches)) {
         handleEventParticipantResource($matches[1], (int) $matches[2]);
     }
 

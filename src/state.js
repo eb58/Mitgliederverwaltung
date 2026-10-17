@@ -20,9 +20,8 @@ export const gridApis = {
   payments: null,
   christmas: null,
   historical: null,
-  guests: null,
-  warnemuende: null,
-  eisbeinessen: null
+  guests: null
+  // dazu je Event "event-<schluessel>" (event-manager.js)
 };
 
 export { AUTH_TOKEN_STORAGE_KEY };

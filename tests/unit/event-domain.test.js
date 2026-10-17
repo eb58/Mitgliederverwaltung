@@ -1,9 +1,27 @@
 import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
 
-import { eventConfigs } from "../../src/event-config.js";
-import { createEventDomain, describeMemberMatch, findEventMemberMatches, isUnambiguousMatch } from "../../src/event-domain.js";
+import {
+  activeEvents,
+  archivedEvents,
+  createEventDomain,
+  describeEvent,
+  describeMemberMatch,
+  eventDomId,
+  findEventMemberMatches,
+  formatMealOptions,
+  isUnambiguousMatch,
+  parseMealOptions,
+  sortEvents,
+  summarizePayments,
+  toEventPayload
+} from "../../src/event-domain.js";
 
+// So liefert sie die API (/api/events) nach der Uebernahme der alten Listen.
+const eventConfigs = {
+  warnemuende: { id: 1, key: "warnemuende", label: "Warnemünde", mealOptions: ["Zander", "Rind", "Vegie"], maxSeats: 50, preis: null },
+  eisbeinessen: { id: 2, key: "eisbeinessen", label: "Eisbeinessen", mealOptions: [], maxSeats: 30, preis: null }
+};
 const warnemuende = createEventDomain(eventConfigs.warnemuende);
 const eisbeinessen = createEventDomain(eventConfigs.eisbeinessen);
 const { numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } = warnemuende;
@@ -202,5 +220,92 @@ describe("isUnambiguousMatch", () => {
   it("uebernimmt einen vollstaendig passenden Namen ohne Rueckfrage", () => {
     const { eindeutig } = pruefe({ vorname: "Frauke", name: "Ewald" });
     expect(eindeutig).toBe(true);
+  });
+});
+
+describe("Event-Einstellungen", () => {
+  it("rechnet ohne Platzgrenze mit unbegrenzt vielen Plaetzen", () => {
+    const offen = createEventDomain({ mealOptions: [], maxSeats: null });
+    expect(offen.maxSeats).toBe(Infinity);
+    expect(offen.numberParticipants([{ id: 1 }, { id: 2 }]).some(participant => participant.nachruecker)).toBe(false);
+  });
+
+  it("zaehlt bezahlte Teilnehmer und mit Preis auch den Betrag", () => {
+    const participants = [
+      { id: 1, bezahlt: true },
+      { id: 2, bezahlt: true, abgesagt: true },
+      { id: 3, bezahlt: false }
+    ];
+    expect(summarizePayments(participants)).toBe("bezahlt: 1");
+    expect(summarizePayments(participants, 12.5).replace(/\s/g, " ")).toBe("bezahlt: 1 (12,50 €)");
+    expect(createEventDomain({ mealOptions: [], preis: 20 }).summarizePayments([{ bezahlt: true }, { bezahlt: true }]).replace(/\s/g, " ")).toBe("bezahlt: 2 (40,00 €)");
+  });
+
+  it("liest die Essensauswahl mit Komma, Semikolon oder je Zeile", () => {
+    expect(parseMealOptions(" Zander, Rind;Vegie\n\nSuppe ,")).toEqual(["Zander", "Rind", "Vegie", "Suppe"]);
+    expect(parseMealOptions("")).toEqual([]);
+    expect(parseMealOptions(undefined)).toEqual([]);
+    expect(formatMealOptions(["Zander", "Rind"])).toBe("Zander, Rind");
+    expect(formatMealOptions(undefined)).toBe("");
+  });
+
+  it("baut DOM-Ids mit Praefix, damit sie nicht mit festen Ids kollidieren", () => {
+    expect(eventDomId("member", "form")).toBe("event-member-form");
+  });
+
+  it("trennt aktive und archivierte Events", () => {
+    const events = [{ id: 1, archiviert: false }, { id: 2, archiviert: true }];
+    expect(activeEvents(events).map(event => event.id)).toEqual([1]);
+    expect(archivedEvents(events).map(event => event.id)).toEqual([2]);
+  });
+
+  it("sortiert nach Datum, Events ohne Datum zuletzt, dann nach Bezeichnung", () => {
+    const events = [
+      { id: 1, label: "Warnemünde", datum: null },
+      { id: 2, label: "Herbstfahrt", datum: "2027-09-01" },
+      { id: 3, label: "Eisbeinessen", datum: null },
+      { id: 4, label: "Frühlingsfest", datum: "2027-04-01" }
+    ];
+    expect(sortEvents(events).map(event => event.id)).toEqual([4, 2, 3, 1]);
+    expect(events[0].id).toBe(1);
+  });
+
+  it("beschreibt Datum, Preis und Hinweis in einer Zeile", () => {
+    expect(describeEvent({ datum: "2027-07-03", preis: 12.5, pdfHinweis: " Geschirr mitbringen " }).replace(/\s/g, " "))
+      .toBe("03.07.2027 · 12,50 € pro Person · Geschirr mitbringen");
+    expect(describeEvent({ datum: null, preis: null, pdfHinweis: "Selbstbeteiligung liegt bei 20 Euro." })).toBe("Selbstbeteiligung liegt bei 20 Euro.");
+    expect(describeEvent({})).toBe("");
+  });
+
+  it("macht aus den Formularwerten die Daten fuer die API", () => {
+    expect(toEventPayload({
+      label: " Sommerfest ",
+      datum: "2027-07-03",
+      symbol: "feier",
+      maxSeats: "80",
+      mealOptions: "Grillwurst, Salat",
+      preis: "12,50",
+      pdfHinweis: " Bitte Geschirr mitbringen ",
+      archiviert: false
+    })).toEqual({
+      label: "Sommerfest",
+      datum: "2027-07-03",
+      symbol: "feier",
+      maxSeats: 80,
+      mealOptions: ["Grillwurst", "Salat"],
+      preis: 12.5,
+      pdfHinweis: "Bitte Geschirr mitbringen",
+      archiviert: false
+    });
+    expect(toEventPayload({ label: "Kegeln", datum: "", maxSeats: " ", preis: "", archiviert: "on" })).toEqual({
+      label: "Kegeln",
+      datum: null,
+      symbol: "kalender",
+      maxSeats: null,
+      mealOptions: [],
+      preis: null,
+      pdfHinweis: "",
+      archiviert: true
+    });
   });
 });

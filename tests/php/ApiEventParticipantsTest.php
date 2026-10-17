@@ -3,10 +3,14 @@ declare(strict_types=1);
 
 final class ApiEventParticipantsTest extends DatabaseTestCase
 {
+    /** IDs aus dem Schema-Seed */
+    private const WARNEMUENDE = 1;
+    private const EISBEINESSEN = 2;
+
     private function insertParticipant(string $name, string $vorname, string $essensauswahl = 'Zander', ?int $mitgliedId = null): int
     {
-        db()->prepare('INSERT INTO warnemuende_teilnehmer (name, vorname, essensauswahl, mitglied_id) VALUES (?, ?, ?, ?)')
-            ->execute([$name, $vorname, $essensauswahl, $mitgliedId]);
+        db()->prepare('INSERT INTO event_teilnehmer (event_id, name, vorname, essensauswahl, mitglied_id) VALUES (?, ?, ?, ?, ?)')
+            ->execute([self::WARNEMUENDE, $name, $vorname, $essensauswahl, $mitgliedId]);
         return (int) db()->lastInsertId();
     }
 
@@ -35,7 +39,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->assertSame('Brandl', $response->payload['participant']['name']);
         $this->assertSame('Erich', $response->payload['participant']['vorname']);
         $this->assertSame(439, $response->payload['participant']['mitgliedId']);
-        $this->assertSame(1, $this->countRows('warnemuende_teilnehmer'));
+        $this->assertSame(1, $this->countRows('event_teilnehmer', 'event_id = 1'));
     }
 
     public function testWarnemuendeVerknuepftNeueTeilnehmerEindeutigMitMitgliedern(): void
@@ -51,8 +55,8 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
 
         $this->assertSame(80, $linked['mitgliedId']);
         $this->assertNull($duplicate['mitgliedId']);
-        $this->assertSame(80, (int) db()->query("SELECT mitglied_id FROM warnemuende_teilnehmer WHERE name = 'Jeschon'")->fetchColumn());
-        $this->assertNull(db()->query("SELECT mitglied_id FROM warnemuende_teilnehmer WHERE name = 'Doppelt'")->fetchColumn());
+        $this->assertSame(80, (int) db()->query("SELECT mitglied_id FROM event_teilnehmer WHERE name = 'Jeschon'")->fetchColumn());
+        $this->assertNull(db()->query("SELECT mitglied_id FROM event_teilnehmer WHERE name = 'Doppelt'")->fetchColumn());
     }
 
     public function testCreateAcceptsSpellingsOfThePaperList(): void
@@ -81,7 +85,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->request('POST', ['name' => 'Brandl', 'vorname' => 'Erich', 'mitgliedId' => 4711]);
 
         $this->assertApiError(400, 'Unbekannte DB-ID', static fn() => handleEventParticipantCollection('warnemuende'));
-        $this->assertSame(0, $this->countRows('warnemuende_teilnehmer'));
+        $this->assertSame(0, $this->countRows('event_teilnehmer', 'event_id = 1'));
     }
 
     public function testCreateStoresPaymentFlagAndNote(): void
@@ -112,7 +116,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->request('POST', ['name' => 'Brandl', 'vorname' => 'Erich', 'essensauswahl' => 'Rind', 'mitgliedId' => 439]);
 
         $this->assertApiError(409, 'Erich Brandl ist bereits in dieser Teilnehmerliste vorhanden', static fn() => handleEventParticipantCollection('warnemuende'));
-        $this->assertSame(1, $this->countRows('warnemuende_teilnehmer'));
+        $this->assertSame(1, $this->countRows('event_teilnehmer', 'event_id = 1'));
     }
 
     public function testCreateRejectsUnlinkedParticipantWithSameName(): void
@@ -121,7 +125,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->request('POST', ['name' => ' namenlos ', 'vorname' => ' fantasie ', 'essensauswahl' => 'Rind']);
 
         $this->assertApiError(409, 'fantasie namenlos ist bereits in dieser Teilnehmerliste vorhanden', static fn() => handleEventParticipantCollection('warnemuende'));
-        $this->assertSame(1, $this->countRows('warnemuende_teilnehmer'));
+        $this->assertSame(1, $this->countRows('event_teilnehmer', 'event_id = 1'));
     }
 
     public function testCreateAllowsDifferentMembersWithSameName(): void
@@ -132,7 +136,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->request('POST', ['name' => 'Doppelt', 'vorname' => 'Erika', 'essensauswahl' => 'Rind', 'mitgliedId' => 81]);
 
         $this->assertSame(201, $this->capture(static fn() => handleEventParticipantCollection('warnemuende'))->statusCode);
-        $this->assertSame(2, $this->countRows('warnemuende_teilnehmer'));
+        $this->assertSame(2, $this->countRows('event_teilnehmer', 'event_id = 1'));
     }
 
     public function testResourceUpdatesParticipant(): void
@@ -176,7 +180,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $participant = $this->capture(static fn() => handleEventParticipantResource('warnemuende', $id))->payload['participant'];
 
         $this->assertSame(81, $participant['mitgliedId']);
-        $this->assertSame(81, (int) db()->query('SELECT mitglied_id FROM warnemuende_teilnehmer WHERE id = ' . $id)->fetchColumn());
+        $this->assertSame(81, (int) db()->query('SELECT mitglied_id FROM event_teilnehmer WHERE id = ' . $id)->fetchColumn());
     }
 
     public function testNameChangeClearsStaleMemberReferenceWithoutUniqueMatch(): void
@@ -190,7 +194,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $participant = $this->capture(static fn() => handleEventParticipantResource('warnemuende', $id))->payload['participant'];
 
         $this->assertNull($participant['mitgliedId']);
-        $this->assertNull(db()->query('SELECT mitglied_id FROM warnemuende_teilnehmer WHERE id = ' . $id)->fetchColumn());
+        $this->assertNull(db()->query('SELECT mitglied_id FROM event_teilnehmer WHERE id = ' . $id)->fetchColumn());
     }
 
     public function testUpdateClearsMemberReferenceWithZero(): void
@@ -221,32 +225,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->request('DELETE');
 
         $this->assertSame(204, $this->capture(static fn() => handleEventParticipantResource('warnemuende', $id))->statusCode);
-        $this->assertSame(0, $this->countRows('warnemuende_teilnehmer'));
-    }
-
-    public function testMissingTableIsCreatedOnDemand(): void
-    {
-        db()->exec('DROP TABLE warnemuende_teilnehmer');
-        clearSchemaCache();
-        $this->request('GET');
-
-        $this->assertSame([], $this->capture(static fn() => handleEventParticipantCollection('warnemuende'))->payload['participants']);
-
-        $this->request('POST', ['name' => 'Barz', 'vorname' => 'Peter', 'essensauswahl' => 'Rind']);
-        $this->assertSame('Rind', $this->capture(static fn() => handleEventParticipantCollection('warnemuende'))->payload['participant']['essensauswahl']);
-    }
-
-    /** Ohne Essensauswahl darf die erzeugte Tabelle die Spalte auch nicht haben. */
-    public function testEventWithoutMealsGetsTableWithoutMealColumn(): void
-    {
-        db()->exec('DROP TABLE eisbeinessen_teilnehmer');
-        clearSchemaCache();
-        $this->request('POST', ['name' => 'Witt', 'vorname' => 'Gisela']);
-
-        $participant = $this->capture(static fn() => handleEventParticipantCollection('eisbeinessen'))->payload['participant'];
-
-        $this->assertSame(['id', 'name', 'vorname', 'bezahlt', 'abgesagt', 'bemerkung', 'mitgliedId'], array_keys($participant));
-        $this->assertFalse(tableHasColumn('eisbeinessen_teilnehmer', 'essensauswahl'));
+        $this->assertSame(0, $this->countRows('event_teilnehmer', 'event_id = 1'));
     }
 
     public function testUnknownParticipantIsRejected(): void
@@ -285,8 +264,8 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
         $this->assertTrue($participant['bezahlt']);
         $this->assertSame('am Fenster', $participant['bemerkung']);
         $this->assertSame(439, $participant['mitgliedId']);
-        $this->assertSame(439, (int) db()->query('SELECT mitglied_id FROM eisbeinessen_teilnehmer')->fetchColumn());
-        $this->assertSame(1, $this->countRows('eisbeinessen_teilnehmer'));
+        $this->assertSame(439, (int) db()->query('SELECT mitglied_id FROM event_teilnehmer WHERE event_id = 2')->fetchColumn());
+        $this->assertSame(1, $this->countRows('event_teilnehmer', 'event_id = 2'));
     }
 
     public function testEisbeinessenLehntEssensauswahlAb(): void
@@ -298,7 +277,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
 
     public function testEisbeinessenAendertUndLoeschtTeilnehmer(): void
     {
-        db()->prepare('INSERT INTO eisbeinessen_teilnehmer (name, vorname) VALUES (?, ?)')->execute(['Witt', 'Gisela']);
+        db()->prepare('INSERT INTO event_teilnehmer (event_id, name, vorname) VALUES (?, ?, ?)')->execute([self::EISBEINESSEN, 'Witt', 'Gisela']);
         $id = (int) db()->lastInsertId();
 
         $this->request('PATCH', ['abgesagt' => true]);
@@ -308,7 +287,7 @@ final class ApiEventParticipantsTest extends DatabaseTestCase
 
         $this->request('DELETE');
         $this->assertSame(204, $this->capture(static fn() => handleEventParticipantResource('eisbeinessen', $id))->statusCode);
-        $this->assertSame(0, $this->countRows('eisbeinessen_teilnehmer'));
+        $this->assertSame(0, $this->countRows('event_teilnehmer', 'event_id = 2'));
     }
 
     public function testEventsTeilenSichDieTabellenNicht(): void

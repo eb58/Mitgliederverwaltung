@@ -9,8 +9,8 @@ final class TestDatabase
 {
     public const PASSWORD = 'geheim123';
 
-    /** Stammdatentabellen: werden je Test aus dem Schema-Seed neu aufgebaut. */
-    private const REFERENCE_TABLES = ['seniorenclub', 'austrittsgrund', 'interessengruppe', 'funktion'];
+    /** Stammdaten- und Eventtabellen: werden je Test aus dem Schema-Seed neu aufgebaut. */
+    private const REFERENCE_TABLES = ['seniorenclub', 'austrittsgrund', 'interessengruppe', 'funktion', 'event', 'event_migration'];
 
     private static ?PDO $pdo = null;
     private static ?string $failure = null;
@@ -106,7 +106,7 @@ final class TestDatabase
         // Das tmpfs der Test-DB ist nach einem Container-Neustart leer.
         if (!self::schemaIsComplete($pdo)) self::loadSchema($pdo);
 
-        $tables = ['adress_koordinate', 'externe_kontakte', 'externe_kontakt_kategorie', 'eisbeinessen_teilnehmer', 'warnemuende_teilnehmer', 'mitglied_aenderung', 'mitglied_passbild', 'mitglied_funktion', 'mitglied_interessengruppe', 'mitglied_weihnachtsessen', 'mitglied_zahlung', 'mitglied', 'app_login_attempt', 'app_session', 'app_user', ...self::REFERENCE_TABLES];
+        $tables = ['adress_koordinate', 'externe_kontakte', 'externe_kontakt_kategorie', 'event_teilnehmer', 'eisbeinessen_teilnehmer', 'warnemuende_teilnehmer', 'mitglied_aenderung', 'mitglied_passbild', 'mitglied_funktion', 'mitglied_interessengruppe', 'mitglied_weihnachtsessen', 'mitglied_zahlung', 'mitglied', 'app_login_attempt', 'app_session', 'app_user', ...self::REFERENCE_TABLES];
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
         foreach ($tables as $table) {
             $pdo->exec('TRUNCATE TABLE ' . $table);

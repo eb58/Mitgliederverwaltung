@@ -497,7 +497,7 @@ final class ApiMemberTest extends DatabaseTestCase
         self::insertZahlung(10, self::jahr(-1), 30, self::jahr(-1) . '-02-01');
         self::insertZahlung(10, self::jahr(), 15, self::jahr() . '-01-10');
         self::insertZahlung(20, self::jahr(), 30, self::jahr() . '-02-05');
-        db()->exec("INSERT INTO warnemuende_teilnehmer (name, vorname, essensauswahl, mitglied_id) VALUES ('Lieven', 'Alexander', 'Rind', 10)");
+        db()->exec("INSERT INTO event_teilnehmer (event_id, name, vorname, essensauswahl, mitglied_id) VALUES (1, 'Lieven', 'Alexander', 'Rind', 10)");
         auditMemberChange(10, 'updated', [], self::ADMIN);
         $this->request('POST', ['sourceId' => 10, 'fromSource' => ['eintrittsdatum', 'strasse', 'plz']]);
 
@@ -513,7 +513,7 @@ final class ApiMemberTest extends DatabaseTestCase
         $this->assertSame([self::jahr(), self::jahr(-1)], array_map('intval', array_column($member['zahlungen'], 'beitragsjahr')));
         $this->assertSame(0, $this->countRows('mitglied', 'id = 10'));
         $this->assertSame(0, $this->countRows('mitglied_zahlung', 'mitglied_id = 10'));
-        $this->assertSame(1, $this->countRows('warnemuende_teilnehmer', 'mitglied_id = 20'));
+        $this->assertSame(1, $this->countRows('event_teilnehmer', 'mitglied_id = 20'));
         $this->assertSame(2, $this->countRows('mitglied_aenderung', 'mitglied_id = 20'));
         $audit = json_decode((string) $this->fetchColumn("SELECT aenderungen_json FROM mitglied_aenderung WHERE mitglied_id = 20 AND aktion = 'merged'"), true);
         $this->assertContains('eintrittsdatum', array_column($audit, 'field'));

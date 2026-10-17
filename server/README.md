@@ -26,6 +26,11 @@ POST   /api/users
 PUT    /api/users/{id}
 PATCH  /api/users/{id}
 DELETE /api/users/{id}
+GET    /api/events
+POST   /api/events
+GET    /api/events/{id}
+PUT    /api/events/{id}
+DELETE /api/events/{id}
 GET    /api/{event}-participants
 POST   /api/{event}-participants
 GET    /api/{event}-participants/{id}
@@ -50,9 +55,12 @@ DELETE /api/reference-data/{type}/{id}
 GET    /health
 ```
 
-`{event}` ist einer der in `eventDefinition()` (`lib.php`) eingetragenen Schluessel:
-`warnemuende` (mit Essensauswahl) und `eisbeinessen` (ohne). Jedes Event hat eine eigene Tabelle
-`<event>_teilnehmer`; ein unbekannter Schluessel liefert 404.
+Events legt jeder angemeldete Benutzer in der Oberflaeche an (`/api/events`, Tabelle `event`): Bezeichnung,
+Datum, Plaetze, Essensauswahl, Preis pro Person, Hinweis fuer die PDF-Liste, Symbol und "archiviert".
+Den Schluessel `{event}` bildet die API beim Anlegen aus der Bezeichnung ("Sommerfest 2027" -> `sommerfest2027`);
+er aendert sich danach nicht mehr. Alle Teilnehmer liegen gemeinsam in `event_teilnehmer`; ein unbekannter
+Schluessel liefert 404. Loeschen geht nur bei leerer Teilnehmerliste (sonst 409 - archivieren), und ein Gericht,
+das noch jemand gewaehlt hat, laesst sich nicht aus der Essensauswahl streichen (409).
 
 `/api/external-contacts` ist die allgemeine Adressverwaltung (Tabelle `externe_kontakte`): Musiker,
 Bezirksamt, Reinigungsfirma, Vermieter usw. Pflicht ist nur Name oder Firma. Als Kategorie gilt eine der festen
@@ -96,7 +104,7 @@ und das Entfernen der ungenutzten Spalten `preis_club`, `preis_computer` und `pr
 Ohne `app_login_attempt` meldet sich die API weiterhin an, nur eben ohne Drosselung der
 Fehlversuche.
 
-Ausnahme sind die Teilnehmertabellen der Events: Fehlt `<key>_teilnehmer`, legt die API sie beim ersten Zugriff selbst an. Ein neues Event laeuft damit ohne Schema-Import - vorausgesetzt, der DB-Benutzer darf `CREATE TABLE`. Darf er es nicht, meldet die API weiterhin einen lesbaren 503er.
+Ausnahme sind die Event-Tabellen: Fehlen `event` und `event_teilnehmer`, legt die API sie beim ersten Zugriff selbst an und uebernimmt dabei Warnemuende und Eisbeinessen samt Teilnehmern aus den frueheren Tabellen `warnemuende_teilnehmer` und `eisbeinessen_teilnehmer` (`ensureEventTables()`). Jede alte Liste zieht in einer eigenen Transaktion um und wird in `event_migration` vermerkt; scheitert die Uebernahme, versucht der naechste Zugriff es erneut. Die alten Tabellen bleiben unangetastet stehen und koennen spaeter von Hand geloescht werden. Voraussetzung ist, dass der DB-Benutzer `CREATE TABLE` darf. Darf er es nicht, meldet die API einen lesbaren 503er; dann den Event-Nachtrag am Ende von `schema.mysql.sql` einspielen.
 
 ## Betrieb ohne mod_rewrite
 

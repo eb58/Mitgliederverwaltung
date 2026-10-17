@@ -400,3 +400,60 @@ CREATE TABLE externe_kontakt_kategorie (
   PRIMARY KEY (id),
   UNIQUE KEY uq_externe_kontakt_kategorie_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Events legt man jetzt in der Oberflaeche an: Beschreibung in event, alle Teilnehmer gemeinsam
+-- in event_teilnehmer. Die bisherigen Listen ziehen um, ihre alten Tabellen bleiben stehen.
+-- Im Betrieb erledigt ensureEventTables() das beim ersten Zugriff selbst.
+CREATE TABLE event (
+  id INT NOT NULL AUTO_INCREMENT,
+  schluessel VARCHAR(40) NOT NULL,
+  bezeichnung VARCHAR(120) NOT NULL,
+  datum DATE NULL,
+  symbol VARCHAR(20) NOT NULL DEFAULT 'kalender',
+  max_plaetze INT NULL,
+  essensauswahl TEXT NULL,
+  preis DECIMAL(8,2) NULL,
+  pdf_hinweis VARCHAR(255) NOT NULL DEFAULT '',
+  archiviert TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_event_schluessel (schluessel)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE event_teilnehmer (
+  id INT NOT NULL AUTO_INCREMENT,
+  event_id INT NOT NULL,
+  name VARCHAR(120) NOT NULL,
+  vorname VARCHAR(120) NOT NULL,
+  essensauswahl VARCHAR(60) NOT NULL DEFAULT '',
+  bezahlt TINYINT(1) NOT NULL DEFAULT 0,
+  abgesagt TINYINT(1) NOT NULL DEFAULT 0,
+  bemerkung TEXT NULL,
+  mitglied_id INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_event_teilnehmer_name (event_id, name, vorname),
+  CONSTRAINT fk_event_teilnehmer_event FOREIGN KEY (event_id) REFERENCES event (id),
+  CONSTRAINT fk_event_teilnehmer_mitglied FOREIGN KEY (mitglied_id) REFERENCES mitglied (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Welche alte Liste schon umgezogen ist: ensureEventTables() versucht es sonst bei jedem Zugriff erneut.
+CREATE TABLE event_migration (
+  schluessel VARCHAR(40) NOT NULL,
+  migriert_am TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (schluessel)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO event_migration (schluessel) VALUES ('warnemuende'), ('eisbeinessen');
+
+INSERT INTO event (id, schluessel, bezeichnung, symbol, max_plaetze, essensauswahl, pdf_hinweis) VALUES
+  (1, 'warnemuende', 'Warnemünde', 'schiff', 50, '["Zander","Rind","Vegie"]', ''),
+  (2, 'eisbeinessen', 'Eisbeinessen', 'essen', 30, '[]', 'Selbstbeteiligung liegt bei 20 Euro.');
+
+INSERT INTO event_teilnehmer (event_id, name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id, created_at, updated_at)
+SELECT 1, name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id, created_at, updated_at FROM warnemuende_teilnehmer ORDER BY id;
+
+INSERT INTO event_teilnehmer (event_id, name, vorname, essensauswahl, bezahlt, abgesagt, bemerkung, mitglied_id, created_at, updated_at)
+SELECT 2, name, vorname, '', bezahlt, abgesagt, bemerkung, mitglied_id, created_at, updated_at FROM eisbeinessen_teilnehmer ORDER BY id;

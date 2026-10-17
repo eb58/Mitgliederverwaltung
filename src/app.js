@@ -53,7 +53,7 @@ import { showToast } from "./ui.js";
 import { initTheme } from "./theme.js";
 import { createUserAdmin } from "./user-admin.js";
 import { createEventAdmin } from "./event-admin.js";
-import { eventList } from "./event-config.js";
+import { createEventManager } from "./event-manager.js";
 import { createEventMemberMatchDialog } from "./event-member-match.js";
 import { createConfirmDialog } from "./confirm-dialog.js";
 import { createDirtyForms } from "./dirty-forms.js";
@@ -70,6 +70,7 @@ const {
   createMember: createMemberViaApi,
   createReferenceItem: createReferenceItemViaApi,
   createUser: createUserViaApi,
+  createEvent: createEventViaApi,
   createEventParticipant: createEventParticipantViaApi,
   createExternalContact: createExternalContactViaApi,
   createExternalContactCategory: createExternalContactCategoryViaApi,
@@ -77,6 +78,7 @@ const {
   deleteExternalContact: deleteExternalContactViaApi,
   deleteExternalContactCategory: deleteExternalContactCategoryViaApi,
   deleteReferenceItem: deleteReferenceItemViaApi,
+  deleteEvent: deleteEventViaApi,
   deleteEventParticipant: deleteEventParticipantViaApi,
   fetchMemberPhotoObjectUrl,
   invalidateMemberPhotoCache,
@@ -89,6 +91,7 @@ const {
   loadReferenceData: loadReferenceDataFromApi,
   loadReferenceItems: loadReferenceItemsFromApi,
   loadUsers: loadUsersFromApi,
+  loadEvents: loadEventsFromApi,
   loadEventParticipants: loadEventParticipantsFromApi,
   loadExternalContacts: loadExternalContactsFromApi,
   loadExternalContactCategories: loadExternalContactCategoriesFromApi,
@@ -96,6 +99,7 @@ const {
   updateMember: updateMemberViaApi,
   updateReferenceItem: updateReferenceItemViaApi,
   updateUser: updateUserViaApi,
+  updateEvent: updateEventViaApi,
   updateEventParticipant: updateEventParticipantViaApi,
   updateExternalContact: updateExternalContactViaApi,
   uploadMemberPhoto: uploadMemberPhotoViaApi
@@ -131,24 +135,31 @@ const referenceAdmin = createReferenceAdmin({
 
 const eventMemberMatchDialog = createEventMemberMatchDialog();
 
-const eventAdmins = eventList.map(event => createEventAdmin({
+// Events legen die Benutzer selbst an; je Event baut der Manager eine Teilnehmerliste (event-admin.js).
+const eventManager = createEventManager({
+  api: { createEvent: createEventViaApi, deleteEvent: deleteEventViaApi, loadEvents: loadEventsFromApi, updateEvent: updateEventViaApi },
   confirmAction: options => confirmDialog.ask(options),
-  confirmMemberMatch: options => eventMemberMatchDialog.choose(options),
-  createGrid: (gridKey, containerId, columnDefs, overrides) => createGrid(gridKey, containerId, columnDefs, overrides),
-  createParticipant: participant => createEventParticipantViaApi(event.key, participant),
-  deleteParticipant: id => deleteEventParticipantViaApi(event.key, id),
-  dirtyForms,
-  event,
-  getMembers: () => state.members,
-  loadParticipants: () => loadEventParticipantsFromApi(event.key),
-  // Teilnehmer ohne Clubmitgliedschaft haben kein Passbild - dann bleibt das Platzhalterbild stehen.
-  resolveParticipantPhoto: mitgliedId => {
-    const member = state.members.find(entry => entry.id === Number(mitgliedId));
-    return member ? resolveMemberPhotoDataUrl(member) : Promise.resolve(null);
-  },
-  setFallbackPhoto: wrapper => setFallbackPhoto(wrapper),
-  updateParticipant: participant => updateEventParticipantViaApi(event.key, participant)
-}));
+  createAdmin: (event, { editSettings }) => createEventAdmin({
+    confirmAction: options => confirmDialog.ask(options),
+    confirmMemberMatch: options => eventMemberMatchDialog.choose(options),
+    createGrid: (gridKey, containerId, columnDefs, overrides) => createGrid(gridKey, containerId, columnDefs, overrides),
+    createParticipant: participant => createEventParticipantViaApi(event.key, participant),
+    deleteParticipant: id => deleteEventParticipantViaApi(event.key, id),
+    dirtyForms,
+    editSettings,
+    event,
+    getMembers: () => state.members,
+    loadParticipants: () => loadEventParticipantsFromApi(event.key),
+    // Teilnehmer ohne Clubmitgliedschaft haben kein Passbild - dann bleibt das Platzhalterbild stehen.
+    resolveParticipantPhoto: mitgliedId => {
+      const member = state.members.find(entry => entry.id === Number(mitgliedId));
+      return member ? resolveMemberPhotoDataUrl(member) : Promise.resolve(null);
+    },
+    setFallbackPhoto: wrapper => setFallbackPhoto(wrapper),
+    updateParticipant: participant => updateEventParticipantViaApi(event.key, participant)
+  }),
+  dirtyForms
+});
 
 const contactAdmin = createContactAdmin({
   confirmAction: options => confirmDialog.ask(options),
@@ -253,7 +264,7 @@ const loadAppData = async () => {
   const [, loadedMembers] = await Promise.all([
     retryAsync(referenceAdmin.load),
     retryAsync(loadMembersFromApi),
-    ...eventAdmins.map(admin => admin.load()),
+    eventManager.load(),
     contactAdmin.load()
   ]);
   state.members = loadedMembers;
@@ -326,25 +337,26 @@ const wireUi = () => {
 
   wireSidebarGroups();
 
-  document.querySelectorAll('#mainTabs button[data-bs-toggle="tab"]').forEach(tabButton => {
-    // Wechsel in einen anderen Hauptpunkt erst, wenn offene Eingaben gespeichert oder verworfen sind
-    tabButton.addEventListener("show.bs.tab", event => {
-      if (!dirtyForms.hasDirty()) return;
-      event.preventDefault();
-      dirtyForms.confirmLeave(null, () => Tab.getOrCreateInstance(tabButton).show());
-    });
-    tabButton.addEventListener("shown.bs.tab", event => {
-      localStorage.setItem(LAST_VIEW_STORAGE_KEY, event.target.id);
-      updateGlobalSearchVisibility(event.target.dataset.bsTarget);
-      syncSidebarGroups(event.target);
-      if (event.target.dataset.bsTarget === "#member-map-pane") memberMap.render();
-      if (event.target.dataset.bsTarget === "#changes-pane") {
-        refreshRecentChanges({ force: true });
-      }
-      setTimeout(() => {
-        Object.entries(gridApis).forEach(([gridKey, api]) => fitGridColumnsIfNeeded(gridKey, api));
-      }, 10);
-    });
+  // An der Navigation statt an jedem Eintrag: so gilt es auch fuer spaeter angelegte Events.
+  const mainTabs = document.getElementById("mainTabs");
+  // Wechsel in einen anderen Hauptpunkt erst, wenn offene Eingaben gespeichert oder verworfen sind
+  mainTabs.addEventListener("show.bs.tab", event => {
+    if (!dirtyForms.hasDirty()) return;
+    event.preventDefault();
+    const tabButton = event.target;
+    dirtyForms.confirmLeave(null, () => Tab.getOrCreateInstance(tabButton).show());
+  });
+  mainTabs.addEventListener("shown.bs.tab", event => {
+    localStorage.setItem(LAST_VIEW_STORAGE_KEY, event.target.id);
+    updateGlobalSearchVisibility(event.target.dataset.bsTarget);
+    syncSidebarGroups(event.target);
+    if (event.target.dataset.bsTarget === "#member-map-pane") memberMap.render();
+    if (event.target.dataset.bsTarget === "#changes-pane") {
+      refreshRecentChanges({ force: true });
+    }
+    setTimeout(() => {
+      Object.entries(gridApis).forEach(([gridKey, api]) => fitGridColumnsIfNeeded(gridKey, api));
+    }, 10);
   });
 
   const sidebar = document.getElementById("sidebar");
@@ -478,7 +490,7 @@ const initGrids = () => {
   gridApis.christmas = createGrid("christmas", "christmasGrid", getChristmasColumns());
   gridApis.historical = createGrid("historical", "historicalGrid", getHistoricalColumns());
   gridApis.guests = createGrid("guests", "guestsGrid", getGuestsColumns(), { rowClassRules: {} });
-  eventAdmins.forEach(admin => { gridApis[admin.key] = admin.init(); });
+  eventManager.initGrids();
 };
 
 const wireGridFilterControls = (gridDiv, api) => {
@@ -1011,7 +1023,7 @@ const refreshAllViews = () => {
     .filter(m => !isActiveMember(m))
     .sort(sortByName);
   setGridData(gridApis.historical, historicalMembers);
-  eventAdmins.forEach(admin => gridApis[admin.key]?.refreshCells({ columns: ["passbild"], force: true }));
+  eventManager.admins().forEach(admin => gridApis[admin.gridKey]?.refreshCells({ columns: ["passbild"], force: true }));
 
   refreshDashboard();
 

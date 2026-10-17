@@ -51,6 +51,8 @@ const pdfText = value => [...String(value ?? "")]
   .map(char => {
     const code = char.charCodeAt(0);
     if (char === "(" || char === ")" || char === "\\") return `\\${char}`;
+    // Das Euro-Zeichen liegt in WinAnsi auf 0x80 (Preis pro Person im Untertitel)
+    if (char === "€") return "\\200";
     if (code < 32 || code > 255) return code > 255 ? "?" : " ";
     return code > 126 ? `\\${code.toString(8).padStart(3, "0")}` : char;
   })

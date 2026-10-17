@@ -6,18 +6,15 @@ export const searchableTabTargets = new Set([
   "#payments-pane",
   "#christmas-pane",
   "#historical-pane",
-  "#guests-pane",
-  "#warnemuende-pane",
-  "#eisbeinessen-pane"
+  "#guests-pane"
+  // Events traegt event-manager.js zur Laufzeit ein
 ]);
 export const gridApiByTabTarget = {
   "#overview-pane": "overview",
   "#payments-pane": "payments",
   "#christmas-pane": "christmas",
   "#historical-pane": "historical",
-  "#guests-pane": "guests",
-  "#warnemuende-pane": "warnemuende",
-  "#eisbeinessen-pane": "eisbeinessen"
+  "#guests-pane": "guests"
 };
 
 export const gridLocaleText = {

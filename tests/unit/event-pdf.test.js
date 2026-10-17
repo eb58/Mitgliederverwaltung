@@ -1,8 +1,13 @@
 import { describe, it } from "node:test";
 import { expect } from "./assertions.js";
 
-import { eventConfigs } from "../../src/event-config.js";
 import { buildEventPdf, pdfToBytes } from "../../src/event-pdf.js";
+
+// So uebergibt event-admin.js die Events: pdfTitleNote ist describeEvent() aus Datum, Preis und Hinweis.
+const eventConfigs = {
+  warnemuende: { key: "warnemuende", label: "Warnemünde", mealOptions: ["Zander", "Rind", "Vegie"], maxSeats: 50 },
+  eisbeinessen: { key: "eisbeinessen", label: "Eisbeinessen", mealOptions: [], maxSeats: 30, pdfTitleNote: "Selbstbeteiligung liegt bei 20 Euro." }
+};
 
 const buildWarnemuendePdf = (participants, options = {}) => buildEventPdf(participants, { event: eventConfigs.warnemuende, ...options });
 
@@ -103,5 +108,11 @@ describe("Event-PDF", () => {
     const bytes = pdfToBytes("Aä");
 
     expect([...bytes]).toEqual([65, 228]);
+  });
+
+  it("schreibt das Euro-Zeichen im WinAnsi-Code statt als Fragezeichen", () => {
+    const pdf = buildEventPdf([participant(1)], { event: { ...eventConfigs.eisbeinessen, pdfTitleNote: "12,50 € pro Person" } });
+
+    expect(pdf).toContain("(12,50 \\200 pro Person) Tj");
   });
 });

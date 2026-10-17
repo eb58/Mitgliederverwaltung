@@ -92,9 +92,16 @@ const json = (route, body, status = 200) => route.fulfill({
 const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailures = 0, staleToken = "" } = {}) => {
   const currentReferenceData = structuredClone(referenceData);
   const geocodeEntries = {};
+  const eventDefaults = { datum: null, symbol: "kalender", maxSeats: null, mealOptions: [], preis: null, pdfHinweis: "", archiviert: false, participantCount: 0 };
+  const events = [
+    { ...eventDefaults, id: 1, key: "warnemuende", label: "Warnemünde", symbol: "schiff", maxSeats: 50, mealOptions: ["Zander", "Rind", "Vegie"], participantCount: 1 },
+    { ...eventDefaults, id: 2, key: "eisbeinessen", label: "Eisbeinessen", symbol: "essen", maxSeats: 30, pdfHinweis: "Selbstbeteiligung liegt bei 20 Euro.", participantCount: 1 },
+    { ...eventDefaults, id: 3, key: "gruenkohl2025", label: "Grünkohl 2025", datum: "2025-11-15", archiviert: true, participantCount: 1 }
+  ];
   const participantsByEvent = {
     warnemuende: [{ id: 1, name: "Müller", vorname: "Anna", essensauswahl: "Zander", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }],
-    eisbeinessen: [{ id: 1, name: "Müller", vorname: "Anna", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }]
+    eisbeinessen: [{ id: 1, name: "Müller", vorname: "Anna", bezahlt: false, abgesagt: false, bemerkung: "", mitgliedId: 1 }],
+    gruenkohl2025: [{ id: 1, name: "Altbekannt", vorname: "Otto", bezahlt: true, abgesagt: false, bemerkung: "", mitgliedId: null }]
   };
   const externalContacts = [
     { id: 1, kategorie: "Musiker", firma: "", name: "Spielmann", vorname: "Franz", zustaendigkeit: "Akkordeon", strasse: "", plz: "", ort: "", telefon: "030 / 123 45", handy: "", email: "franz@example.org", webseite: "", bemerkung: "", favorit: false },
@@ -149,18 +156,45 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
       item[collection.labelKey] = request.postDataJSON().label;
       return json(route, { item: { id: item.id, label: item[collection.labelKey], active: true } });
     }
-    const eventCollectionMatch = apiPath.match(/^\/api\/([a-z]+)-participants$/);
+    if (apiPath === "/api/events") {
+      if (request.method() === "GET") {
+        await initialDataGate;
+        return json(route, { events });
+      }
+      const body = request.postDataJSON();
+      const key = body.label.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/[^a-z0-9]/g, "");
+      const event = { ...eventDefaults, ...body, id: Math.max(...events.map(entry => entry.id)) + 1, key };
+      events.push(event);
+      participantsByEvent[key] = [];
+      return json(route, { event }, 201);
+    }
+    const eventMatch = apiPath.match(/^\/api\/events\/(\d+)$/);
+    if (eventMatch) {
+      const index = events.findIndex(entry => entry.id === Number(eventMatch[1]));
+      if (index < 0) return json(route, { error: "Event nicht gefunden." }, 404);
+      const count = participantsByEvent[events[index].key].length;
+      if (request.method() === "DELETE") {
+        if (count) return json(route, { error: `${events[index].label} hat noch ${count} Eintrag in der Teilnehmerliste - bitte archivieren statt loeschen.` }, 409);
+        events.splice(index, 1);
+        return json(route, null, 204);
+      }
+      events[index] = { ...events[index], ...request.postDataJSON(), participantCount: count };
+      return json(route, { event: events[index] });
+    }
+    const eventCollectionMatch = apiPath.match(/^\/api\/([a-z0-9]+)-participants$/);
     if (eventCollectionMatch && participantsByEvent[eventCollectionMatch[1]]) {
       const participants = participantsByEvent[eventCollectionMatch[1]];
       if (request.method() === "GET") {
         await initialDataGate;
-        return json(route, { participants });
+        // Wie die API: ohne Essensauswahl fehlt das Feld, das gespeicherte Gericht bleibt aber erhalten
+        const hasMeals = events.find(entry => entry.key === eventCollectionMatch[1])?.mealOptions.length;
+        return json(route, { participants: hasMeals ? participants : participants.map(({ essensauswahl, ...rest }) => rest) });
       }
       const participant = { id: Math.max(0, ...participants.map(entry => entry.id)) + 1, ...request.postDataJSON() };
       participants.push(participant);
       return json(route, { participant }, 201);
     }
-    const eventResourceMatch = apiPath.match(/^\/api\/([a-z]+)-participants\/(\d+)$/);
+    const eventResourceMatch = apiPath.match(/^\/api\/([a-z0-9]+)-participants\/(\d+)$/);
     if (eventResourceMatch && participantsByEvent[eventResourceMatch[1]]) {
       const participants = participantsByEvent[eventResourceMatch[1]];
       const index = participants.findIndex(entry => entry.id === Number(eventResourceMatch[2]));
@@ -919,8 +953,8 @@ test("Events-Gruppe klappt Weihnachtsessen, Warnemünde und Eisbeinessen auf und
   await toggle.click();
   await expect(group).toBeVisible();
   await expect(page.locator("#christmas-tab")).toBeVisible();
-  await expect(page.locator("#warnemuende-tab")).toBeVisible();
-  await expect(page.locator("#eisbeinessen-tab")).toBeVisible();
+  await expect(page.locator("#event-warnemuende-tab")).toBeVisible();
+  await expect(page.locator("#event-eisbeinessen-tab")).toBeVisible();
 
   await page.locator("#christmas-tab").click();
   await expect(page.locator("#christmas-pane")).toBeVisible();
@@ -941,7 +975,7 @@ test("veralteter Spaltenzustand aus dem Browser überschreibt die Reihenfolge ni
   await mockMemberApi(page);
   // Stand aus einer früheren Version: Aktionen hinten angepinnt, Foto- und Aktionsspalte fehlen.
   await page.addInitScript(() => window.localStorage.setItem(
-    "mitgliederverwaltung:gridColumnState:warnemuende",
+    "mitgliederverwaltung:gridColumnState:event-warnemuende",
     JSON.stringify([
       { colId: "nr", pinned: "left" },
       { colId: "bearbeiten", pinned: "left" },
@@ -958,9 +992,9 @@ test("veralteter Spaltenzustand aus dem Browser überschreibt die Reihenfolge ni
   await page.locator("#loginPassword").fill("passwd");
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator("#events-group-toggle").click();
-  await page.locator("#warnemuende-tab").click();
+  await page.locator("#event-warnemuende-tab").click();
 
-  const grid = page.locator("#warnemuendeGrid");
+  const grid = page.locator("#event-warnemuende-grid");
   await expect(grid.locator('[row-id="1"] [col-id="passbild"]')).toBeVisible();
   await expect(grid.locator('[row-id="1"] [col-id="name"]')).toBeVisible();
   const photo = await grid.locator('[row-id="1"] [col-id="passbild"]').boundingBox();
@@ -976,10 +1010,10 @@ test("veralteter Spaltenzustand aus dem Browser überschreibt die Reihenfolge ni
 test("Teilnehmerliste lässt sich als PDF herunterladen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
-  await page.locator("#warnemuende-tab").click();
+  await page.locator("#event-warnemuende-tab").click();
 
   const downloadPromise = page.waitForEvent("download");
-  await page.locator("#warnemuendeExportBtn").click();
+  await page.locator("#event-warnemuende-export-btn").click();
   const download = await downloadPromise;
 
   expect(download.suggestedFilename()).toMatch(/^warnemuende-teilnehmerliste-\d{4}-\d{2}-\d{2}\.pdf$/);
@@ -1006,9 +1040,9 @@ test("ausgetretene Gäste stehen in der Ehemaligen-Liste", async ({ page }) => {
 test("Eventteilnehmer werden unscharf mit Mitgliedern und Gästen abgeglichen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
-  await page.locator("#warnemuende-tab").click();
+  await page.locator("#event-warnemuende-tab").click();
 
-  const form = page.locator("#warnemuendeForm");
+  const form = page.locator("#event-warnemuende-form");
   await form.locator('[name="name"]').fill("Gästefreun");
   await form.getByRole("button", { name: "Hinzufügen" }).click();
 
@@ -1020,15 +1054,15 @@ test("Eventteilnehmer werden unscharf mit Mitgliedern und Gästen abgeglichen", 
   await matchModal.getByRole("button", { name: /Bert Gästefreund/ }).click();
 
   await expect(matchModal).not.toHaveClass(/show/);
-  await expect(page.locator('#warnemuendeGrid [row-id="2"] [col-id="name"]')).toHaveText("Gästefreund");
+  await expect(page.locator('#event-warnemuende-grid [row-id="2"] [col-id="name"]')).toHaveText("Gästefreund");
 });
 
 test("Eventteilnehmer ohne Treffer brauchen eine Sicherheitsabfrage", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
-  await page.locator("#eisbeinessen-tab").click();
+  await page.locator("#event-eisbeinessen-tab").click();
 
-  const form = page.locator("#eisbeinessenForm");
+  const form = page.locator("#event-eisbeinessen-form");
   await form.locator('[name="name"]').fill("Namenlos");
   await form.locator('[name="vorname"]').fill("Fantasie");
   const confirmModal = page.locator("#confirmModal");
@@ -1036,26 +1070,26 @@ test("Eventteilnehmer ohne Treffer brauchen eine Sicherheitsabfrage", async ({ p
   await expect(confirmModal).toContainText("Kein Mitglied oder Gast für „Fantasie Namenlos“ gefunden.");
   await confirmModal.getByRole("button", { name: "Abbrechen" }).click();
   await expect(confirmModal).toBeHidden();
-  await expect(page.locator("#eisbeinessenGrid")).not.toContainText("Namenlos");
+  await expect(page.locator("#event-eisbeinessen-grid")).not.toContainText("Namenlos");
 
   await form.getByRole("button", { name: "Hinzufügen" }).click();
   await confirmModal.getByRole("button", { name: "Ohne Zuordnung einfügen" }).click();
-  await expect(page.locator("#eisbeinessenGrid")).toContainText("Namenlos");
+  await expect(page.locator("#event-eisbeinessen-grid")).toContainText("Namenlos");
 });
 
 test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
-  await page.locator("#warnemuende-tab").click();
+  await page.locator("#event-warnemuende-tab").click();
 
-  const grid = page.locator("#warnemuendeGrid");
-  const summary = page.locator("#warnemuendeSummary");
+  const grid = page.locator("#event-warnemuende-grid");
+  const summary = page.locator("#event-warnemuende-summary");
   await expect(grid).toContainText("Müller");
   await expect(grid.locator('[row-id="1"] [col-id="nr"]')).toHaveText("1");
   await expect(grid.locator('[row-id="1"] [col-id="passbild"] .member-photo')).toBeVisible();
   await expect(summary).toHaveText("1 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
 
-  const form = page.locator("#warnemuendeForm");
+  const form = page.locator("#event-warnemuende-form");
   await form.locator('[name="name"]').fill("Gästefreund");
   await form.locator('[name="vorname"]').fill("Bert");
   await form.getByRole("button", { name: "Rind", exact: true }).click();
@@ -1090,7 +1124,7 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   await expect(mealCell.getByRole("button", { name: "Vegie", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(summary).toHaveText("2 Teilnehmer · Zander: 1 · Rind: 0 · Vegie: 1 · bezahlt: 1");
 
-  const editModal = page.locator("#warnemuendeEditModal");
+  const editModal = page.locator("#event-warnemuende-edit-modal");
   await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer bearbeiten" }).click();
   await expect(editModal).toHaveClass(/show/);
   await expect(editModal.locator('[name="vorname"]')).toHaveValue("Bert");
@@ -1112,7 +1146,7 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
   await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("");
   await expect(summary).toHaveText("1 Teilnehmer · 1 abgesagt · Zander: 1 · Rind: 0 · Vegie: 0 · bezahlt: 0");
 
-  const hideCancelled = page.locator("#warnemuendeHideCancelledBtn");
+  const hideCancelled = page.locator("#event-warnemuende-hide-cancelled-btn");
   await hideCancelled.click();
   await expect(hideCancelled).toHaveAttribute("aria-pressed", "true");
   await expect(hideCancelled).toHaveClass(/active/);
@@ -1135,16 +1169,16 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
 test("Eisbeinessen führt die Liste ohne Essensauswahl und mit 30 Plätzen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
-  await page.locator("#eisbeinessen-tab").click();
+  await page.locator("#event-eisbeinessen-tab").click();
 
-  const grid = page.locator("#eisbeinessenGrid");
-  const summary = page.locator("#eisbeinessenSummary");
+  const grid = page.locator("#event-eisbeinessen-grid");
+  const summary = page.locator("#event-eisbeinessen-summary");
   await expect(grid).toContainText("Müller");
   await expect(grid.locator('[col-id="essensauswahl"]')).toHaveCount(0);
-  await expect(page.locator("#eisbeinessenForm .meal-chips")).toHaveCount(0);
+  await expect(page.locator("#event-eisbeinessen-form .meal-chips")).toHaveCount(0);
   await expect(summary).toHaveText("1 Teilnehmer · bezahlt: 0");
 
-  const form = page.locator("#eisbeinessenForm");
+  const form = page.locator("#event-eisbeinessen-form");
   await form.locator('[name="name"]').fill("Gästefreund");
   await form.locator('[name="vorname"]').fill("Bert");
   await form.getByRole("button", { name: "Hinzufügen" }).click();
@@ -1153,7 +1187,7 @@ test("Eisbeinessen führt die Liste ohne Essensauswahl und mit 30 Plätzen", asy
   await expect(summary).toHaveText("2 Teilnehmer · bezahlt: 0");
 
   await grid.locator('[row-id="2"]').getByRole("button", { name: "Teilnehmer absagen" }).click();
-  const hideCancelled = page.locator("#eisbeinessenHideCancelledBtn");
+  const hideCancelled = page.locator("#event-eisbeinessen-hide-cancelled-btn");
   await hideCancelled.click();
   await expect(hideCancelled).toHaveAttribute("aria-pressed", "true");
   await expect(grid).not.toContainText("Gästefreund");
@@ -1161,17 +1195,17 @@ test("Eisbeinessen führt die Liste ohne Essensauswahl und mit 30 Plätzen", asy
   await expect(grid).toContainText("Gästefreund");
 
   // Eigene Tabelle: der Warnemuende-Eintrag taucht hier nicht auf.
-  await page.locator("#warnemuende-tab").click();
-  await expect(page.locator("#warnemuendeGrid")).not.toContainText("Gästefreund");
+  await page.locator("#event-warnemuende-tab").click();
+  await expect(page.locator("#event-warnemuende-grid")).not.toContainText("Gästefreund");
 });
 
 test("Eisbeinessen-Teilnehmerliste lässt sich als PDF herunterladen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#events-group-toggle").click();
-  await page.locator("#eisbeinessen-tab").click();
+  await page.locator("#event-eisbeinessen-tab").click();
 
   const downloadPromise = page.waitForEvent("download");
-  await page.locator("#eisbeinessenExportBtn").click();
+  await page.locator("#event-eisbeinessen-export-btn").click();
   const download = await downloadPromise;
 
   expect(download.suggestedFilename()).toMatch(/^eisbeinessen-teilnehmerliste-\d{4}-\d{2}-\d{2}\.pdf$/);
@@ -1586,23 +1620,23 @@ test("Masken fragen vor dem Verlassen mit ungespeicherten Änderungen nach", asy
 
   // Angefangener Eintrag in der Teilnehmerleiste: kein Wechsel in einen anderen Hauptpunkt ohne Rueckfrage
   await page.locator("#events-group-toggle").click();
-  await page.locator("#warnemuende-tab").click();
-  const eventName = page.locator('#warnemuendeForm [name="name"]');
+  await page.locator("#event-warnemuende-tab").click();
+  const eventName = page.locator('#event-warnemuende-form [name="name"]');
   await eventName.fill("Halbfertig");
   await page.locator("#dashboard-tab").click();
   await expect(confirmModal).toBeVisible();
   await keepButton.click();
-  await expect(page.locator("#warnemuende-tab")).toHaveClass(/active/);
+  await expect(page.locator("#event-warnemuende-tab")).toHaveClass(/active/);
   await expect(eventName).toHaveValue("Halbfertig");
   await page.locator("#dashboard-tab").click();
   await discardButton.click();
   await expect(page.locator("#dashboard-tab")).toHaveClass(/active/);
-  await page.locator("#warnemuende-tab").click();
+  await page.locator("#event-warnemuende-tab").click();
   await expect(eventName).toHaveValue("");
 
   // Teilnehmer-Dialog
-  const editModal = page.locator("#warnemuendeEditModal");
-  await page.locator('#warnemuendeGrid [row-id="1"]').getByRole("button", { name: "Teilnehmer bearbeiten" }).click();
+  const editModal = page.locator("#event-warnemuende-edit-modal");
+  await page.locator('#event-warnemuende-grid [row-id="1"]').getByRole("button", { name: "Teilnehmer bearbeiten" }).click();
   await expect(editModal).toHaveClass(/show/);
   await editModal.locator('[name="bemerkung"]').fill("noch offen");
   await editModal.getByRole("button", { name: "Abbrechen" }).click();
@@ -1625,5 +1659,135 @@ test("Masken fragen vor dem Verlassen mit ungespeicherten Änderungen nach", asy
   await referenceModal.getByRole("button", { name: "Schließen" }).click();
   await discardButton.click();
   await expect(referenceModal).toBeHidden();
+  expect(browserDialogs).toEqual([]);
+});
+
+test("Events lassen sich anlegen, bearbeiten, archivieren und löschen", async ({ page }) => {
+  const browserDialogs = [];
+  page.on("dialog", dialog => { browserDialogs.push(dialog.message()); dialog.dismiss(); });
+  const participantRequests = [];
+  page.on("request", request => { if (request.url().includes("-participants")) participantRequests.push(new URL(request.url()).pathname); });
+  await openAuthenticatedApp(page);
+  await page.locator("#events-group-toggle").click();
+  const settingsModal = page.locator("#eventSettingsModal");
+  const confirmModal = page.locator("#confirmModal");
+
+  // Archivierte Listen stehen nicht in der Navigation und laden erst beim Oeffnen
+  await expect(page.locator("#event-gruenkohl2025-tab")).toBeHidden();
+  await expect(page.locator("#events-archive-tab")).toHaveText(/Archiv \(1\)/);
+  expect(participantRequests.some(path => path.endsWith("/gruenkohl2025-participants"))).toBe(false);
+
+  // Anlegen
+  await page.locator("#addEventBtn").click();
+  await expect(settingsModal).toHaveClass(/show/);
+  await expect(page.locator("#eventSettingsModalLabel")).toHaveText("Neues Event");
+  await expect(page.locator("#eventSettingsDeleteBtn")).toBeHidden();
+  await page.locator("#eventSettingsLabel").fill("Sommerfest 2027");
+  await page.locator("#eventSettingsDatum").fill("2027-07-03");
+  await page.locator("#eventSettingsMaxSeats").fill("80");
+  await settingsModal.locator(".event-symbol", { hasText: "Feier" }).click();
+  await page.locator("#eventSettingsMeals").fill("Grillwurst, Salat");
+  await page.locator("#eventSettingsPreis").fill("12.50");
+  await page.locator("#eventSettingsPdfHinweis").fill("Bitte Geschirr mitbringen");
+  const createRequest = page.waitForRequest(request => request.url().endsWith("/api/events") && request.method() === "POST");
+  await settingsModal.getByRole("button", { name: "Speichern" }).click();
+  expect((await createRequest).postDataJSON()).toEqual({
+    label: "Sommerfest 2027", datum: "2027-07-03", symbol: "feier", maxSeats: 80, mealOptions: ["Grillwurst", "Salat"], preis: 12.5, pdfHinweis: "Bitte Geschirr mitbringen", archiviert: false
+  });
+  await expect(settingsModal).toBeHidden();
+  const tab = page.locator("#event-sommerfest2027-tab");
+  await expect(tab).toHaveClass(/active/);
+  await expect(tab).toHaveText("Sommerfest 2027");
+  // Mit Datum vor den Events ohne Datum
+  expect(await page.locator("#events-group .nav-link").evaluateAll(links => links.map(link => link.id)))
+    .toEqual(["christmas-tab", "event-gruenkohl2025-tab", "event-sommerfest2027-tab", "event-eisbeinessen-tab", "event-warnemuende-tab", "events-archive-tab", "addEventBtn"]);
+  await expect(page.locator("#event-sommerfest2027-description")).toHaveText(/03\.07\.2027 · 12,50\s€ pro Person · Bitte Geschirr mitbringen/);
+
+  const form = page.locator("#event-sommerfest2027-form");
+  await expect(form.getByRole("button", { name: "Grillwurst" })).toHaveAttribute("aria-pressed", "true");
+  await form.locator('[name="name"]').fill("Gästefreund");
+  await form.locator('[name="vorname"]').fill("Bert");
+  await form.getByRole("button", { name: "Salat" }).click();
+  await form.getByRole("button", { name: "Hinzufügen" }).click();
+  const grid = page.locator("#event-sommerfest2027-grid");
+  await expect(grid).toContainText("Gästefreund");
+  await expect(page.locator("#event-sommerfest2027-summary")).toHaveText("1 Teilnehmer · Grillwurst: 0 · Salat: 1 · bezahlt: 0 (0,00 €)");
+
+  // Bearbeiten: ein weiteres Gericht erscheint gleich in Liste und Leiste
+  await page.locator("#event-sommerfest2027-settings-btn").click();
+  await expect(page.locator("#eventSettingsModalLabel")).toHaveText("Sommerfest 2027 bearbeiten");
+  await expect(page.locator("#eventSettingsMeals")).toHaveValue("Grillwurst, Salat");
+  await expect(settingsModal.locator('input[name="symbol"][value="feier"]')).toBeChecked();
+  await page.locator("#eventSettingsMeals").fill("Grillwurst, Salat, Vegan");
+  await settingsModal.getByRole("button", { name: "Speichern" }).click();
+  await expect(settingsModal).toBeHidden();
+  await expect(grid.locator('[col-id="essensauswahl"]').getByRole("button", { name: "Vegan" })).toBeVisible();
+  await expect(form.getByRole("button", { name: "Vegan" })).toBeVisible();
+
+  // Essensauswahl aus: die unberuehrte Leiste gilt danach nicht als geaendert
+  await page.locator("#event-sommerfest2027-settings-btn").click();
+  await page.locator("#eventSettingsMeals").fill("");
+  await settingsModal.getByRole("button", { name: "Speichern" }).click();
+  await expect(settingsModal).toBeHidden();
+  await expect(grid.locator('[col-id="essensauswahl"]')).toHaveCount(0);
+  await expect(form.locator(".meal-chips")).toHaveCount(0);
+  await page.locator("#event-eisbeinessen-tab").click();
+  await expect(page.locator("#event-eisbeinessen-tab")).toHaveClass(/active/);
+  await expect(confirmModal).toBeHidden();
+  await tab.click();
+  // Neu laden, solange die Auswahl aus ist: dann kennt das Frontend die gespeicherten Gerichte nicht mehr
+  await page.reload();
+  await expect(page.locator("#appShell")).toBeVisible();
+  await expect(tab).toHaveClass(/active/);
+  await expect(grid).toContainText("Gästefreund");
+
+  // ... und wieder an: das gespeicherte Gericht ist wieder da und bleibt beim naechsten Speichern erhalten
+  await page.locator("#event-sommerfest2027-settings-btn").click();
+  await page.locator("#eventSettingsMeals").fill("Grillwurst, Salat, Vegan");
+  await settingsModal.getByRole("button", { name: "Speichern" }).click();
+  await expect(grid.locator('[row-id="1"] [col-id="essensauswahl"]').getByRole("button", { name: "Salat" })).toHaveAttribute("aria-pressed", "true");
+  const paidRequest = page.waitForRequest(request => request.url().endsWith("/api/sommerfest2027-participants/1") && request.method() === "PUT");
+  await grid.locator('[row-id="1"] [col-id="bezahlt"] input[type="checkbox"]').click();
+  expect((await paidRequest).postDataJSON()).toMatchObject({ essensauswahl: "Salat", bezahlt: true });
+
+  // Mit Teilnehmern laesst es sich nicht loeschen - nur archivieren
+  await page.locator("#event-sommerfest2027-settings-btn").click();
+  await page.locator("#eventSettingsDeleteBtn").click();
+  await confirmModal.getByRole("button", { name: "Löschen" }).click();
+  await expect(page.locator("#eventSettingsError")).toContainText("bitte archivieren statt loeschen");
+  await page.locator("#eventSettingsArchiviert").check();
+  await settingsModal.getByRole("button", { name: "Speichern" }).click();
+  await expect(settingsModal).toBeHidden();
+  await expect(tab).toBeHidden();
+  await expect(page.locator("#events-archive-tab")).toHaveText(/Archiv \(2\)/);
+
+  await page.locator("#events-archive-tab").click();
+  const archive = page.locator("#eventArchiveList");
+  await expect(archive.locator(".event-archive__item")).toHaveCount(2);
+  await archive.locator('[data-event-key="gruenkohl2025"]').getByRole("button", { name: "Liste öffnen" }).click();
+  await expect(page.locator("#event-gruenkohl2025-grid")).toContainText("Altbekannt");
+  expect(participantRequests.some(path => path.endsWith("/gruenkohl2025-participants"))).toBe(true);
+
+  await page.locator("#events-archive-tab").click();
+  await archive.locator('[data-event-key="sommerfest2027"]').getByRole("button", { name: "Wieder aktivieren" }).click();
+  await expect(tab).toBeVisible();
+  await expect(page.locator("#events-archive-tab")).toHaveText(/Archiv \(1\)/);
+
+  // Ein leeres Event laesst sich loeschen - auch eines, das wie das feste Archiv heisst
+  await page.locator("#addEventBtn").click();
+  await page.locator("#eventSettingsLabel").fill("Archive");
+  await settingsModal.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.locator("#event-archive-tab")).toHaveClass(/active/);
+  await expect(page.locator("#events-archive-tab")).toHaveText(/Archiv \(1\)/);
+  await expect(page.locator("#events-archive-tab")).toHaveAttribute("data-bs-target", "#events-archive-pane");
+  await page.locator("#event-archive-settings-btn").click();
+  await page.locator("#eventSettingsDeleteBtn").click();
+  await expect(confirmModal).toContainText("„Archive“ endgültig löschen?");
+  await confirmModal.getByRole("button", { name: "Löschen" }).click();
+  await expect(settingsModal).toBeHidden();
+  await expect(page.locator("#event-archive-tab")).toHaveCount(0);
+  await expect(page.locator("#event-archive-pane")).toHaveCount(0);
+  await expect(page.locator("#events-archive-pane")).toHaveCount(1);
+  await expect(page.locator("#dashboard-tab")).toHaveClass(/active/);
   expect(browserDialogs).toEqual([]);
 });

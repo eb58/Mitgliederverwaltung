@@ -70,13 +70,14 @@
             <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
             <span class="sidebar__nav-label">Weihnachtsessen</span>
           </button>
-          <button class="nav-link sidebar__nav-item" id="warnemuende-tab" data-bs-toggle="tab" data-bs-target="#warnemuende-pane" type="button" role="tab" aria-controls="warnemuende-pane" aria-selected="false">
-            <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 20c1.8 0 1.8-1.5 3.7-1.5S7.4 20 9.2 20s1.8-1.5 3.7-1.5S14.6 20 16.4 20s1.8-1.5 3.6-1.5"/><path d="M12 16V7"/><path d="M12 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/><path d="M6 12h12"/></svg>
-            <span class="sidebar__nav-label">Warnem&uuml;nde</span>
+          <!-- Die Events selbst baut event-manager.js aus der Liste vom Server hier ein. -->
+          <button class="nav-link sidebar__nav-item" id="events-archive-tab" data-bs-toggle="tab" data-bs-target="#events-archive-pane" type="button" role="tab" aria-controls="events-archive-pane" aria-selected="false" hidden>
+            <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/><line x1="10" y1="13" x2="14" y2="13"/></svg>
+            <span class="sidebar__nav-label">Archiv</span>
           </button>
-          <button class="nav-link sidebar__nav-item" id="eisbeinessen-tab" data-bs-toggle="tab" data-bs-target="#eisbeinessen-pane" type="button" role="tab" aria-controls="eisbeinessen-pane" aria-selected="false">
-            <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 3v8"/><path d="M11 3v8"/><path d="M9 11v10"/><path d="M17 3c-1.5 2-2 4-2 6v3h4V9c0-2-.5-4-2-6z"/><path d="M17 12v9"/></svg>
-            <span class="sidebar__nav-label">Eisbeinessen</span>
+          <button class="nav-link sidebar__nav-item sidebar__nav-item--add" id="addEventBtn" type="button">
+            <svg class="sidebar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span class="sidebar__nav-label">Neues Event</span>
           </button>
           </div>
         </div>
@@ -412,50 +413,12 @@
           <div id="christmasGrid" class="grid-host"></div>
         </div>
 
-        <div class="tab-pane fade" id="warnemuende-pane" role="tabpanel" aria-labelledby="warnemuende-tab" tabindex="0">
-          <form id="warnemuendeForm" class="grid-toolbar event-toolbar">
-            <span id="warnemuendeSummary" class="event-summary" aria-live="polite"></span>
-            <input class="form-control event-toolbar__input" name="name" type="text" placeholder="Name" aria-label="Name" required>
-            <input class="form-control event-toolbar__input" name="vorname" type="text" placeholder="Vorname (optional)" aria-label="Vorname">
-            <input type="hidden" name="essensauswahl" value="Zander">
-            <div id="warnemuendeEssensauswahl"></div>
-            <input class="form-control event-toolbar__input" name="bemerkung" type="text" placeholder="Bemerkung" aria-label="Bemerkung">
-            <button class="btn btn-primary" type="submit">Hinzuf&uuml;gen</button>
-            <button id="warnemuendeHideCancelledBtn" class="event-cancelled-toggle" type="button"
-              aria-label="Abgesagte ausblenden" title="Abgesagte ausblenden" aria-pressed="false"></button>
-            <button id="warnemuendeExportBtn" class="edit-icon-btn" type="button"
-              title="Teilnehmerliste als PDF herunterladen" aria-label="Teilnehmerliste als PDF herunterladen">
-              <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                <path d="M12 3v12"></path>
-                <path d="m7 10 5 5 5-5"></path>
-                <path d="M5 21h14"></path>
-              </svg>
-            </button>
-          </form>
-          <div id="warnemuendeError" class="alert alert-danger" role="alert" hidden></div>
-          <div id="warnemuendeGrid" class="grid-host grid-host--with-toolbar"></div>
-        </div>
-
-        <div class="tab-pane fade" id="eisbeinessen-pane" role="tabpanel" aria-labelledby="eisbeinessen-tab" tabindex="0">
-          <form id="eisbeinessenForm" class="grid-toolbar event-toolbar">
-            <span id="eisbeinessenSummary" class="event-summary" aria-live="polite"></span>
-            <input class="form-control event-toolbar__input" name="name" type="text" placeholder="Name" aria-label="Name" required>
-            <input class="form-control event-toolbar__input" name="vorname" type="text" placeholder="Vorname (optional)" aria-label="Vorname">
-            <input class="form-control event-toolbar__input" name="bemerkung" type="text" placeholder="Bemerkung" aria-label="Bemerkung">
-            <button class="btn btn-primary" type="submit">Hinzuf&uuml;gen</button>
-            <button id="eisbeinessenHideCancelledBtn" class="event-cancelled-toggle" type="button"
-              aria-label="Abgesagte ausblenden" title="Abgesagte ausblenden" aria-pressed="false"></button>
-            <button id="eisbeinessenExportBtn" class="edit-icon-btn" type="button"
-              title="Teilnehmerliste als PDF herunterladen" aria-label="Teilnehmerliste als PDF herunterladen">
-              <svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                <path d="M12 3v12"></path>
-                <path d="m7 10 5 5 5-5"></path>
-                <path d="M5 21h14"></path>
-              </svg>
-            </button>
-          </form>
-          <div id="eisbeinessenError" class="alert alert-danger" role="alert" hidden></div>
-          <div id="eisbeinessenGrid" class="grid-host grid-host--with-toolbar"></div>
+        <div class="tab-pane fade" id="events-archive-pane" role="tabpanel" aria-labelledby="events-archive-tab" tabindex="0">
+          <section class="event-archive">
+            <h2 class="event-archive__title">Archivierte Events</h2>
+            <p class="event-archive__intro">Vergangene Events stehen nicht mehr in der Navigation. Ihre Teilnehmerlisten bleiben hier erhalten.</p>
+            <div id="eventArchiveList" class="event-archive__list"></div>
+          </section>
         </div>
 
         <div class="tab-pane fade" id="contacts-pane" role="tabpanel" aria-labelledby="contacts-tab" tabindex="0">
@@ -675,91 +638,55 @@
     </form>
   </dialog>
 
-  <div class="modal fade" id="warnemuendeEditModal" tabindex="-1" aria-labelledby="warnemuendeEditModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+  <div class="modal fade" id="eventSettingsModal" tabindex="-1" aria-labelledby="eventSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
-        <div class="modal-header">
-          <h2 class="modal-title h5" id="warnemuendeEditModalLabel">Teilnehmer bearbeiten</h2>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schlie&szlig;en"></button>
-        </div>
-        <div class="modal-body">
-          <form id="warnemuendeEditForm" class="event-edit-form">
-            <div>
-              <label class="form-label" for="warnemuendeEditName">Name</label>
-              <input id="warnemuendeEditName" class="form-control" name="name" type="text" required>
+        <form id="eventSettingsForm" class="event-settings-form" autocomplete="off" novalidate>
+          <div class="modal-header">
+            <h2 class="modal-title h5" id="eventSettingsModalLabel">Neues Event</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schlie&szlig;en"></button>
+          </div>
+          <div class="modal-body event-settings-form__body">
+            <div class="event-settings-form__wide">
+              <label class="form-label" for="eventSettingsLabel">Bezeichnung</label>
+              <input id="eventSettingsLabel" class="form-control" name="label" type="text" maxlength="120" placeholder="z.B. Sommerfest 2027" required>
             </div>
             <div>
-              <label class="form-label" for="warnemuendeEditVorname">Vorname</label>
-              <input id="warnemuendeEditVorname" class="form-control" name="vorname" type="text" required>
-            </div>
-            <div class="event-edit-form__wide">
-              <span class="form-label d-block">Essensauswahl</span>
-              <input type="hidden" name="essensauswahl" value="Zander">
-              <div id="warnemuendeEditEssensauswahl"></div>
-            </div>
-            <div class="event-edit-form__wide event-edit-form__flags">
-              <div class="form-check">
-                <input id="warnemuendeEditBezahlt" class="form-check-input" name="bezahlt" type="checkbox">
-                <label class="form-check-label" for="warnemuendeEditBezahlt">bezahlt</label>
-              </div>
-              <div class="form-check">
-                <input id="warnemuendeEditAbgesagt" class="form-check-input" name="abgesagt" type="checkbox">
-                <label class="form-check-label" for="warnemuendeEditAbgesagt">abgesagt</label>
-              </div>
-            </div>
-            <div class="event-edit-form__wide">
-              <label class="form-label" for="warnemuendeEditBemerkung">Bemerkung</label>
-              <input id="warnemuendeEditBemerkung" class="form-control" name="bemerkung" type="text">
-            </div>
-            <div class="event-edit-form__actions">
-              <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Abbrechen</button>
-              <button class="btn btn-primary" type="submit">Speichern</button>
-            </div>
-          </form>
-          <div id="warnemuendeEditError" class="login-error mt-3" role="alert" hidden></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="eisbeinessenEditModal" tabindex="-1" aria-labelledby="eisbeinessenEditModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 class="modal-title h5" id="eisbeinessenEditModalLabel">Teilnehmer bearbeiten</h2>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schlie&szlig;en"></button>
-        </div>
-        <div class="modal-body">
-          <form id="eisbeinessenEditForm" class="event-edit-form">
-            <div>
-              <label class="form-label" for="eisbeinessenEditName">Name</label>
-              <input id="eisbeinessenEditName" class="form-control" name="name" type="text" required>
+              <label class="form-label" for="eventSettingsDatum">Datum</label>
+              <input id="eventSettingsDatum" class="form-control" name="datum" type="date">
             </div>
             <div>
-              <label class="form-label" for="eisbeinessenEditVorname">Vorname</label>
-              <input id="eisbeinessenEditVorname" class="form-control" name="vorname" type="text" required>
+              <label class="form-label" for="eventSettingsMaxSeats">Pl&auml;tze</label>
+              <input id="eventSettingsMaxSeats" class="form-control" name="maxSeats" type="number" min="1" max="1000" step="1" placeholder="unbegrenzt">
             </div>
-            <div class="event-edit-form__wide event-edit-form__flags">
-              <div class="form-check">
-                <input id="eisbeinessenEditBezahlt" class="form-check-input" name="bezahlt" type="checkbox">
-                <label class="form-check-label" for="eisbeinessenEditBezahlt">bezahlt</label>
-              </div>
-              <div class="form-check">
-                <input id="eisbeinessenEditAbgesagt" class="form-check-input" name="abgesagt" type="checkbox">
-                <label class="form-check-label" for="eisbeinessenEditAbgesagt">abgesagt</label>
-              </div>
+            <div class="event-settings-form__wide">
+              <span class="form-label d-block">Symbol in der Navigation</span>
+              <div id="eventSettingsSymbols" class="event-symbols" role="radiogroup" aria-label="Symbol in der Navigation"></div>
             </div>
-            <div class="event-edit-form__wide">
-              <label class="form-label" for="eisbeinessenEditBemerkung">Bemerkung</label>
-              <input id="eisbeinessenEditBemerkung" class="form-control" name="bemerkung" type="text">
+            <div class="event-settings-form__wide">
+              <label class="form-label" for="eventSettingsMeals">Essensauswahl</label>
+              <input id="eventSettingsMeals" class="form-control" name="mealOptions" type="text" placeholder="z.B. Zander, Rind, Vegie - leer lassen, wenn es nichts zu w&auml;hlen gibt">
             </div>
-            <div class="event-edit-form__actions">
-              <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Abbrechen</button>
-              <button class="btn btn-primary" type="submit">Speichern</button>
+            <div>
+              <label class="form-label" for="eventSettingsPreis">Preis pro Person (&euro;)</label>
+              <input id="eventSettingsPreis" class="form-control" name="preis" type="number" min="0" step="0.01" placeholder="kostenlos">
             </div>
-          </form>
-          <div id="eisbeinessenEditError" class="login-error mt-3" role="alert" hidden></div>
-        </div>
+            <div>
+              <label class="form-label" for="eventSettingsPdfHinweis">Hinweis auf der PDF-Liste</label>
+              <input id="eventSettingsPdfHinweis" class="form-control" name="pdfHinweis" type="text" maxlength="255" placeholder="z.B. Abfahrt 8 Uhr am Dorfanger">
+            </div>
+            <div id="eventSettingsArchive" class="event-settings-form__wide form-check" hidden>
+              <input id="eventSettingsArchiviert" class="form-check-input" name="archiviert" type="checkbox">
+              <label class="form-check-label" for="eventSettingsArchiviert">Archivieren &ndash; nicht mehr in der Navigation zeigen, Liste bleibt im Archiv</label>
+            </div>
+            <div id="eventSettingsError" class="login-error event-settings-form__wide" role="alert" hidden></div>
+          </div>
+          <div class="modal-footer">
+            <button id="eventSettingsDeleteBtn" class="btn btn-outline-danger me-auto" type="button" hidden>L&ouml;schen</button>
+            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Abbrechen</button>
+            <button class="btn btn-primary" type="submit">Speichern</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

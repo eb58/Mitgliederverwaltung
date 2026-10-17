@@ -1,7 +1,7 @@
 import { Modal } from "bootstrap";
 import { formatIsoDate, retryAsync } from "./member-utils.js";
 import { showToast } from "./ui.js";
-import { createEventDomain, isUnambiguousMatch } from "./event-domain.js";
+import { createEventDomain, describeEvent, eventDomId, formatMealOptions, isUnambiguousMatch, sortByAnmeldung } from "./event-domain.js";
 import { buildEventPdf, pdfToBytes } from "./event-pdf.js";
 
 export const createEventAdmin = ({
@@ -12,16 +12,20 @@ export const createEventAdmin = ({
   createParticipant,
   deleteParticipant,
   dirtyForms,
+  editSettings,
   getMembers,
   loadParticipants,
   resolveParticipantPhoto,
   setFallbackPhoto,
   updateParticipant
 }) => {
-  const { key, maxSeats, mealOptions } = event;
-  const { findMemberMatches, numberParticipants, sortByAnmeldung, summarizeMeals, toParticipantPayload } = createEventDomain(event);
-  // Alle Bausteine eines Events haengen am Schluessel: warnemuendeForm, eisbeinessenGrid, ...
-  const domId = suffix => `${key}${suffix}`;
+  const { key } = event;
+  // Bezeichnung, Plaetze, Essensauswahl usw. lassen sich zur Laufzeit aendern (update) - daher nie zwischenspeichern.
+  let settings = event;
+  let domain = createEventDomain(event);
+  // Alle Bausteine eines Events haengen am Schluessel: domId("EditForm") -> "event-warnemuende-edit-form"
+  const domId = suffix => eventDomId(key, suffix.replace(/[A-Z]/g, (char, index) => (index ? "-" : "") + char.toLowerCase()));
+  const gridKey = `event-${key}`;
 
   let gridApi = null;
   let participants = [];
@@ -51,16 +55,16 @@ export const createEventAdmin = ({
     summary.textContent = [
       `${mitfahrend.length} Teilnehmer`,
       ...(abgesagt ? [`${abgesagt} abgesagt`] : []),
-      ...(nachruecker ? [`${nachruecker} Nachrücker ab Platz ${maxSeats + 1}`] : []),
-      ...(mealOptions.length ? [summarizeMeals(participants)] : []),
-      `bezahlt: ${mitfahrend.filter(participant => participant.bezahlt).length}`
+      ...(nachruecker ? [`${nachruecker} Nachrücker ab Platz ${domain.maxSeats + 1}`] : []),
+      ...(settings.mealOptions.length ? [domain.summarizeMeals(participants)] : []),
+      domain.summarizePayments(participants)
     ].join(" · ");
   };
 
   const renumberDisplayedRows = api => {
     const nodes = [];
     api.forEachNodeAfterFilterAndSort(node => nodes.push(node));
-    const numbered = numberParticipants(nodes.map(node => node.data || {}));
+    const numbered = domain.numberParticipants(nodes.map(node => node.data || {}));
     displayNumbers = new Map(nodes.map((node, index) => [node.id, numbered[index]]));
     // redrawRows statt refreshCells: nur so wertet AG Grid auch die rowClassRules
     // neu aus, an denen die Nachrueckermarkierung haengt. Die Zellen kommen dabei mit.
@@ -88,7 +92,9 @@ export const createEventAdmin = ({
 
   // Faengt seine Ladefehler selbst ab: eine fehlende Teilnehmertabelle soll den Start
   // der uebrigen Ansichten nicht verhindern.
+  let loaded = false;
   const load = async () => {
+    loaded = true;
     try {
       participants = await retryAsync(loadParticipants);
       render();
@@ -103,7 +109,7 @@ export const createEventAdmin = ({
   const handleCellValueChanged = async cellEvent => {
     try {
       setError("");
-      const updated = await updateParticipant({ id: cellEvent.data.id, ...toParticipantPayload(cellEvent.data) });
+      const updated = await updateParticipant({ id: cellEvent.data.id, ...domain.toParticipantPayload(cellEvent.data) });
       participants = participants.map(participant => participant.id === updated.id ? updated : participant);
       render();
       showToast(`${updated.vorname} ${updated.name} gespeichert.`);
@@ -118,7 +124,7 @@ export const createEventAdmin = ({
       setError("");
       const updated = await updateParticipant({
         id: participant.id,
-        ...toParticipantPayload({ ...participant, abgesagt: !participant.abgesagt })
+        ...domain.toParticipantPayload({ ...participant, abgesagt: !participant.abgesagt })
       });
       participants = participants.map(entry => entry.id === updated.id ? updated : entry);
       render();
@@ -149,7 +155,7 @@ export const createEventAdmin = ({
 
   // Druckfassung in Anmeldereihenfolge - unabhaengig davon, wie die Tabelle gerade sortiert ist.
   const exportPdf = () => {
-    const pdf = pdfToBytes(buildEventPdf(sortByAnmeldung(participants), { event }));
+    const pdf = pdfToBytes(buildEventPdf(sortByAnmeldung(participants), { event: { ...settings, maxSeats: domain.maxSeats, pdfTitleNote: describeEvent(settings) } }));
     const url = URL.createObjectURL(new Blob([pdf], { type: "application/pdf" }));
     const link = document.createElement("a");
     link.href = url;
@@ -163,13 +169,13 @@ export const createEventAdmin = ({
     const form = submitEvent.target;
     try {
       setError("");
-      const payload = toParticipantPayload({
+      const payload = domain.toParticipantPayload({
         name: form.elements.name.value,
         vorname: form.elements.vorname.value,
         essensauswahl: form.elements.essensauswahl?.value,
         bemerkung: form.elements.bemerkung.value
       });
-      const matches = findMemberMatches(getMembers(), payload);
+      const matches = domain.findMemberMatches(getMembers(), payload);
       let participant = payload;
       if (isUnambiguousMatch(matches, payload)) {
         const [member] = matches.candidates;
@@ -205,7 +211,7 @@ export const createEventAdmin = ({
     group.className = "meal-chips";
     group.setAttribute("role", "group");
     group.setAttribute("aria-label", "Essensauswahl");
-    group.append(...mealOptions.map(option => {
+    group.append(...settings.mealOptions.map(option => {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "meal-chip";
@@ -358,7 +364,7 @@ export const createEventAdmin = ({
     },
     { headerName: "Name", field: "name", minWidth: 150 },
     { headerName: "Vorname", field: "vorname", minWidth: 150 },
-    ...(mealOptions.length ? [getMealColumn()] : []),
+    ...(settings.mealOptions.length ? [getMealColumn()] : []),
     {
       headerName: "bezahlt",
       field: "bezahlt",
@@ -381,7 +387,19 @@ export const createEventAdmin = ({
   const setFormMeal = meal => setMealField(`#${domId("Form")}`, domId("Essensauswahl"), meal);
   const setEditMeal = meal => setMealField(`#${domId("EditForm")}`, domId("EditEssensauswahl"), meal);
 
-  const buildForm = () => mealOptions.length && setFormMeal(mealOptions[0]);
+  // Ohne Essensauswahl schicken Leiste und Dialog auch kein Gericht mit. Gehoert zur Leiste - darum hier und
+  // nicht in event-view.js: update() muss den sauberen Zustand der Leiste davor pruefen und danach wiederherstellen.
+  const buildForm = () => {
+    const hasMeals = settings.mealOptions.length > 0;
+    [domId("Form"), domId("EditForm")].forEach(formId => {
+      const input = document.querySelector(`#${formId} [name="essensauswahl"]`);
+      if (input) input.disabled = !hasMeals;
+    });
+    const editMealField = document.querySelector(`#${domId("EditForm")} [data-meal-field]`);
+    if (editMealField) editMealField.hidden = !hasMeals;
+    if (hasMeals) setFormMeal(settings.mealOptions[0]);
+    else document.getElementById(domId("Essensauswahl"))?.replaceChildren();
+  };
 
   const openEdit = participant => {
     const form = document.getElementById(domId("EditForm"));
@@ -392,7 +410,7 @@ export const createEventAdmin = ({
     form.elements.bezahlt.checked = Boolean(participant.bezahlt);
     form.elements.abgesagt.checked = Boolean(participant.abgesagt);
     form.elements.bemerkung.value = participant.bemerkung || "";
-    if (mealOptions.length) setEditMeal(participant.essensauswahl);
+    if (settings.mealOptions.length) setEditMeal(participant.essensauswahl);
     setEditError("");
     editModal.show();
   };
@@ -405,7 +423,7 @@ export const createEventAdmin = ({
       setEditError("");
       const updated = await updateParticipant({
         id: editingId,
-        ...toParticipantPayload({
+        ...domain.toParticipantPayload({
           name: form.elements.name.value,
           vorname: form.elements.vorname.value,
           essensauswahl: form.elements.essensauswahl?.value,
@@ -428,7 +446,7 @@ export const createEventAdmin = ({
   const init = () => {
     buildForm();
     const columnDefs = getColumns();
-    gridApi = createGrid(key, domId("Grid"), columnDefs, {
+    gridApi = createGrid(gridKey, domId("Grid"), columnDefs, {
       // Unveraendert uebernehmen: ohne eigene Sortierung wuerde createGrid sonst nach Namen sortieren.
       columnDefs,
       // Ohne Blaettern bleiben die Nachruecker am Ende der Liste sichtbar.
@@ -448,6 +466,7 @@ export const createEventAdmin = ({
     dirtyForms.register(form, { discard: () => { form.reset(); buildForm(); } });
     document.getElementById(domId("HideCancelledBtn"))?.addEventListener("click", toggleCancelledVisibility);
     document.getElementById(domId("ExportBtn"))?.addEventListener("click", exportPdf);
+    document.getElementById(domId("SettingsBtn"))?.addEventListener("click", () => editSettings(settings));
     if (!editModal) {
       editModal = new Modal(document.getElementById(domId("EditModal")));
       dirtyForms.register(document.getElementById(domId("EditForm")));
@@ -458,5 +477,44 @@ export const createEventAdmin = ({
     return gridApi;
   };
 
-  return { init, key, load };
+  // Nach "Event bearbeiten": neue Spalten nur, wenn sich die Essensauswahl geaendert hat.
+  const update = next => {
+    const mealsChanged = formatMealOptions(next.mealOptions) !== formatMealOptions(settings.mealOptions);
+    settings = next;
+    domain = createEventDomain(next);
+    if (mealsChanged) {
+      gridApi?.setGridOption("columnDefs", getColumns());
+      // Gerichte-Auswahl in Leiste und Dialog neu aufbauen: unberuehrte Formulare bleiben sauber,
+      // eine angefangene Eingabe bleibt als Aenderung erkennbar
+      const forms = [domId("Form"), domId("EditForm")].map(formId => document.getElementById(formId)).filter(Boolean);
+      const cleanForms = forms.filter(form => !dirtyForms.isDirty(form));
+      buildForm();
+      cleanForms.forEach(form => dirtyForms.markClean(form));
+    }
+    if (gridApi) renumberDisplayedRows(gridApi);
+    render();
+    // Ohne Essensauswahl liefert die API das Feld gar nicht - nach dem Wiedereinschalten kaemen die Gerichte
+    // sonst erst mit dem naechsten Neuladen zurueck, und das naechste Speichern setzte das erste Gericht ein.
+    if (mealsChanged && loaded) return load();
+    return Promise.resolve();
+  };
+
+  // Event geloescht: Tabelle und Dialog abbauen, bevor ihre Elemente verschwinden.
+  const destroy = () => {
+    dirtyForms.unregister(document.getElementById(domId("Form")));
+    dirtyForms.unregister(document.getElementById(domId("EditForm")));
+    editModal?.dispose();
+    gridApi?.destroy();
+    gridApi = null;
+  };
+
+  return {
+    destroy,
+    get event() { return settings; },
+    gridKey,
+    init,
+    key,
+    load,
+    update
+  };
 };
