@@ -1,8 +1,11 @@
 import { Modal } from "bootstrap";
 import { state } from "./state.js";
 
-export const createUserAdmin = ({ createUser, deactivateUser, loadUsers, updateUser }) => {
+export const createUserAdmin = ({ createUser, deactivateUser, dirtyForms, loadUsers, updateUser }) => {
   let modal = null;
+  const form = () => document.getElementById("userForm");
+  // Bearbeiten/Neu ersetzen den Inhalt der Maske - offene Eingaben erst nach Rueckfrage
+  const afterConfirm = proceed => () => dirtyForms.confirmLeave(form(), proceed);
 
   const resetForm = () => {
     document.getElementById("userId").value = "";
@@ -13,6 +16,7 @@ export const createUserAdmin = ({ createUser, deactivateUser, loadUsers, updateU
     document.getElementById("userRole").value = "admin";
     document.getElementById("userActive").checked = true;
     document.getElementById("userAdminError").hidden = true;
+    dirtyForms.markClean(form());
   };
 
   const fillForm = user => {
@@ -24,6 +28,7 @@ export const createUserAdmin = ({ createUser, deactivateUser, loadUsers, updateU
     document.getElementById("userRole").value = user.role || "admin";
     document.getElementById("userActive").checked = Boolean(user.active);
     document.getElementById("userAdminError").hidden = true;
+    dirtyForms.markClean(form());
   };
 
   const refresh = async () => {
@@ -41,7 +46,7 @@ export const createUserAdmin = ({ createUser, deactivateUser, loadUsers, updateU
       editButton.className = "btn btn-sm btn-outline-secondary me-2";
       editButton.type = "button";
       editButton.textContent = "Bearbeiten";
-      editButton.addEventListener("click", () => fillForm(user));
+      editButton.addEventListener("click", afterConfirm(() => fillForm(user)));
       const deactivateButton = document.createElement("button");
       deactivateButton.className = "btn btn-sm btn-outline-danger";
       deactivateButton.type = "button";
@@ -95,12 +100,14 @@ export const createUserAdmin = ({ createUser, deactivateUser, loadUsers, updateU
 
   const init = () => {
     modal = modal || new Modal(document.getElementById("userAdminModal"));
-    const form = document.getElementById("userForm");
-    if (form.dataset.wired !== "true") {
-      form.dataset.wired = "true";
-      form.addEventListener("submit", handleSubmit);
+    const userForm = form();
+    if (userForm.dataset.wired !== "true") {
+      userForm.dataset.wired = "true";
+      userForm.addEventListener("submit", handleSubmit);
+      dirtyForms.register(userForm);
+      dirtyForms.guardModal(document.getElementById("userAdminModal"), () => modal.hide());
       document.getElementById("manageUsersBtn").addEventListener("click", open);
-      document.getElementById("resetUserFormBtn").addEventListener("click", resetForm);
+      document.getElementById("resetUserFormBtn").addEventListener("click", afterConfirm(resetForm));
     }
   };
 

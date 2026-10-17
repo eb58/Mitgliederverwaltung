@@ -19,6 +19,7 @@ const sections = [
 export const createReferenceAdmin = ({
   createItem,
   deleteItem,
+  dirtyForms,
   loadAll,
   loadItems,
   onReferenceDataChanged,
@@ -26,6 +27,9 @@ export const createReferenceAdmin = ({
 }) => {
   let adminData = {};
   let modal = null;
+  const formFor = type => document.querySelector(`[data-reference-type="${type}"] .reference-form`);
+  // Bearbeiten/Neu/(De)aktivieren ersetzen den Inhalt der Maske - offene Eingaben erst nach Rueckfrage
+  const afterConfirm = (type, proceed) => () => dirtyForms.confirmLeave(formFor(type), proceed);
 
   const applyData = data => {
     if (Array.isArray(data?.interestGroups)) {
@@ -82,6 +86,7 @@ export const createReferenceAdmin = ({
     idInput.disabled = false;
     pane.querySelector('[data-reference-field="label"]').value = "";
     document.getElementById("referenceDataError").hidden = true;
+    dirtyForms.markClean(formFor(type));
   };
 
   const fillForm = (type, item) => {
@@ -93,6 +98,7 @@ export const createReferenceAdmin = ({
     idInput.disabled = true;
     pane.querySelector('[data-reference-field="label"]').value = item.label;
     document.getElementById("referenceDataError").hidden = true;
+    dirtyForms.markClean(formFor(type));
   };
 
   const refreshAfterSave = async () => {
@@ -133,12 +139,12 @@ export const createReferenceAdmin = ({
       editButton.className = "btn btn-sm btn-outline-secondary me-2";
       editButton.type = "button";
       editButton.textContent = sections.find(section => section.type === type)?.editAction || "Bearbeiten";
-      editButton.addEventListener("click", () => fillForm(type, item));
+      editButton.addEventListener("click", afterConfirm(type, () => fillForm(type, item)));
       const toggleButton = document.createElement("button");
       toggleButton.className = item.active === false ? "btn btn-sm btn-outline-primary" : "btn btn-sm btn-outline-danger";
       toggleButton.type = "button";
       toggleButton.textContent = item.active === false ? "Aktivieren" : "Deaktivieren";
-      toggleButton.addEventListener("click", () => toggleItem(type, item));
+      toggleButton.addEventListener("click", afterConfirm(type, () => toggleItem(type, item)));
       actions.append(editButton, toggleButton);
       row.classList.toggle("text-muted", item.active === false);
       row.append(idCell, labelCell, statusCell, actions);
@@ -192,7 +198,8 @@ export const createReferenceAdmin = ({
           </table>
         </div>`;
       pane.querySelector(".reference-form").addEventListener("submit", event => handleSubmit(event, section.type));
-      pane.querySelector('[data-reference-action="new"]').addEventListener("click", () => resetForm(section.type));
+      pane.querySelector('[data-reference-action="new"]').addEventListener("click", afterConfirm(section.type, () => resetForm(section.type)));
+      dirtyForms.register(pane.querySelector(".reference-form"));
     });
   };
 
@@ -211,7 +218,10 @@ export const createReferenceAdmin = ({
   };
 
   const init = () => {
-    modal = modal || new Modal(document.getElementById("referenceDataModal"));
+    if (!modal) {
+      modal = new Modal(document.getElementById("referenceDataModal"));
+      dirtyForms.guardModal(document.getElementById("referenceDataModal"), () => modal.hide());
+    }
     build();
     const button = document.getElementById("manageReferenceDataBtn");
     if (button.dataset.wired !== "true") {

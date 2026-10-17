@@ -6,6 +6,7 @@
 - Fachliche Begriffe auf Deutsch belassen (Mitglied, Beitrag, Weihnachtsessen, Austrittsgrund, Interessengruppe, Funktion) - keine englischen Namen dafür suchen.
 - Neue fachliche Logik ohne DOM-/Netzwerkabhängigkeit möglichst in `member-domain.js` bzw. `member-utils.js` auslagern, damit sie unit-testbar bleibt.
 - Ein neues Event (Teilnehmerliste) braucht nur vier Stellen: Eintrag in `src/event-config.js`, Eintrag in `eventDefinition()` in `server/lib.php`, Tabelle `<key>_teilnehmer` in `server/db/schema.mysql.sql` (im Betrieb legt `ensureEventTable()` sie beim ersten Zugriff selbst an) und Sidebar-Eintrag, Pane und Bearbeiten-Dialog in `index.html`. Die DOM-Ids leiten sich aus dem Schluessel ab (`<key>Form`, `<key>Grid`, `<key>EditModal`, ...).
+- Neue Masken/Dialoge mit Eingabefeldern bei `dirtyForms` (`src/dirty-forms.js`) anmelden: `register(form)` plus `guardModal(modalElement, hide)` für Bootstrap-Dialoge, und nach erfolgreichem Speichern vor `hide()` `markClean(form)` aufrufen - sonst fragt der Dialog nach dem Speichern trotzdem nach.
 - Nur auf Anforderung committen.
 
 ## Projektwissen

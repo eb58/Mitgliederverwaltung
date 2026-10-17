@@ -11,6 +11,7 @@ export const createEventAdmin = ({
   event,
   createParticipant,
   deleteParticipant,
+  dirtyForms,
   getMembers,
   loadParticipants,
   resolveParticipantPhoto,
@@ -191,6 +192,7 @@ export const createEventAdmin = ({
       render();
       form.reset();
       buildForm();
+      dirtyForms.markClean(form);
       form.elements.name.focus();
       showToast(`${created.vorname} ${created.name} hinzugefügt.`);
     } catch (error) {
@@ -415,6 +417,7 @@ export const createEventAdmin = ({
       });
       participants = participants.map(participant => participant.id === updated.id ? updated : participant);
       render();
+      dirtyForms.markClean(form);
       editModal.hide();
       showToast(`${updated.vorname} ${updated.name} gespeichert.`);
     } catch (error) {
@@ -439,10 +442,17 @@ export const createEventAdmin = ({
       onModelUpdated: modelEvent => renumberDisplayedRows(modelEvent.api),
       stopEditingWhenCellsLoseFocus: true
     });
-    document.getElementById(domId("Form"))?.addEventListener("submit", handleSubmit);
+    const form = document.getElementById(domId("Form"));
+    form?.addEventListener("submit", handleSubmit);
+    // Ein angefangener Eintrag in der Leiste zaehlt auch: "Verwerfen" leert sie wieder.
+    dirtyForms.register(form, { discard: () => { form.reset(); buildForm(); } });
     document.getElementById(domId("HideCancelledBtn"))?.addEventListener("click", toggleCancelledVisibility);
     document.getElementById(domId("ExportBtn"))?.addEventListener("click", exportPdf);
-    editModal ||= new Modal(document.getElementById(domId("EditModal")));
+    if (!editModal) {
+      editModal = new Modal(document.getElementById(domId("EditModal")));
+      dirtyForms.register(document.getElementById(domId("EditForm")));
+      dirtyForms.guardModal(document.getElementById(domId("EditModal")), () => editModal.hide());
+    }
     document.getElementById(domId("EditForm"))?.addEventListener("submit", handleEditSubmit);
     render();
     return gridApi;

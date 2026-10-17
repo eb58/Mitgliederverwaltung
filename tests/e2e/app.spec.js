@@ -1538,3 +1538,92 @@ test("Adressen zeigen Kontakte je Kategorie und lassen sich suchen, anlegen, mar
   await expect(filterChips.filter({ hasText: "Alle" })).toHaveAttribute("aria-pressed", "true");
   expect(browserDialogs).toEqual([]);
 });
+
+test("Masken fragen vor dem Verlassen mit ungespeicherten Änderungen nach", async ({ page }) => {
+  const browserDialogs = [];
+  page.on("dialog", dialog => { browserDialogs.push(dialog.message()); dialog.dismiss(); });
+  await openAuthenticatedApp(page);
+  const confirmModal = page.locator("#confirmModal");
+  const discardButton = confirmModal.getByRole("button", { name: "Änderungen verwerfen" });
+  const keepButton = confirmModal.getByRole("button", { name: "Abbrechen" });
+
+  // Kontakt-Dialog: Kreuz und Esc fragen nach, eine zurueckgetippte Aenderung nicht mehr
+  await page.locator("#contacts-tab").click();
+  const contactModal = page.locator("#contactEditModal");
+  const firma = page.locator("#contactEditFirma");
+  await page.locator('.contact-card[data-contact-id="2"] .contact-card__name').click();
+  await expect(contactModal).toHaveClass(/show/);
+  await page.locator("#contactEditModal .btn-close").click();
+  await expect(contactModal).toBeHidden();
+  await expect(confirmModal).toBeHidden();
+
+  await page.locator('.contact-card[data-contact-id="2"] .contact-card__name').click();
+  await firma.fill("Wohnbau Süd");
+  await page.locator("#contactEditModal .btn-close").click();
+  await expect(confirmModal).toBeVisible();
+  await expect(confirmModal).toContainText("Änderungen, die noch nicht gespeichert sind");
+  await keepButton.click();
+  await expect(contactModal).toBeVisible();
+  await expect(firma).toHaveValue("Wohnbau Süd");
+  await firma.fill("Wohnbau Nord");
+  await page.locator("#contactEditModal .contact-form-cancel").click();
+  await expect(contactModal).toBeHidden();
+  await expect(confirmModal).toBeHidden();
+
+  // Esc wirkt bei Bootstrap erst nach dem Einblenden
+  const contactShown = page.evaluate(() => new Promise(resolve => document.getElementById("contactEditModal").addEventListener("shown.bs.modal", resolve, { once: true })));
+  await page.locator('.contact-card[data-contact-id="2"] .contact-card__name').click();
+  await contactShown;
+  await firma.fill("Wohnbau Süd");
+  await firma.press("Escape");
+  await expect(confirmModal).toBeVisible();
+  await discardButton.click();
+  await expect(contactModal).toBeHidden();
+  await page.locator('.contact-card[data-contact-id="2"] .contact-card__name').click();
+  await expect(firma).toHaveValue("Wohnbau Nord");
+  await page.locator("#contactEditModal .btn-close").click();
+  await expect(contactModal).toBeHidden();
+
+  // Angefangener Eintrag in der Teilnehmerleiste: kein Wechsel in einen anderen Hauptpunkt ohne Rueckfrage
+  await page.locator("#events-group-toggle").click();
+  await page.locator("#warnemuende-tab").click();
+  const eventName = page.locator('#warnemuendeForm [name="name"]');
+  await eventName.fill("Halbfertig");
+  await page.locator("#dashboard-tab").click();
+  await expect(confirmModal).toBeVisible();
+  await keepButton.click();
+  await expect(page.locator("#warnemuende-tab")).toHaveClass(/active/);
+  await expect(eventName).toHaveValue("Halbfertig");
+  await page.locator("#dashboard-tab").click();
+  await discardButton.click();
+  await expect(page.locator("#dashboard-tab")).toHaveClass(/active/);
+  await page.locator("#warnemuende-tab").click();
+  await expect(eventName).toHaveValue("");
+
+  // Teilnehmer-Dialog
+  const editModal = page.locator("#warnemuendeEditModal");
+  await page.locator('#warnemuendeGrid [row-id="1"]').getByRole("button", { name: "Teilnehmer bearbeiten" }).click();
+  await expect(editModal).toHaveClass(/show/);
+  await editModal.locator('[name="bemerkung"]').fill("noch offen");
+  await editModal.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(confirmModal).toBeVisible();
+  await discardButton.click();
+  await expect(editModal).toBeHidden();
+
+  // Stammdaten: "Umbenennen" eines anderen Eintrags ersetzt die offene Eingabe erst nach Rueckfrage
+  await page.locator("#manageReferenceDataBtn").click();
+  const referenceModal = page.locator("#referenceDataModal");
+  const pane = referenceModal.locator('[data-reference-type="interest-groups"]');
+  const labelInput = pane.locator('[data-reference-field="label"]');
+  await expect(referenceModal).toHaveClass(/show/);
+  await pane.locator("tbody tr", { hasText: "Excel" }).getByRole("button", { name: "Umbenennen" }).click();
+  await labelInput.fill("Excel Profi");
+  await pane.locator("tbody tr").nth(0).getByRole("button", { name: "Umbenennen" }).click();
+  await expect(confirmModal).toBeVisible();
+  await keepButton.click();
+  await expect(labelInput).toHaveValue("Excel Profi");
+  await referenceModal.getByRole("button", { name: "Schließen" }).click();
+  await discardButton.click();
+  await expect(referenceModal).toBeHidden();
+  expect(browserDialogs).toEqual([]);
+});

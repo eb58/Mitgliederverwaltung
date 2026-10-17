@@ -17,6 +17,7 @@ const fieldPath = fieldKey => {
 export const createMemberForm = ({
   checkAddress,
   createMember,
+  dirtyForms,
   invalidateMemberPhotoCache,
   loadMemberChangeHistory,
   refreshAllViews,
@@ -802,6 +803,9 @@ export const createMemberForm = ({
     const form = document.getElementById("memberForm");
     if (!form.dataset.memberFormWired) {
       form.addEventListener("submit", handleSubmit);
+      // Eigener Merker statt Feldvergleich: der Beitragsjahr-Umschalter tauscht die Zahlungsfelder aus,
+      // ohne dass sich etwas aendert. Der Schliessen-Schutz bleibt die Leiste im Fuss (s.u.).
+      dirtyForms.register(form, { isDirty: () => dirty, discard: () => { dirty = false; } });
       ["input", "change"].forEach(type => form.addEventListener(type, event => {
         dirty = true;
         const container = event.target.closest?.("div[data-field-key]");
@@ -826,7 +830,6 @@ export const createMemberForm = ({
         modal.hide();
         next?.();
       });
-      window.addEventListener("beforeunload", event => { if (dirty) event.preventDefault(); });
       form.dataset.memberFormWired = "true";
     }
   };

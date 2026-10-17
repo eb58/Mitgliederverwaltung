@@ -54,7 +54,7 @@ const downloadVCard = (fileName, contacts) => {
 
 // Ansicht "Adressen": Karten je Kategorie, Suche, Favoriten und ein Bearbeiten-Dialog
 export const createContactAdmin = ({
-  confirmAction, createCategory, createContact, deleteCategory, deleteContact, isAdmin, loadCategories, loadContacts, showEmails, updateContact
+  confirmAction, createCategory, createContact, deleteCategory, deleteContact, dirtyForms, isAdmin, loadCategories, loadContacts, showEmails, updateContact
 }) => {
   let contacts = [];
   // Von Admins angelegte Kategorien ({ id, name }) - auch solche, die noch kein Kontakt benutzt.
@@ -478,6 +478,7 @@ export const createContactAdmin = ({
       const saved = editingId === null ? await createContact(payload) : await updateContact(editingId, payload);
       replaceContact(saved);
       render();
+      dirtyForms.markClean(target);
       editModal.hide();
       showToast(`${contactDisplayName(saved)} gespeichert.`);
     } catch (error) {
@@ -501,6 +502,7 @@ export const createContactAdmin = ({
       await deleteContact(contact.id);
       contacts = contacts.filter(entry => entry.id !== contact.id);
       render();
+      dirtyForms.markClean(form());
       editModal.hide();
       showToast(`${contactDisplayName(contact)} gelöscht.`);
     } catch (error) {
@@ -514,7 +516,11 @@ export const createContactAdmin = ({
   };
 
   const init = () => {
-    editModal ||= new Modal(document.getElementById("contactEditModal"));
+    if (!editModal) {
+      editModal = new Modal(document.getElementById("contactEditModal"));
+      dirtyForms.register(form());
+      dirtyForms.guardModal(document.getElementById("contactEditModal"), () => editModal.hide());
+    }
     document.getElementById("addContactBtn")?.addEventListener("click", () => openEdit(null));
     document.getElementById("contactsExportBtn")?.addEventListener("click", exportVisible);
     document.getElementById("contactsSearch")?.addEventListener("input", event => {

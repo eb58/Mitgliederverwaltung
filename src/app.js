@@ -56,6 +56,7 @@ import { createEventAdmin } from "./event-admin.js";
 import { eventList } from "./event-config.js";
 import { createEventMemberMatchDialog } from "./event-member-match.js";
 import { createConfirmDialog } from "./confirm-dialog.js";
+import { createDirtyForms } from "./dirty-forms.js";
 import { createContactAdmin } from "./contact-admin.js";
 import { contactDisplayName } from "./contact-domain.js";
 
@@ -103,9 +104,14 @@ const {
   onSessionExpired: () => auth.handleSessionExpired()
 });
 
+const confirmDialog = createConfirmDialog();
+// Ungespeicherte Eingaben in Masken und Dialogen: Verlassen nur nach Rueckfrage
+const dirtyForms = createDirtyForms({ confirm: options => confirmDialog.ask(options) });
+
 const userAdmin = createUserAdmin({
   createUser: createUserViaApi,
   deactivateUser: deactivateUserViaApi,
+  dirtyForms,
   loadUsers: loadUsersFromApi,
   updateUser: updateUserViaApi
 });
@@ -113,6 +119,7 @@ const userAdmin = createUserAdmin({
 const referenceAdmin = createReferenceAdmin({
   createItem: createReferenceItemViaApi,
   deleteItem: deleteReferenceItemViaApi,
+  dirtyForms,
   loadAll: loadReferenceDataFromApi,
   loadItems: loadReferenceItemsFromApi,
   onReferenceDataChanged: () => {
@@ -123,7 +130,6 @@ const referenceAdmin = createReferenceAdmin({
 });
 
 const eventMemberMatchDialog = createEventMemberMatchDialog();
-const confirmDialog = createConfirmDialog();
 
 const eventAdmins = eventList.map(event => createEventAdmin({
   confirmAction: options => confirmDialog.ask(options),
@@ -131,6 +137,7 @@ const eventAdmins = eventList.map(event => createEventAdmin({
   createGrid: (gridKey, containerId, columnDefs, overrides) => createGrid(gridKey, containerId, columnDefs, overrides),
   createParticipant: participant => createEventParticipantViaApi(event.key, participant),
   deleteParticipant: id => deleteEventParticipantViaApi(event.key, id),
+  dirtyForms,
   event,
   getMembers: () => state.members,
   loadParticipants: () => loadEventParticipantsFromApi(event.key),
@@ -149,6 +156,7 @@ const contactAdmin = createContactAdmin({
   createContact: createExternalContactViaApi,
   deleteCategory: deleteExternalContactCategoryViaApi,
   deleteContact: deleteExternalContactViaApi,
+  dirtyForms,
   isAdmin: () => state.currentUser?.role === "admin",
   loadCategories: loadExternalContactCategoriesFromApi,
   loadContacts: loadExternalContactsFromApi,
@@ -180,6 +188,7 @@ const {
 const memberForm = createMemberForm({
   checkAddress: member => checkMemberAddress(member),
   createMember: createMemberViaApi,
+  dirtyForms,
   invalidateMemberPhotoCache,
   loadMemberChangeHistory,
   refreshAllViews: () => refreshAllViews(),
@@ -291,7 +300,7 @@ const setAppShellVisible = visible => {
 
 const wireUi = () => {
   document.getElementById("addMemberBtn").addEventListener("click", () => memberForm.open(null));
-  document.getElementById("logoutBtn").addEventListener("click", auth.logout);
+  document.getElementById("logoutBtn").addEventListener("click", () => dirtyForms.confirmLeave(null, auth.logout));
   document.getElementById("changePasswordBtn").addEventListener("click", auth.openPasswordChange);
   document.getElementById("metricTotalBtn").addEventListener("click", () => showOverviewWithFilter(null));
   document.getElementById("metricGuestCountBtn").addEventListener("click", showGuestOverview);
@@ -318,6 +327,12 @@ const wireUi = () => {
   wireSidebarGroups();
 
   document.querySelectorAll('#mainTabs button[data-bs-toggle="tab"]').forEach(tabButton => {
+    // Wechsel in einen anderen Hauptpunkt erst, wenn offene Eingaben gespeichert oder verworfen sind
+    tabButton.addEventListener("show.bs.tab", event => {
+      if (!dirtyForms.hasDirty()) return;
+      event.preventDefault();
+      dirtyForms.confirmLeave(null, () => Tab.getOrCreateInstance(tabButton).show());
+    });
     tabButton.addEventListener("shown.bs.tab", event => {
       localStorage.setItem(LAST_VIEW_STORAGE_KEY, event.target.id);
       updateGlobalSearchVisibility(event.target.dataset.bsTarget);
@@ -371,6 +386,11 @@ const wireUi = () => {
   });
   window.addEventListener("resize", () => setMobileMenuOpen(false));
   setMobileMenuOpen(false);
+  window.addEventListener("beforeunload", event => {
+    if (!dirtyForms.hasDirty()) return;
+    event.preventDefault();
+    event.returnValue = ""; // manche Browser zeigen den Verlassen-Dialog nur mit gesetztem returnValue
+  });
 
 };
 
