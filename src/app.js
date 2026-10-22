@@ -38,7 +38,7 @@ import {
   dateFormatter,
   formatInterestGroups,
   formatMemberName,
-  getMemberEmails,
+  buildDistributionList,
   getMemberFunctionIds,
   interestGroupFormatter,
   isActiveMember,
@@ -327,7 +327,8 @@ const wireUi = () => {
   document.getElementById("downloadMembersBtn").addEventListener("click", downloadMembers);
   document.getElementById("downloadOpenPaymentsBtn").addEventListener("click", downloadOpenClubPayments);
   document.getElementById("downloadRoundBirthdayBtn").addEventListener("click", downloadRoundBirthdayList);
-  document.getElementById("functionEmailCopyBtn").addEventListener("click", copyFunctionEmails);
+  document.getElementById("functionEmailCopyBtn").addEventListener("click", () => copyDistributionText("functionEmailList", "E-Mail-Adressen"));
+  document.getElementById("functionNameCopyBtn").addEventListener("click", () => copyDistributionText("functionNameList", "Namen"));
   document.getElementById("refreshRecentChangesBtn").addEventListener("click", () => refreshRecentChanges({ force: true }));
   document.getElementById("globalSearchInput").addEventListener("input", event => applyQuickFilter(event.target.value.trim()));
   document.getElementById("clearAllFiltersBtn").addEventListener("click", clearAllFilters);
@@ -1033,7 +1034,6 @@ const refreshAllViews = () => {
 };
 
 // Funktionen, deren Karte einen Knopf fuer die E-Mail-Liste bekommt
-const EMAIL_LIST_FUNCTIONS = ["vorstand", "gruppenleiter"];
 
 const renderFunctionOverview = members => {
   const grid = document.getElementById("functionOverviewGrid");
@@ -1082,11 +1082,12 @@ const renderFunctionOverview = members => {
     count.setAttribute("aria-label", `${entry.members.length} Mitglieder`);
     const actions = document.createElement("span");
     actions.className = "function-card__actions";
-    if (EMAIL_LIST_FUNCTIONS.includes(normalizeGroupText(entry.label).trim())) {
+    // Jede Funktion mit Mitgliedern hat ihren Verteiler: E-Mail-Adressen und Namen
+    if (entry.members.length) {
       const mailButton = document.createElement("button");
       mailButton.type = "button";
       mailButton.className = "edit-icon-btn function-card__email";
-      mailButton.title = `E-Mail-Adressen: ${entry.label}`;
+      mailButton.title = `Verteiler: ${entry.label}`;
       mailButton.setAttribute("aria-label", mailButton.title);
       mailButton.innerHTML = '<svg class="edit-icon-btn__icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>';
       mailButton.addEventListener("click", () => showFunctionEmails(entry.label, entry.members));
@@ -1130,15 +1131,18 @@ const renderFunctionOverview = members => {
   });
 };
 
-// Adressen mit "; " getrennt, damit sie sich direkt in Outlook & Co. einfuegen lassen.
-// Auch fuer die Kategorien der Adressverwaltung - dort mit eigenem Anzeigenamen.
+// Verteiler: Adressen mit "; " getrennt, damit sie sich direkt in Outlook & Co. einfuegen lassen,
+// dazu alle Namen mit Komma. Auch fuer die Kategorien der Adressverwaltung - dort mit eigenem Anzeigenamen.
 const showFunctionEmails = (label, members, formatName = formatMemberName) => {
-  const { emails, withoutEmail } = getMemberEmails(members);
-  document.getElementById("functionEmailModalLabel").textContent = `E-Mail-Adressen: ${label}`;
+  const { emails, names, withoutEmail } = buildDistributionList(members, formatName);
+  document.getElementById("functionEmailModalLabel").textContent = `Verteiler: ${label}`;
   document.getElementById("functionEmailSummary").textContent = emails.length
-    ? `${emails.length} ${emails.length === 1 ? "Adresse" : "Adressen"}:`
+    ? `${emails.length} ${emails.length === 1 ? "E-Mail-Adresse" : "E-Mail-Adressen"}`
     : "Es ist keine E-Mail-Adresse hinterlegt.";
   document.getElementById("functionEmailList").value = emails.join("; ");
+  document.getElementById("functionNameSummary").textContent = `${names.length} ${names.length === 1 ? "Name" : "Namen"}`;
+  document.getElementById("functionNameList").value = names.join(", ");
+  document.getElementById("functionNameCopyBtn").disabled = !names.length;
   const missing = document.getElementById("functionEmailMissing");
   missing.hidden = !withoutEmail.length;
   missing.textContent = `Ohne E-Mail-Adresse: ${withoutEmail.map(formatName).join(", ")}`;
@@ -1149,14 +1153,14 @@ const showFunctionEmails = (label, members, formatName = formatMemberName) => {
   Modal.getOrCreateInstance(document.getElementById("functionEmailModal")).show();
 };
 
-const copyFunctionEmails = async () => {
-  const list = document.getElementById("functionEmailList");
+const copyDistributionText = async (listId, what) => {
+  const list = document.getElementById(listId);
   try {
     await navigator.clipboard.writeText(list.value);
-    showToast("E-Mail-Adressen in die Zwischenablage kopiert.", { duration: 3000 });
+    showToast(`${what} in die Zwischenablage kopiert.`, { duration: 3000 });
   } catch {
     list.select();
-    showToast("Kopieren nicht möglich - die Adressen sind markiert und lassen sich mit Strg+C kopieren.");
+    showToast(`Kopieren nicht möglich - die ${what} sind markiert und lassen sich mit Strg+C kopieren.`);
   }
 };
 

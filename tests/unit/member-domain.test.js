@@ -32,6 +32,7 @@ import {
   suggestMergeTarget,
   getExitsPerYear,
   getMemberEmails,
+  buildDistributionList,
   getMemberFunctionIds,
   getMemberInterestGroupText,
   getNewestMembers,
@@ -275,6 +276,23 @@ describe("Gruppen und Funktionen", () => {
     expect(formatInterestGroups(undefined)).toBe("");
     expect(formatFunctions([1, 2])).toBe("Vorstand, Kassenwart");
     expect(formatFunctions(null)).toBe("");
+  });
+
+  it("baut den Verteiler einer Liste: Adressen und alle Namen nach Namen sortiert", () => {
+    const result = buildDistributionList([
+      { vorname: "Uwe", name: "Zander", email: "uwe@example.org" },
+      { vorname: "Olga", name: "Ohne", email: "" },
+      { vorname: "Anna", name: "Berg", email: "anna@example.org" }
+    ]);
+    expect(result.emails).toEqual(["anna@example.org", "uwe@example.org"]);
+    expect(result.names).toEqual(["Anna Berg", "Olga Ohne", "Uwe Zander"]);
+    expect(result.withoutEmail.map(member => member.vorname)).toEqual(["Olga"]);
+  });
+
+  it("nimmt fuer den Verteiler einen eigenen Anzeigenamen", () => {
+    const result = buildDistributionList([{ firma: "Blaskapelle", name: "", email: "" }], person => person.firma);
+    expect(result.names).toEqual(["Blaskapelle"]);
+    expect(buildDistributionList([]).names).toEqual([]);
   });
 
   it("sammelt E-Mail-Adressen nach Namen sortiert ohne Doppelte", () => {

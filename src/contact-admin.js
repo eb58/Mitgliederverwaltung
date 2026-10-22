@@ -213,7 +213,7 @@ export const createContactAdmin = ({
     title.append(element("span", "contacts__chip-dot"), document.createTextNode(group.label));
     heading.append(title, element("span", "contacts__group-count", String(group.contacts.length)));
     if (group.contacts.some(contact => contact.email)) {
-      const mail = actionButton(`E-Mail-Adressen: ${group.label}`, "mail", () => showEmails(group.label, group.contacts), "contacts__group-mail");
+      const mail = actionButton(`Verteiler: ${group.label}`, "mail", () => showEmails(group.label, group.contacts), "contacts__group-mail");
       heading.append(mail);
     }
     const cards = element("div", "contacts__cards");

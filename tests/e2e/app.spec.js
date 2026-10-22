@@ -835,7 +835,7 @@ test("Ehemalige haben in der Maske keinen Zahlungen-Reiter", async ({ page }) =>
   await expect(page.locator("#member-form-zahlungen-tab")).toBeHidden();
 });
 
-test("Vorstand und Gruppenleiter zeigen ihre E-Mail-Adressen", async ({ page }) => {
+test("Jede Funktion zeigt ihren Verteiler mit E-Mail-Adressen und Namen", async ({ page }) => {
   members[0].email = "anna@example.org";
   try {
     await openAuthenticatedApp(page);
@@ -843,20 +843,33 @@ test("Vorstand und Gruppenleiter zeigen ihre E-Mail-Adressen", async ({ page }) 
     const card = label => page.locator(".function-card").filter({ has: page.locator(".function-card__title", { hasText: new RegExp(`^${label}$`) }) });
 
     await card("Vorstand").locator(".function-card__email").click();
-    await expect(page.locator("#functionEmailModalLabel")).toHaveText("E-Mail-Adressen: Vorstand");
+    await expect(page.locator("#functionEmailModalLabel")).toHaveText("Verteiler: Vorstand");
     await expect(page.locator("#functionEmailList")).toHaveValue("anna@example.org");
+    await expect(page.locator("#functionNameSummary")).toHaveText("1 Name");
+    await expect(page.locator("#functionNameList")).toHaveValue("Anna Müller");
     await expect(page.locator("#functionEmailMailto")).toHaveAttribute("href", "mailto:anna%40example.org");
     await expect(page.locator("#functionEmailMissing")).toBeHidden();
     await page.locator("#functionEmailModal .btn-close").click();
     await expect(page.locator("#functionEmailModal")).toBeHidden();
 
-    await card("Gruppenleiter").locator(".function-card__email").click();
-    await expect(page.locator("#functionEmailModalLabel")).toHaveText("E-Mail-Adressen: Gruppenleiter");
-    await expect(page.locator("#functionEmailList")).toHaveValue("");
-    await expect(page.locator("#functionEmailCopyBtn")).toBeDisabled();
+    // Ohne Mitglieder gibt es nichts zu verteilen
+    await expect(card("Gruppenleiter").locator(".function-card__email")).toHaveCount(0);
   } finally {
     delete members[0].email;
   }
+});
+
+test("Verteiler nennt auch Mitglieder ohne E-Mail-Adresse", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#function-overview-tab").click();
+  await page.locator(".function-card", { hasText: "Vorstand" }).locator(".function-card__email").click();
+
+  await expect(page.locator("#functionEmailSummary")).toHaveText("Es ist keine E-Mail-Adresse hinterlegt.");
+  await expect(page.locator("#functionEmailList")).toHaveValue("");
+  await expect(page.locator("#functionEmailCopyBtn")).toBeDisabled();
+  await expect(page.locator("#functionEmailMissing")).toHaveText("Ohne E-Mail-Adresse: Anna Müller");
+  await expect(page.locator("#functionNameList")).toHaveValue("Anna Müller");
+  await expect(page.locator("#functionNameCopyBtn")).toBeEnabled();
 });
 
 test("Auffällige Daten listen Warnungen, filtern nach Stufe und öffnen das Mitglied", async ({ page }) => {
@@ -1481,7 +1494,8 @@ test("Adressen zeigen Kontakte je Kategorie und lassen sich suchen, anlegen, mar
   await page.locator("#contactsSearch").fill("");
 
   await page.locator(".contacts__group-mail").click();
-  await expect(page.locator("#functionEmailModalLabel")).toHaveText("E-Mail-Adressen: Musiker");
+  await expect(page.locator("#functionEmailModalLabel")).toHaveText("Verteiler: Musiker");
+  await expect(page.locator("#functionNameList")).toHaveValue("Franz Spielmann");
   await expect(page.locator("#functionEmailList")).toHaveValue("franz@example.org");
   await page.locator("#functionEmailModal .btn-close").click();
   await expect(page.locator("#functionEmailModal")).toBeHidden();

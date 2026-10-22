@@ -130,6 +130,14 @@ export const getMemberEmails = members => {
   });
   return { emails: [...emails.values()], withoutEmail: sorted.filter(member => !String(member.email || "").trim()) };
 };
+// Verteiler einer Liste: Adressen mit "; " (fuer Outlook & Co.), dazu alle Namen mit Komma - beides nach Namen sortiert
+export const buildDistributionList = (people, formatName = formatMemberName) => {
+  const { emails, withoutEmail } = getMemberEmails(people);
+  const names = [...people]
+    .sort((a, b) => germanCollator.compare(a.name || "", b.name || "") || germanCollator.compare(a.vorname || "", b.vorname || ""))
+    .map(formatName);
+  return { emails, names, withoutEmail };
+};
 export const isComputerGroupMember = member => {
   const text = normalizeGroupText(getMemberInterestGroupText(member));
   return computerGroupPatterns.some(pattern => text.includes(pattern));

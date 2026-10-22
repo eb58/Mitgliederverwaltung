@@ -591,17 +591,24 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h2 class="modal-title h5" id="functionEmailModalLabel">E-Mail-Adressen</h2>
+          <h2 class="modal-title h5" id="functionEmailModalLabel">Verteiler</h2>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schlie&szlig;en"></button>
         </div>
         <div class="modal-body">
-          <p id="functionEmailSummary" class="mb-2"></p>
-          <textarea id="functionEmailList" class="form-control" rows="6" readonly aria-labelledby="functionEmailModalLabel"></textarea>
+          <div class="distribution-list__head">
+            <label id="functionEmailSummary" class="form-label mb-0" for="functionEmailList"></label>
+            <button id="functionEmailCopyBtn" class="btn btn-sm btn-outline-secondary" type="button">Adressen kopieren</button>
+          </div>
+          <textarea id="functionEmailList" class="form-control" rows="4" readonly></textarea>
           <p id="functionEmailMissing" class="text-muted small mt-2 mb-0" hidden></p>
+          <div class="distribution-list__head mt-3">
+            <label id="functionNameSummary" class="form-label mb-0" for="functionNameList"></label>
+            <button id="functionNameCopyBtn" class="btn btn-sm btn-outline-secondary" type="button">Namen kopieren</button>
+          </div>
+          <textarea id="functionNameList" class="form-control" rows="3" readonly></textarea>
         </div>
         <div class="modal-footer">
           <a id="functionEmailMailto" class="btn btn-outline-primary" href="#">E-Mail schreiben</a>
-          <button id="functionEmailCopyBtn" class="btn btn-primary" type="button">Kopieren</button>
         </div>
       </div>
     </div>

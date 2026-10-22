@@ -3495,3 +3495,12 @@ body {
     flex-wrap: wrap;
   }
 }
+
+/* Verteiler-Dialog: Ueberschrift und Kopieren-Knopf je Liste in einer Zeile */
+.distribution-list__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
