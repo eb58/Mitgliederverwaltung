@@ -1,4 +1,4 @@
-import { Modal } from "bootstrap";
+import { Modal, Tab } from "bootstrap";
 import { formatIsoDate, normalizeGroupText, retryAsync } from "./member-utils.js";
 import { showToast } from "./ui.js";
 import {
@@ -447,6 +447,7 @@ export const createContactAdmin = ({
     if (!target || !editModal) return;
     editingId = contact?.id ?? null;
     target.reset();
+    Tab.getOrCreateInstance(document.getElementById("contact-general-tab")).show();
     // Ein neuer Kontakt uebernimmt die gerade gefilterte Kategorie - das spart beim Erfassen einer ganzen Gruppe Klicks.
     const values = contact || { kategorie: category && category !== UNCATEGORIZED_LABEL ? category : "" };
     [...target.elements].forEach(field => {
@@ -470,6 +471,7 @@ export const createContactAdmin = ({
       .map(field => [field.name, field.type === "checkbox" ? field.checked : field.value])));
     if (!payload.name && !payload.firma) {
       setEditError("Bitte einen Namen oder eine Firma eintragen.");
+      Tab.getOrCreateInstance(document.getElementById("contact-general-tab")).show();
       target.elements.firma.focus();
       return;
     }
@@ -528,6 +530,11 @@ export const createContactAdmin = ({
       render();
     });
     form()?.addEventListener("submit", handleSubmit);
+    form()?.addEventListener("invalid", event => {
+      const pane = event.target.closest('.tab-pane');
+      const tab = pane && document.querySelector(`[data-bs-target="#${pane.id}"]`);
+      if (tab) Tab.getOrCreateInstance(tab).show();
+    }, true);
     document.getElementById("contactDeleteBtn")?.addEventListener("click", askDelete);
     document.getElementById("contactDeleteConfirmBtn")?.addEventListener("click", handleDelete);
     document.getElementById("contactDeleteCancelBtn")?.addEventListener("click", () => toggleDeleteConfirm(false));

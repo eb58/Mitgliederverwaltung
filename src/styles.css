@@ -3329,7 +3329,8 @@ body {
 }
 
 .contact-form__favorite {
-  margin-top: 0.2rem;
+  margin: 0 1rem 0 auto;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {

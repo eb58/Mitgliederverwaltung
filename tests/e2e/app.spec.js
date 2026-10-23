@@ -1560,6 +1560,7 @@ test("Adressen zeigen Kontakte je Kategorie und lassen sich suchen, anlegen, mar
   await page.locator('#contactEditForm button[type="submit"]').click();
   await expect(page.locator("#contactEditError")).toHaveText("Bitte einen Namen oder eine Firma eintragen.");
   await page.locator("#contactEditFirma").fill("Zupforchester Lübars");
+  await page.locator("#contact-reachability-tab").click();
   await page.locator("#contactEditWebseite").fill("zupfer.example.org");
   const createRequest = page.waitForRequest(request => request.url().endsWith("/api/external-contacts") && request.method() === "POST");
   await page.locator('#contactEditForm button[type="submit"]').click();

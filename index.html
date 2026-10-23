@@ -704,9 +704,20 @@
         <form id="contactEditForm" class="contact-form" autocomplete="off">
           <div class="modal-header">
             <h2 class="modal-title h5" id="contactEditModalLabel">Kontakt bearbeiten</h2>
+            <div class="form-check contact-form__favorite" title="Favoriten stehen in ihrer Kategorie ganz oben">
+              <input id="contactEditFavorit" class="form-check-input" name="favorit" type="checkbox">
+              <label class="form-check-label" for="contactEditFavorit">Favorit</label>
+            </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schlie&szlig;en"></button>
           </div>
           <div class="modal-body">
+            <ul class="nav nav-pills member-form-tabs" role="tablist" aria-label="Kontaktbereiche">
+              <li class="nav-item" role="presentation"><button id="contact-general-tab" class="nav-link active" data-bs-toggle="tab" data-bs-target="#contact-general-pane" type="button" role="tab" aria-controls="contact-general-pane" aria-selected="true">Allgemein</button></li>
+              <li class="nav-item" role="presentation"><button id="contact-reachability-tab" class="nav-link" data-bs-toggle="tab" data-bs-target="#contact-reachability-pane" type="button" role="tab" aria-controls="contact-reachability-pane" aria-selected="false">Erreichbarkeit &amp; Anschrift</button></li>
+              <li class="nav-item" role="presentation"><button id="contact-notes-tab" class="nav-link" data-bs-toggle="tab" data-bs-target="#contact-notes-pane" type="button" role="tab" aria-controls="contact-notes-pane" aria-selected="false">Notizen</button></li>
+            </ul>
+            <div class="tab-content member-form-tab-content">
+            <div id="contact-general-pane" class="tab-pane show active" role="tabpanel" aria-labelledby="contact-general-tab">
             <fieldset class="contact-form__section">
               <legend class="contact-form__legend">Kategorie</legend>
               <input id="contactEditKategorie" name="kategorie" type="hidden">
@@ -732,6 +743,8 @@
                   placeholder="z. B. Sachbearbeitung Seniorenarbeit, Hausverwaltung, Bandleader">
               </div>
             </fieldset>
+            </div>
+            <div id="contact-reachability-pane" class="tab-pane" role="tabpanel" aria-labelledby="contact-reachability-tab">
             <fieldset class="contact-form__section contact-form__grid">
               <legend class="contact-form__legend">Erreichbarkeit</legend>
               <div>
@@ -766,14 +779,14 @@
                 <input id="contactEditOrt" class="form-control" name="ort" type="text" maxlength="120">
               </div>
             </fieldset>
+            </div>
+            <div id="contact-notes-pane" class="tab-pane" role="tabpanel" aria-labelledby="contact-notes-tab">
             <div class="contact-form__section">
               <label class="form-label" for="contactEditBemerkung">Bemerkung</label>
               <textarea id="contactEditBemerkung" class="form-control" name="bemerkung" rows="3"
                 placeholder="z. B. Gage, Erreichbarkeit, Vertragsnummer"></textarea>
             </div>
-            <div class="form-check contact-form__favorite">
-              <input id="contactEditFavorit" class="form-check-input" name="favorit" type="checkbox">
-              <label class="form-check-label" for="contactEditFavorit">Favorit &ndash; steht in seiner Kategorie ganz oben</label>
+            </div>
             </div>
             <div id="contactEditError" class="login-error mt-3" role="alert" hidden></div>
           </div>
