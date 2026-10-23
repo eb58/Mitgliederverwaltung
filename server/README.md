@@ -97,6 +97,8 @@ werden von der Mitglieder-API gemeinsam mit den Stammdaten gelesen und geschrieb
 
 Wenn die Datenbank bereits existiert, muss sie dem Schema in `server/db/schema.mysql.sql` entsprechen. Fehlende Schemaerweiterungen sind vor dem Betrieb manuell einzuspielen, zum Beispiel über phpMyAdmin.
 
+Die automatische ID-Vergabe der vier Stammdatentabellen wird beim ersten Anlegen eines Eintrags ohne ID bei Bedarf selbst eingerichtet (`AUTO_INCREMENT`). Vorhandene IDs und Zuordnungen bleiben erhalten. Dafür benötigt der Datenbankbenutzer `ALTER`; fehlt diese Berechtigung, meldet die API einen verständlichen 503er und die Anpassung muss manuell erfolgen.
+
 Was einer bestehenden Installation noch fehlt, steht im Nachtragsteil am Ende von
 `schema.mysql.sql`. Zuletzt dazugekommen sind die schwaechere Standardrolle
 (`ALTER TABLE app_user ALTER COLUMN role SET DEFAULT 'user'`), die Tabelle `app_login_attempt`

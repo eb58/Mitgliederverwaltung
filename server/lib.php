@@ -685,6 +685,20 @@ function parseReferenceLabel(array $body): string
     return $label;
 }
 
+function ensureReferenceAutoIncrement(string $type): void
+{
+    $definition = referenceDefinition($type);
+    $table = $definition['table'];
+    $column = db()->query("SHOW COLUMNS FROM {$table} WHERE Field = 'id'")->fetch();
+    if ($column && str_contains(strtolower($column['Extra']), 'auto_increment')) return;
+    try {
+        db()->exec("ALTER TABLE {$table} MODIFY id INT NOT NULL AUTO_INCREMENT");
+    } catch (PDOException $error) {
+        error_log((string) $error);
+        throw new ApiError('Die automatische ID-Vergabe konnte nicht eingerichtet werden. Bitte die Datenbankberechtigung ALTER freigeben oder die Stammdatentabellen manuell auf AUTO_INCREMENT umstellen.', 503);
+    }
+}
+
 function handleReferenceDataCollection(array $currentUser, string $type): void
 {
     $definition = referenceDefinition($type);
@@ -699,6 +713,7 @@ function handleReferenceDataCollection(array $currentUser, string $type): void
         $item = readReferenceItemPayload();
         $hasActiveColumn = tableHasColumn($definition['table'], 'active');
         if ($item['id'] === null) {
+            ensureReferenceAutoIncrement($type);
             $statement = db()->prepare($hasActiveColumn
                 ? "INSERT INTO {$definition['table']} ({$definition['column']}, active) VALUES (?, 1)"
                 : "INSERT INTO {$definition['table']} ({$definition['column']}) VALUES (?)"

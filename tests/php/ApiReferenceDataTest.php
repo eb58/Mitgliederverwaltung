@@ -91,6 +91,26 @@ final class ApiReferenceDataTest extends DatabaseTestCase
         ]));
     }
 
+    public function testLegacyTablesAreUpdatedWithoutChangingExistingEntries(): void
+    {
+        foreach (referenceDefinitions() as $type => $definition) {
+            $table = $definition['table'];
+            $before = db()->query("SELECT * FROM {$table} ORDER BY id")->fetchAll();
+            db()->exec("ALTER TABLE {$table} MODIFY id INT NOT NULL");
+            try {
+                $this->request('POST', ['label' => 'Automatisch angelegt']);
+                $response = $this->capture(static fn() => handleReferenceDataCollection(self::ADMIN, $type));
+                $id = $response->payload['item']['id'];
+                $this->assertGreaterThan(max(array_column($before, 'id')), $id);
+                $this->assertSame($before, db()->query("SELECT * FROM {$table} WHERE id <> {$id} ORDER BY id")->fetchAll());
+                ensureReferenceAutoIncrement($type);
+                $this->assertSame($id, $response->payload['item']['id']);
+            } finally {
+                db()->exec("ALTER TABLE {$table} MODIFY id INT NOT NULL AUTO_INCREMENT");
+            }
+        }
+    }
+
     public function testCollectionReactivatesAndRenamesExistingEntry(): void
     {
         db()->exec('UPDATE interessengruppe SET active = 0 WHERE id = 4');
