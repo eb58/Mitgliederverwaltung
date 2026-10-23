@@ -663,12 +663,12 @@ function handleReferenceDataOverview(): void
 
 function parseReferenceItemPayload(array $body): array
 {
-    $id = (int) ($body['id'] ?? 0);
     $label = trim((string) ($body['label'] ?? $body['name'] ?? ''));
-    if ($id <= 0 || $label === '') {
-        throw new ApiError('ID und Bezeichnung sind erforderlich.', 400);
+    if ($label === '') {
+        throw new ApiError('Bezeichnung ist erforderlich.', 400);
     }
-    return ['id' => $id, 'label' => $label];
+    $id = (int) ($body['id'] ?? 0);
+    return ['id' => $id > 0 ? $id : null, 'label' => $label];
 }
 
 function readReferenceItemPayload(): array
@@ -698,15 +698,24 @@ function handleReferenceDataCollection(array $currentUser, string $type): void
         requireAdmin($currentUser);
         $item = readReferenceItemPayload();
         $hasActiveColumn = tableHasColumn($definition['table'], 'active');
-        $statement = db()->prepare($hasActiveColumn
-            ? "INSERT INTO {$definition['table']} (id, {$definition['column']}, active)
-               VALUES (?, ?, 1)
-               ON DUPLICATE KEY UPDATE {$definition['column']} = VALUES({$definition['column']}), active = 1"
-            : "INSERT INTO {$definition['table']} (id, {$definition['column']})
-               VALUES (?, ?)
-               ON DUPLICATE KEY UPDATE {$definition['column']} = VALUES({$definition['column']})"
-        );
-        $statement->execute([$item['id'], $item['label']]);
+        if ($item['id'] === null) {
+            $statement = db()->prepare($hasActiveColumn
+                ? "INSERT INTO {$definition['table']} ({$definition['column']}, active) VALUES (?, 1)"
+                : "INSERT INTO {$definition['table']} ({$definition['column']}) VALUES (?)"
+            );
+            $statement->execute([$item['label']]);
+            $item['id'] = (int) db()->lastInsertId();
+        } else {
+            $statement = db()->prepare($hasActiveColumn
+                ? "INSERT INTO {$definition['table']} (id, {$definition['column']}, active)
+                   VALUES (?, ?, 1)
+                   ON DUPLICATE KEY UPDATE {$definition['column']} = VALUES({$definition['column']}), active = 1"
+                : "INSERT INTO {$definition['table']} (id, {$definition['column']})
+                   VALUES (?, ?)
+                   ON DUPLICATE KEY UPDATE {$definition['column']} = VALUES({$definition['column']})"
+            );
+            $statement->execute([$item['id'], $item['label']]);
+        }
         jsonResponse(['item' => $item + ['active' => true]], 201);
     }
     unhandledMethod();

@@ -147,6 +147,15 @@ const mockMemberApi = async (page, { initialDataGate = null, referenceDataFailur
         ? json(route, { items: currentReferenceData[collection.key].map(item => ({ ...item, label: item[collection.labelKey], active: true })) })
         : json(route, { error: "Unbekannte Stammdatenart" }, 404);
     }
+    if (collectionMatch && request.method() === "POST") {
+      const collection = collections[collectionMatch[1]];
+      if (!collection) return json(route, { error: "Unbekannte Stammdatenart" }, 404);
+      const body = request.postDataJSON();
+      const entries = currentReferenceData[collection.key];
+      const item = { id: Math.max(0, ...entries.map(entry => entry.id)) + 1, [collection.labelKey]: body.label };
+      entries.push(item);
+      return json(route, { item: { id: item.id, label: body.label, active: true } }, 201);
+    }
     const resourceMatch = apiPath.match(/^\/api\/reference-data\/([a-z-]+)\/(\d+)$/);
     if (resourceMatch && request.method() === "PUT") {
       const [, type, idText] = resourceMatch;
@@ -715,13 +724,55 @@ test("Interessengruppen lassen sich umbenennen", async ({ page }) => {
   const labelInput = pane.locator('[data-reference-field="label"]');
   await expect(labelInput).toHaveValue("Excel");
   await labelInput.fill("Excel Fortgeschritten");
-  await pane.getByRole("button", { name: "Speichern" }).click();
+  await pane.getByRole("button", { name: "Änderungen speichern" }).click();
 
   await expect(pane.locator("tbody")).toContainText("Excel Fortgeschritten");
   await modal.getByRole("button", { name: "Schließen" }).click();
   await page.locator("#addMemberBtn").click();
   await page.locator("#member-form-verein-tab").click();
   await expect(page.locator("#field-interessengruppen-chips")).toContainText("Excel Fortgeschritten");
+});
+
+test("Stammdaten werden ohne sichtbare oder manuell vergebene ID angelegt", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#manageReferenceDataBtn").click();
+
+  const pane = page.locator('[data-reference-type="senior-clubs"]');
+  await page.getByRole("tab", { name: "Seniorenclubs" }).click();
+  await expect(pane.getByRole("columnheader", { name: "ID" })).toHaveCount(0);
+  await expect(pane.locator('[data-reference-field="newId"]')).toHaveCount(0);
+  await expect(pane.getByRole("heading", { name: "Neuen Seniorenclub anlegen" })).toBeVisible();
+  await expect(pane.getByRole("button", { name: "Abbrechen" })).toBeVisible();
+
+  await pane.locator('[data-reference-field="label"]').fill("Neuer Seniorenclub");
+  const requestPromise = page.waitForRequest(request => {
+    const url = new URL(request.url());
+    return request.method() === "POST" && url.pathname.endsWith("/api/reference-data/senior-clubs");
+  });
+  await pane.getByRole("button", { name: "Anlegen" }).click();
+
+  expect((await requestPromise).postDataJSON()).toEqual({ label: "Neuer Seniorenclub" });
+  await expect(pane.locator("tbody")).toContainText("Neuer Seniorenclub");
+});
+
+test("Bearbeitung von Stammdaten kann verständlich abgebrochen werden", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#manageReferenceDataBtn").click();
+
+  const modal = page.locator("#referenceDataModal");
+  const pane = page.locator('[data-reference-type="interest-groups"]');
+  await pane.locator("tbody tr", { hasText: "Excel" }).getByRole("button", { name: "Umbenennen" }).click();
+  const cancelButton = pane.getByRole("button", { name: "Abbrechen" });
+  await expect(cancelButton).toBeVisible();
+  await expect(pane.getByRole("heading", { name: "Interessengruppe umbenennen" })).toBeVisible();
+  await expect(pane.getByRole("button", { name: "Änderungen speichern" })).toBeVisible();
+  await cancelButton.click();
+
+  await expect(modal).toBeHidden();
+  await page.locator("#manageReferenceDataBtn").click();
+  await expect(pane.locator('[data-reference-field="label"]')).toHaveValue("");
+  await expect(pane.getByRole("heading", { name: "Neue Interessengruppe anlegen" })).toBeVisible();
+  await expect(pane.getByRole("button", { name: "Anlegen" })).toBeVisible();
 });
 
 test("neues Mitglied wird mit Formulardaten an die API gesendet", async ({ page }) => {

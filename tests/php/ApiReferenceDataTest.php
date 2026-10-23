@@ -76,6 +76,21 @@ final class ApiReferenceDataTest extends DatabaseTestCase
         $this->assertSame(1, $this->countRows('interessengruppe', 'id = 777 AND bezeichnung = ?', ['Bogenschießen']));
     }
 
+    public function testCollectionCreatesNewEntryWithAutomaticId(): void
+    {
+        $this->request('POST', ['label' => 'Bogenschießen ohne ID']);
+
+        $response = $this->capture(static fn() => handleReferenceDataCollection(self::ADMIN, 'interest-groups'));
+
+        $this->assertSame(201, $response->statusCode);
+        $this->assertGreaterThan(0, $response->payload['item']['id']);
+        $this->assertSame('Bogenschießen ohne ID', $response->payload['item']['label']);
+        $this->assertSame(1, $this->countRows('interessengruppe', 'id = ? AND bezeichnung = ?', [
+            $response->payload['item']['id'],
+            'Bogenschießen ohne ID',
+        ]));
+    }
+
     public function testCollectionReactivatesAndRenamesExistingEntry(): void
     {
         db()->exec('UPDATE interessengruppe SET active = 0 WHERE id = 4');
@@ -88,8 +103,8 @@ final class ApiReferenceDataTest extends DatabaseTestCase
 
     public function testCollectionRejectsIncompletePayload(): void
     {
-        $this->request('POST', ['label' => 'Ohne ID']);
-        $this->assertApiError(400, 'ID und Bezeichnung', static fn() => handleReferenceDataCollection(self::ADMIN, 'interest-groups'));
+        $this->request('POST', ['label' => '']);
+        $this->assertApiError(400, 'Bezeichnung ist erforderlich', static fn() => handleReferenceDataCollection(self::ADMIN, 'interest-groups'));
     }
 
     public function testResourceRenamesEntryAndKeepsActiveState(): void

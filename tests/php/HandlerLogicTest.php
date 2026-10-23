@@ -105,11 +105,11 @@ final class HandlerLogicTest extends TestCase
         $this->assertSame(['id' => 4, 'label' => 'Computer'], parseReferenceItemPayload(['id' => '4', 'name' => 'Computer']));
     }
 
-    public function testParseReferenceItemPayloadRequiresIdAndLabel(): void
+    public function testParseReferenceItemPayloadAllowsAutomaticIdAndRequiresLabel(): void
     {
-        $this->assertApiError(400, 'ID und Bezeichnung', static fn() => parseReferenceItemPayload(['id' => 0, 'label' => 'Computer']));
-        $this->assertApiError(400, 'ID und Bezeichnung', static fn() => parseReferenceItemPayload(['id' => 4, 'label' => '  ']));
-        $this->assertApiError(400, 'ID und Bezeichnung', static fn() => parseReferenceItemPayload([]));
+        $this->assertSame(['id' => null, 'label' => 'Computer'], parseReferenceItemPayload(['label' => 'Computer']));
+        $this->assertApiError(400, 'Bezeichnung ist erforderlich', static fn() => parseReferenceItemPayload(['id' => 4, 'label' => '  ']));
+        $this->assertApiError(400, 'Bezeichnung ist erforderlich', static fn() => parseReferenceItemPayload([]));
     }
 
     public function testParseReferenceLabelTrimsAndRequiresValue(): void

@@ -10,10 +10,35 @@ import {
 } from "./member-config.js";
 
 const sections = [
-  { type: "interest-groups", labelName: "Bezeichnung", editAction: "Umbenennen" },
-  { type: "functions", labelName: "Bezeichnung" },
-  { type: "exit-reasons", labelName: "Bezeichnung" },
-  { type: "senior-clubs", labelName: "Name" }
+  {
+    type: "interest-groups",
+    labelName: "Bezeichnung",
+    createTitle: "Neue Interessengruppe anlegen",
+    editTitle: "Interessengruppe umbenennen",
+    helpText: "Diese Bezeichnung erscheint später bei der Auswahl der Interessengruppen eines Mitglieds.",
+    editAction: "Umbenennen"
+  },
+  {
+    type: "functions",
+    labelName: "Bezeichnung",
+    createTitle: "Neue Funktion anlegen",
+    editTitle: "Funktion bearbeiten",
+    helpText: "Diese Bezeichnung erscheint später bei der Auswahl der Funktionen eines Mitglieds."
+  },
+  {
+    type: "exit-reasons",
+    labelName: "Bezeichnung",
+    createTitle: "Neuen Austrittsgrund anlegen",
+    editTitle: "Austrittsgrund bearbeiten",
+    helpText: "Dieser Grund kann später beim Austritt eines Mitglieds ausgewählt werden."
+  },
+  {
+    type: "senior-clubs",
+    labelName: "Name",
+    createTitle: "Neuen Seniorenclub anlegen",
+    editTitle: "Seniorenclub bearbeiten",
+    helpText: "Dieser Name erscheint später bei der Auswahl der Clubzugehörigkeit eines Mitglieds."
+  }
 ];
 
 export const createReferenceAdmin = ({
@@ -28,7 +53,8 @@ export const createReferenceAdmin = ({
   let adminData = {};
   let modal = null;
   const formFor = type => document.querySelector(`[data-reference-type="${type}"] .reference-form`);
-  // Bearbeiten/Neu/(De)aktivieren ersetzen den Inhalt der Maske - offene Eingaben erst nach Rueckfrage
+  const sectionFor = type => sections.find(section => section.type === type);
+  // Bearbeiten/Abbrechen/(De)aktivieren ersetzen den Inhalt der Maske - offene Eingaben erst nach Rueckfrage
   const afterConfirm = (type, proceed) => () => dirtyForms.confirmLeave(formFor(type), proceed);
 
   const applyData = data => {
@@ -81,10 +107,9 @@ export const createReferenceAdmin = ({
     const pane = document.querySelector(`[data-reference-type="${type}"]`);
     if (!pane) return;
     pane.querySelector('[data-reference-field="id"]').value = "";
-    const idInput = pane.querySelector('[data-reference-field="newId"]');
-    idInput.value = "";
-    idInput.disabled = false;
     pane.querySelector('[data-reference-field="label"]').value = "";
+    pane.querySelector('[data-reference-role="form-title"]').textContent = sectionFor(type).createTitle;
+    pane.querySelector('[data-reference-action="submit"]').textContent = "Anlegen";
     document.getElementById("referenceDataError").hidden = true;
     dirtyForms.markClean(formFor(type));
   };
@@ -93,12 +118,14 @@ export const createReferenceAdmin = ({
     const pane = document.querySelector(`[data-reference-type="${type}"]`);
     if (!pane) return;
     pane.querySelector('[data-reference-field="id"]').value = item.id;
-    const idInput = pane.querySelector('[data-reference-field="newId"]');
-    idInput.value = item.id;
-    idInput.disabled = true;
-    pane.querySelector('[data-reference-field="label"]').value = item.label;
+    const labelInput = pane.querySelector('[data-reference-field="label"]');
+    labelInput.value = item.label;
+    pane.querySelector('[data-reference-role="form-title"]').textContent = sectionFor(type).editTitle;
+    pane.querySelector('[data-reference-action="submit"]').textContent = "Änderungen speichern";
     document.getElementById("referenceDataError").hidden = true;
     dirtyForms.markClean(formFor(type));
+    formFor(type).scrollIntoView({ block: "nearest" });
+    labelInput.focus();
   };
 
   const refreshAfterSave = async () => {
@@ -128,8 +155,6 @@ export const createReferenceAdmin = ({
     if (!tbody) return;
     const rows = getItems(type).sort((a, b) => a.id - b.id).map(item => {
       const row = document.createElement("tr");
-      const idCell = document.createElement("td");
-      idCell.textContent = item.id;
       const labelCell = document.createElement("td");
       labelCell.textContent = item.label;
       const statusCell = document.createElement("td");
@@ -147,7 +172,7 @@ export const createReferenceAdmin = ({
       toggleButton.addEventListener("click", afterConfirm(type, () => toggleItem(type, item)));
       actions.append(editButton, toggleButton);
       row.classList.toggle("text-muted", item.active === false);
-      row.append(idCell, labelCell, statusCell, actions);
+      row.append(labelCell, statusCell, actions);
       return row;
     });
     tbody.replaceChildren(...rows);
@@ -161,7 +186,7 @@ export const createReferenceAdmin = ({
     const pane = event.target.closest("[data-reference-type]");
     const id = Number(pane.querySelector('[data-reference-field="id"]').value);
     const item = {
-      id: id || Number(pane.querySelector('[data-reference-field="newId"]').value),
+      ...(id ? { id } : {}),
       label: pane.querySelector('[data-reference-field="label"]').value.trim()
     };
     try {
@@ -183,22 +208,27 @@ export const createReferenceAdmin = ({
       if (!pane || pane.dataset.built === "true") return;
       pane.dataset.built = "true";
       pane.innerHTML = `
-        <form class="reference-form">
-          <input type="hidden" data-reference-field="id">
-          <div><label class="form-label">ID</label><input class="form-control" type="number" min="1" step="1" data-reference-field="newId" required></div>
-          <div><label class="form-label">${section.labelName}</label><input class="form-control" type="text" data-reference-field="label" required></div>
-          <div class="reference-form__actions">
-            <button class="btn btn-outline-secondary" type="button" data-reference-action="new">Neu</button>
-            <button class="btn btn-primary" type="submit">Speichern</button>
-          </div>
-        </form>
-        <div class="table-responsive mt-3">
+        <div class="table-responsive">
           <table class="table table-sm align-middle reference-table">
-            <thead><tr><th>ID</th><th>${section.labelName}</th><th>Status</th><th></th></tr></thead><tbody></tbody>
+            <thead><tr><th>${section.labelName}</th><th>Status</th><th></th></tr></thead><tbody></tbody>
           </table>
-        </div>`;
+        </div>
+        <form class="reference-form" aria-labelledby="reference-${section.type}-form-title">
+          <div class="reference-form__header">
+            <h3 class="h6 mb-1" id="reference-${section.type}-form-title" data-reference-role="form-title">${section.createTitle}</h3>
+            <p class="reference-form__help mb-0">${section.helpText}</p>
+          </div>
+          <input type="hidden" data-reference-field="id">
+          <div class="reference-form__field">
+            <label class="form-label" for="reference-${section.type}-label">${section.labelName}</label>
+            <input class="form-control" id="reference-${section.type}-label" type="text" data-reference-field="label" required>
+          </div>
+          <div class="reference-form__actions">
+            <button class="btn btn-outline-secondary" type="button" data-reference-action="cancel" data-bs-dismiss="modal">Abbrechen</button>
+            <button class="btn btn-primary" type="submit" data-reference-action="submit">Anlegen</button>
+          </div>
+        </form>`;
       pane.querySelector(".reference-form").addEventListener("submit", event => handleSubmit(event, section.type));
-      pane.querySelector('[data-reference-action="new"]').addEventListener("click", afterConfirm(section.type, () => resetForm(section.type)));
       dirtyForms.register(pane.querySelector(".reference-form"));
     });
   };
@@ -219,8 +249,10 @@ export const createReferenceAdmin = ({
 
   const init = () => {
     if (!modal) {
-      modal = new Modal(document.getElementById("referenceDataModal"));
-      dirtyForms.guardModal(document.getElementById("referenceDataModal"), () => modal.hide());
+      const modalElement = document.getElementById("referenceDataModal");
+      modal = new Modal(modalElement);
+      dirtyForms.guardModal(modalElement, () => modal.hide());
+      modalElement.addEventListener("hidden.bs.modal", () => sections.forEach(section => resetForm(section.type)));
     }
     build();
     const button = document.getElementById("manageReferenceDataBtn");
