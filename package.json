@@ -20,7 +20,7 @@
     "hooks:install": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "^1.65.1",
     "vite": "^6.3.5"
   },
   "dependencies": {
