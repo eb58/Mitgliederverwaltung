@@ -631,7 +631,7 @@ test("Mitgliederliste kann aktive Gäste einblenden, suchen und herunterladen", 
   const stream = await (await downloadPromise).createReadStream();
   const chunks = [];
   for await (const chunk of stream) chunks.push(chunk);
-  expect(Buffer.concat(chunks).toString("utf8")).toContain("Bert Gästefreund");
+  expect(Buffer.concat(chunks).toString("utf8")).toContain("Bert Gästefreund [Gast]");
   await toggle.click();
   await expect(rows).toHaveCount(0);
   await page.locator("#globalSearchInput").fill("");
@@ -657,7 +657,8 @@ test("Gruppen-Download enthält Mitglieder und Gäste der gewählten Interesseng
   for await (const chunk of stream) chunks.push(chunk);
   const content = Buffer.concat(chunks).toString("utf8");
   expect(content).toContain("Anna Müller");
-  expect(content).toContain("Bert Gästefreund");
+  expect(content).not.toContain("Anna Müller [Gast]");
+  expect(content).toContain("Bert Gästefreund [Gast]");
   expect(content).toContain("Anzahl Personen: 2");
   expect(content).not.toContain("AndereGruppe");
 });

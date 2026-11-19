@@ -959,7 +959,7 @@ const downloadMembers = () => {
       const address = [member.strasse, [member.plz, member.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
       const note = String(member.bemerkung || "").trim().replace(/\s+/g, " ");
       return [
-        `${index + 1}. ${formatMemberName(member)}${age === null ? "" : ` (${age} Jahre)`}`,
+        `${index + 1}. ${formatMemberName(member)}${isGuestMember(member) ? " [Gast]" : ""}${age === null ? "" : ` (${age} Jahre)`}`,
         `   Geburtstag: ${member.geburtstag ? formatDateDE(member.geburtstag) : "-"}`,
         `   Eintrittsdatum: ${member.eintrittsdatum ? formatDateDE(member.eintrittsdatum) : "-"}`,
         `   Anschrift: ${readableValue(address)}`,
