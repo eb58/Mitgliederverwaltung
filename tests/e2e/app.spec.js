@@ -314,15 +314,15 @@ test("Dunkle Darstellung schaltet Tabellen und Dialoge um und bleibt nach Neulad
   await page.locator("#overview-tab").click();
   const nameFilter = page.locator('#overviewGrid .ag-floating-filter[col-id="name"]').getByRole("textbox");
   await nameFilter.fill("Müller");
-  await expect(page.locator("#overviewGrid .ag-center-cols-container")).toContainText("Müller");
+  await expect(page.locator("#overviewGrid .ag-grid-scrolling-container")).toContainText("Müller");
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(root).toHaveCSS("color-scheme", "dark");
-  await expect(page.locator("#overviewGrid .ag-header")).toHaveCSS("background-color", "rgb(37, 65, 73)");
+  await expect.poll(() => page.locator("#overviewGrid .ag-header-row").first().evaluate(element => getComputedStyle(element, "::after").backgroundColor)).toBe("rgb(37, 65, 73)");
   await expect(nameFilter).toHaveValue("Müller");
   await nameFilter.fill("Kein Treffer");
-  await expect(page.locator("#overviewGrid .ag-center-cols-container")).not.toContainText("Müller");
+  await expect(page.locator("#overviewGrid .ag-grid-scrolling-container")).not.toContainText("Müller");
   await nameFilter.fill("Müller");
   await page.locator('#overviewGrid .ag-floating-filter[col-id="name"]').getByRole("button", { name: "Filtermenü öffnen" }).click();
   await expect(page.locator("#overviewGrid .ag-menu")).toHaveCSS("background-color", "rgb(33, 53, 66)");
@@ -337,7 +337,7 @@ test("Dunkle Darstellung schaltet Tabellen und Dialoge um und bleibt nach Neulad
   await expect(root).toHaveAttribute("data-bs-theme", "dark");
   await toggle.click();
   await expect(root).toHaveAttribute("data-bs-theme", "light");
-  await expect(page.locator("#overviewGrid .ag-header")).toHaveCSS("background-color", "rgb(230, 245, 243)");
+  await expect.poll(() => page.locator("#overviewGrid .ag-header-row").first().evaluate(element => getComputedStyle(element, "::after").backgroundColor)).toBe("rgb(230, 245, 243)");
   await page.reload();
   await expect(root).toHaveAttribute("data-bs-theme", "light");
 });
@@ -465,13 +465,13 @@ test("Jahresdiagramme öffnen die passend gefilterten Mitgliederlisten", async (
 
   await clickYearBar(page, "#entryChart", 2025);
   await expect(page.locator("#overview-tab")).toHaveClass(/active/);
-  await expect(page.locator("#overviewGrid .ag-center-cols-container .ag-row")).toHaveCount(1);
+  await expect(page.locator("#overviewGrid .ag-grid-scrolling-container .ag-row")).toHaveCount(1);
   await expect(page.locator("#overviewGrid")).toContainText("Müller");
 
   await page.locator("#dashboard-tab").click();
   await clickYearBar(page, "#exitChart", 2025);
   await expect(page.locator("#historical-tab")).toHaveClass(/active/);
-  await expect(page.locator("#historicalGrid .ag-center-cols-container .ag-row")).toHaveCount(1);
+  await expect(page.locator("#historicalGrid .ag-grid-scrolling-container .ag-row")).toHaveCount(1);
   await expect(page.locator("#historicalGrid")).toContainText("Schmidt");
 });
 
@@ -556,13 +556,13 @@ test("Spaltenfilter sind sichtbar und lassen sich zurücksetzen", async ({ page 
   await expect(nameFilter).toBeVisible();
   await expect(clearButton).toHaveCount(0);
   await nameFilter.fill("Kein Treffer");
-  await expect(page.locator("#overviewGrid .ag-center-cols-container")).not.toContainText("Müller");
+  await expect(page.locator("#overviewGrid .ag-grid-scrolling-container")).not.toContainText("Müller");
   await expect(clearButton).toBeVisible();
 
   await clearButton.click();
   await expect(clearButton).toHaveCount(0);
   await expect(nameFilter).toHaveValue("");
-  await expect(page.locator("#overviewGrid .ag-center-cols-container")).toContainText("Müller");
+  await expect(page.locator("#overviewGrid .ag-grid-scrolling-container")).toContainText("Müller");
 
   await nameFilter.fill("Müller");
   await nameFloatingFilter.getByRole("button", { name: "Filtermenü öffnen" }).click();
@@ -597,7 +597,7 @@ test("Mitgliederliste übernimmt die gewählten Filter in den Download", async (
   const nameFilter = nameFloatingFilter.getByRole("textbox");
   await nameFilter.fill("Müller");
   await expect(nameFloatingFilter.getByRole("button", { name: "Filter löschen" })).toBeVisible();
-  await expect(page.locator("#overviewGrid .ag-center-cols-container")).toContainText("Müller");
+  await expect(page.locator("#overviewGrid .ag-grid-scrolling-container")).toContainText("Müller");
 
   const downloadPromise = page.waitForEvent("download");
   await page.locator("#downloadMembersBtn").click();
@@ -616,7 +616,7 @@ test("Mitgliederliste übernimmt die gewählten Filter in den Download", async (
 test("Mitgliederliste kann aktive Gäste einblenden, suchen und herunterladen", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#overview-tab").click();
-  const rows = page.locator("#overviewGrid .ag-center-cols-container .ag-row");
+  const rows = page.locator("#overviewGrid .ag-grid-scrolling-container .ag-row");
   const toggle = page.getByRole("button", { name: "Gäste einblenden" });
   await expect(rows).toHaveCount(1);
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
@@ -646,7 +646,7 @@ test("Gruppen-Download enthält Mitglieder und Gäste der gewählten Interesseng
   await page.reload();
   await page.locator("#overview-tab").click();
   await page.locator('#overviewGrid .ag-floating-filter[col-id="interessengruppen"]').getByRole("textbox").fill("Excel");
-  const rows = page.locator("#overviewGrid .ag-center-cols-container .ag-row");
+  const rows = page.locator("#overviewGrid .ag-grid-scrolling-container .ag-row");
   await expect(rows).toHaveCount(1);
   await page.getByRole("button", { name: "Gäste einblenden" }).click();
   await expect(rows).toHaveCount(2);
@@ -1148,7 +1148,7 @@ test("ausgetretene Gäste stehen in der Ehemaligen-Liste", async ({ page }) => {
   await expect(grid).toContainText("Schmidt");
   await expect(grid).toContainText("Ehemalig");
   // Der ausgetretene Gast bleibt als Gast erkennbar.
-  await expect(grid.locator(".ag-center-cols-container .ag-row.guest-row")).toHaveCount(1);
+  await expect(grid.locator(".ag-grid-scrolling-container .ag-row.guest-row")).toHaveCount(1);
 });
 
 test("Eventteilnehmer werden unscharf mit Mitgliedern und Gästen abgeglichen", async ({ page }) => {
@@ -1216,12 +1216,12 @@ test("Warnemünde-Teilnehmer lassen sich anlegen, ändern, absagen und löschen"
 
   // Die Nummer ist eine Platzangabe: nicht sortierbar, die Liste bleibt in Anmeldereihenfolge.
   await grid.locator('[col-id="nr"].ag-header-cell').first().click();
-  await expect(grid.locator('.ag-center-cols-container [row-index="0"] [col-id="name"]')).toHaveText("Müller");
+  await expect(grid.locator('.ag-grid-scrolling-container [row-index="0"] [col-id="name"]')).toHaveText("Müller");
   await expect(grid.locator('[row-id="1"] [col-id="nr"]')).toHaveText("1");
 
   // Nach einer Sortierung zaehlt sie weiterhin von oben nach unten durch.
   await grid.locator('[col-id="name"].ag-header-cell').first().click();
-  await expect(grid.locator('.ag-center-cols-container [row-index="0"] [col-id="name"]')).toHaveText("Gästefreund");
+  await expect(grid.locator('.ag-grid-scrolling-container [row-index="0"] [col-id="name"]')).toHaveText("Gästefreund");
   await expect(grid.locator('[row-id="2"] [col-id="nr"]')).toHaveText("1");
   await expect(grid.locator('[row-id="1"] [col-id="nr"]')).toHaveText("2");
   await grid.locator('[col-id="name"].ag-header-cell').first().click();
