@@ -74,7 +74,7 @@ Fehlen die Tabellen, legt die API sie beim ersten Zugriff selbst an.
 
 Voraussetzungen: PHP 8.0 oder neuer, PDO MySQL und Apache `mod_rewrite`.
 
-1. Das Frontend mit `npm.cmd run build` bauen und anschließend `index.html`, `assets/` sowie die PHP-Laufzeitdateien aus `server/` in den Zielordner `mitgliederverwaltung/php-api/` hochladen. Alternativ kann dafür `server/deploy.ps1` verwendet werden.
+1. Das Frontend mit `npm.cmd run build` bauen und anschließend `index.html`, `assets/` sowie die PHP-Laufzeitdateien aus `server/` in den Zielordner `mitgliederverwaltung/php-api/` hochladen. Alternativ kann dafür `deploy.ps1` verwendet werden.
 2. Den Inhalt von `server/apache-root.htaccess` in die `.htaccess` im Webroot uebernehmen.
 3. `server/config.local.example.php` als `mitgliederverwaltung/php-api/config.local.php` kopieren und DB-Zugangsdaten eintragen.
 4. Die Datei `server/db/schema.mysql.sql` aus dem Repository auf der Webhoster-Datenbank einspielen.

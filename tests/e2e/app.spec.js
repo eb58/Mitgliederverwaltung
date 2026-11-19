@@ -613,6 +613,55 @@ test("Mitgliederliste übernimmt die gewählten Filter in den Download", async (
   expect(content).toContain("1. Anna Müller");
 });
 
+test("Mitgliederliste kann aktive Gäste einblenden, suchen und herunterladen", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  await page.locator("#overview-tab").click();
+  const rows = page.locator("#overviewGrid .ag-center-cols-container .ag-row");
+  const toggle = page.getByRole("button", { name: "Gäste einblenden" });
+  await expect(rows).toHaveCount(1);
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(rows).toHaveCount(2);
+  await page.locator("#globalSearchInput").fill("Bert");
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toContainText("Gästefreund");
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#downloadMembersBtn").click();
+  const stream = await (await downloadPromise).createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  expect(Buffer.concat(chunks).toString("utf8")).toContain("Bert Gästefreund");
+  await toggle.click();
+  await expect(rows).toHaveCount(0);
+  await page.locator("#globalSearchInput").fill("");
+  await expect(rows).toHaveCount(1);
+});
+
+test("Gruppen-Download enthält Mitglieder und Gäste der gewählten Interessengruppe", async ({ page }) => {
+  await openAuthenticatedApp(page);
+  const groupMembers = members.map(member => member.id === 2 ? { ...member, interessengruppen: [16] } : member);
+  groupMembers.push({ ...members[1], id: 6, name: "AndereGruppe", interessengruppen: [4] });
+  await page.route("**/mitgliederverwaltung/php-api/index.php/api/members?*", route => json(route, { members: groupMembers }));
+  await page.reload();
+  await page.locator("#overview-tab").click();
+  await page.locator('#overviewGrid .ag-floating-filter[col-id="interessengruppen"]').getByRole("textbox").fill("Excel");
+  const rows = page.locator("#overviewGrid .ag-center-cols-container .ag-row");
+  await expect(rows).toHaveCount(1);
+  await page.getByRole("button", { name: "Gäste einblenden" }).click();
+  await expect(rows).toHaveCount(2);
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#downloadMembersBtn").click();
+  const stream = await (await downloadPromise).createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  const content = Buffer.concat(chunks).toString("utf8");
+  expect(content).toContain("Anna Müller");
+  expect(content).toContain("Bert Gästefreund");
+  expect(content).toContain("Anzahl Personen: 2");
+  expect(content).not.toContain("AndereGruppe");
+});
+
 test("Vereinsmaske stapelt Ausweis direkt unter Funktion", async ({ page }) => {
   await openAuthenticatedApp(page);
   await page.locator("#addMemberBtn").click();

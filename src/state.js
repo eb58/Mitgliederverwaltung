@@ -5,6 +5,7 @@ export const PAYMENT_TOGGLE_STORAGE_KEYS = { showOnlyPaymentComputerGroups: "pay
 export const state = {
   members: [],
   editingId: null,
+  showOverviewGuests: false,
   showOnlyPaymentComputerGroups: localStorage.getItem(PAYMENT_TOGGLE_STORAGE_KEYS.showOnlyPaymentComputerGroups) === "true",
   showOnlyOpenClubPayments: localStorage.getItem(PAYMENT_TOGGLE_STORAGE_KEYS.showOnlyOpenClubPayments) === "true",
   paymentMetricFilter: null,

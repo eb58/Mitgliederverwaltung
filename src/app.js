@@ -325,6 +325,11 @@ const wireUi = () => {
   document.getElementById("togglePaymentComputerGroupsBtn").addEventListener("click", togglePaymentComputerGroups);
   document.getElementById("togglePaymentClubOpenBtn").addEventListener("click", togglePaymentClubOpen);
   document.getElementById("downloadMembersBtn").addEventListener("click", downloadMembers);
+  document.getElementById("toggleOverviewGuestsBtn").addEventListener("click", () => {
+    state.showOverviewGuests = !state.showOverviewGuests;
+    updateOverviewGuestsToggle();
+    refreshAllViews();
+  });
   document.getElementById("downloadOpenPaymentsBtn").addEventListener("click", downloadOpenClubPayments);
   document.getElementById("downloadRoundBirthdayBtn").addEventListener("click", downloadRoundBirthdayList);
   document.getElementById("functionEmailCopyBtn").addEventListener("click", () => copyDistributionText("functionEmailList", "E-Mail-Adressen"));
@@ -817,6 +822,12 @@ const paidAmountCellRenderer = params => {
   return wrapper;
 };
 
+const updateOverviewGuestsToggle = () => {
+  const button = document.getElementById("toggleOverviewGuestsBtn");
+  button.setAttribute("aria-pressed", String(state.showOverviewGuests));
+  button.classList.toggle("active", state.showOverviewGuests);
+};
+
 const togglePaymentComputerGroups = () => {
   state.paymentMetricFilter = null;
   state.showOnlyPaymentComputerGroups = !state.showOnlyPaymentComputerGroups;
@@ -1011,7 +1022,7 @@ const refreshAllViews = () => {
   const nonGuests = activeMembers.filter(m => !isGuestMember(m));
   const guests = activeMembers.filter(isGuestMember);
 
-  setGridData(gridApis.overview, nonGuests);
+  setGridData(gridApis.overview, state.showOverviewGuests ? activeMembers : nonGuests);
   setGridData(gridApis.payments, filterPaymentMembers(nonGuests));
   setGridData(gridApis.christmas, nonGuests);
   setGridData(gridApis.guests, guests);
@@ -1220,6 +1231,10 @@ const clearAllFilters = () => {
 };
 
 const showMemberGridWithFilter = (gridKey, tabId, filterModel) => {
+  if (gridKey === "overview") {
+    state.showOverviewGuests = false;
+    updateOverviewGuestsToggle();
+  }
   clearGlobalSearch();
   refreshAllViews();
 

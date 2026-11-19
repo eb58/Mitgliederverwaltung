@@ -9,7 +9,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$projectRoot = Split-Path -Parent $PSScriptRoot
+$projectRoot = $PSScriptRoot
+$apiDir = Join-Path $projectRoot "server"
 $buildDir = Join-Path $projectRoot "..\Gratulationsdienst\docker\src\mitgliederverwaltung"
 $deployDir = Join-Path $projectRoot ".deploy\mitgliederverwaltung"
 $apiFiles = @(
@@ -60,7 +61,7 @@ if (!$currentGeneratedAssets.Count) {
 
 New-Item -ItemType Directory -Path "$deployDir\php-api" | Out-Null
 foreach ($file in $apiFiles) {
-    Copy-Item -Path (Join-Path $PSScriptRoot $file) -Destination "$deployDir\php-api" -Force
+    Copy-Item -Path (Join-Path $apiDir $file) -Destination "$deployDir\php-api" -Force
 }
 
 if ($SkipUpload) {

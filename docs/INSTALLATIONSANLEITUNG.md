@@ -149,7 +149,7 @@ changeme!!
 .\server\pull-prod-db.ps1
 ```
 
-Das Skript erzeugt per SSH einen Dump auf dem Server (nur lesend, `mysqldump --single-transaction`), laedt ihn herunter, loescht ihn sofort wieder auf dem Server, sichert den bisherigen lokalen Stand nach `.db-backups/` und spielt dann den Prod-Stand in `gradi-db` ein. Voraussetzung ist derselbe SSH-Zugang wie fuer `server/deploy.ps1`.
+Das Skript erzeugt per SSH einen Dump auf dem Server (nur lesend, `mysqldump --single-transaction`), laedt ihn herunter, loescht ihn sofort wieder auf dem Server, sichert den bisherigen lokalen Stand nach `.db-backups/` und spielt dann den Prod-Stand in `gradi-db` ein. Voraussetzung ist derselbe SSH-Zugang wie fuer `deploy.ps1`.
 
 - `-NoBackup` laesst die lokale Sicherung weg, `-Force` die Rueckfrage.
 - Danach gelten lokal die Benutzer und Passwoerter aus der Produktion; `admin` / `passwd` funktioniert nicht mehr (siehe "Admin-Benutzer").
