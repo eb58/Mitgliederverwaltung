@@ -169,10 +169,10 @@ describe("Zahlungen je Beitragsjahr", () => {
     expect(beitragsjahrOptionen([2031], 2026)).toEqual([2026, 2027, 2031]);
   });
 
-  it("zeigt in der Uebersicht alle Jahre ab dem ersten Beitragsjahr bis heute", () => {
-    expect(angezeigteBeitragsjahre(2026)).toEqual([2026]);
-    expect(angezeigteBeitragsjahre(2027)).toEqual([2026, 2027]);
-    expect(angezeigteBeitragsjahre(2025)).toEqual([2025]);
+  it("zeigt in der Uebersicht alle Jahre ab dem ersten Beitragsjahr bis zum Folgejahr", () => {
+    expect(angezeigteBeitragsjahre(2026)).toEqual([2026, 2027]);
+    expect(angezeigteBeitragsjahre(2027)).toEqual([2026, 2027, 2028]);
+    expect(angezeigteBeitragsjahre(2025)).toEqual([2025, 2026]);
   });
 
   it("liest den Beitrag eines Jahres aus flachen Feldern oder der Jahresliste", () => {

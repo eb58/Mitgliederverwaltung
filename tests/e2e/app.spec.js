@@ -501,6 +501,8 @@ test("neun Dashboard-Kacheln öffnen die passenden Detailansichten", async ({ pa
   const beitragsjahr = new Date().getFullYear();
   await expect(page.locator("#paymentsGrid")).toContainText(`Clubbeitrag ${beitragsjahr}`);
   await expect(page.locator("#paymentsGrid")).toContainText(`Computerbeitrag ${beitragsjahr}`);
+  await expect(page.locator("#paymentsGrid")).toContainText(`Clubbeitrag ${beitragsjahr + 1}`);
+  await expect(page.locator("#paymentsGrid")).toContainText(`Computerbeitrag ${beitragsjahr + 1}`);
   await expect(page.locator("#paymentsGrid")).not.toContainText("Gruppen");
   await expect(page.locator("#paymentsGrid")).toContainText("Müller");
   await openMetric("#metricClubOpenBtn", "#payments-tab");
@@ -1029,6 +1031,7 @@ test("abgelaufene Beitragsjahre sind in der Maske nur zur Ansicht", async ({ pag
   members[0].zahlungen = [{ beitragsjahr: beitragsjahr - 1, gezahlterBetragClub: 25, einzahlungClubAm: "2025-02-01" }];
   try {
     await openAuthenticatedApp(page);
+    await page.route("**/api/members/1", route => json(route, { member: { ...members[0], ...route.request().postDataJSON() } }));
     await page.locator("#overview-tab").click();
     await page.locator('#overviewGrid [row-id="1"] .edit-icon-btn').click();
     await page.locator("#member-form-zahlungen-tab").click();
@@ -1047,6 +1050,7 @@ test("abgelaufene Beitragsjahre sind in der Maske nur zur Ansicht", async ({ pag
     const requestPromise = page.waitForRequest(request => request.method() === "PUT");
     await page.locator('#memberForm button[type="submit"]').click();
     expect((await requestPromise).postDataJSON().zahlungen).toEqual([]);
+    await expect(page.locator("#memberModal")).toBeHidden();
   } finally {
     delete members[0].zahlungen;
   }

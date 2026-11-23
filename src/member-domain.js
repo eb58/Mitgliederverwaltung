@@ -40,9 +40,9 @@ export const zahlungenNachJahr = (member, aktuellesJahr = beitragsjahr) => new M
   ...(member.zahlungen || []).map(zahlung => [Number(zahlung.beitragsjahr), normalizeZahlung(zahlung)]),
   [aktuellesJahr, normalizeZahlung({ ...member, beitragsjahr: aktuellesJahr })]
 ]);
-// Beitragsjahre fuer die Zahlungsuebersicht: ab dem ersten erfassten Jahr bis heute
+// Beitragsjahre fuer die Zahlungsuebersicht: bis zum Folgejahr fuer Vorauszahlungen
 export const angezeigteBeitragsjahre = (aktuellesJahr = beitragsjahr) =>
-  Array.from({ length: Math.max(aktuellesJahr + 1 - ERSTES_BEITRAGSJAHR, 1) }, (_, index) => Math.min(ERSTES_BEITRAGSJAHR, aktuellesJahr) + index);
+  Array.from({ length: aktuellesJahr + 2 - Math.min(ERSTES_BEITRAGSJAHR, aktuellesJahr) }, (_, index) => Math.min(ERSTES_BEITRAGSJAHR, aktuellesJahr) + index);
 // art: "Club" oder "Computer"; ohne Eintrag fuer das Jahr gilt der Beitrag als offen (0)
 export const beitragImJahr = (member, jahr, art, aktuellesJahr = beitragsjahr) =>
   zahlungenNachJahr(member, aktuellesJahr).get(jahr)?.[`gezahlterBetrag${art}`] ?? 0;
